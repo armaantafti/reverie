@@ -1,0 +1,929 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="color-scheme" content="dark" />
+  <title>Reverie – Recommendations</title>
+  <style>
+:root{
+  --bg0:#08111e;
+  --bg1:#0a1323;
+  --bg2:#0c1728;
+  --panel:rgba(13,22,40,.72);
+  --panel-strong:rgba(10,17,31,.86);
+  --line:rgba(155,179,214,.14);
+  --line-strong:rgba(148,163,184,.24);
+  --text:#e8f1ff;
+  --muted:#aabbd4;
+  --faint:#7f92ae;
+  --accent:#7ad7ff;
+  --accent2:#a88cff;
+  --accent3:#5fa8ff;
+  --good:#49d9ae;
+  --shadow:0 26px 70px rgba(3, 8, 20, .45);
+  --shadow-soft:0 18px 44px rgba(3, 8, 20, .28);
+  --r-xl:28px;
+  --r-lg:22px;
+  --r-md:18px;
+  --r-sm:14px;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{
+  margin:0;
+  min-height:100vh;
+  color:var(--text);
+  font-family:Inter,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  background:
+    radial-gradient(circle at 16% 14%, rgba(122,215,255,.16), transparent 24%),
+    radial-gradient(circle at 78% 10%, rgba(168,140,255,.16), transparent 22%),
+    radial-gradient(circle at 50% 92%, rgba(95,168,255,.10), transparent 28%),
+    linear-gradient(180deg, #08111e 0%, #0a1323 35%, #0c1728 100%);
+  overflow-x:hidden;
+}
+body::before,
+body::after{
+  content:"";
+  position:fixed;
+  border-radius:50%;
+  filter:blur(120px);
+  pointer-events:none;
+  z-index:0;
+  opacity:.16;
+}
+body::before{
+  width:34vw;height:34vw;
+  background:#5fa8ff;
+  left:-10vw; top:-10vw;
+}
+body::after{
+  width:30vw;height:30vw;
+  background:#a88cff;
+  right:-10vw; bottom:-12vw;
+}
+a{color:inherit}
+img{display:block;max-width:100%}
+button,input,textarea,select{font:inherit}
+::selection{background:rgba(122,215,255,.28);color:#fff}
+.shell{
+  position:relative;
+  z-index:1;
+  width:min(1180px, calc(100% - 30px));
+  margin:18px auto 34px;
+}
+.topbar{
+  position:sticky; top:14px; z-index:40;
+  border:1px solid rgba(155,179,214,.16);
+  border-radius:999px;
+  background:rgba(7,12,24,.72);
+  box-shadow:var(--shadow-soft);
+  backdrop-filter:blur(22px) saturate(160%);
+  -webkit-backdrop-filter:blur(22px) saturate(160%);
+}
+.topbar-inner{
+  display:flex; align-items:center; justify-content:space-between;
+  gap:16px; padding:12px 16px 12px 14px; flex-wrap:wrap;
+}
+.brand{
+  display:flex; align-items:center; gap:14px; min-width:0;
+}
+.brand-mark{
+  width:50px; height:50px; border-radius:16px;
+  overflow:hidden; flex:0 0 auto;
+  background:rgba(255,255,255,.04);
+  border:1px solid rgba(255,255,255,.08);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.08);
+}
+.brand-mark img{width:100%; height:100%; object-fit:cover}
+.brand-copy{min-width:0}
+.brand-name{
+  margin:0;
+  font-size:1.04rem;
+  letter-spacing:.22em;
+  text-transform:uppercase;
+  font-weight:900;
+  background:linear-gradient(135deg, var(--accent), var(--accent2));
+  -webkit-background-clip:text;
+  background-clip:text;
+  color:transparent;
+}
+.brand-line{
+  margin:3px 0 0;
+  color:var(--muted);
+  font-size:.88rem;
+  letter-spacing:.02em;
+}
+.nav{
+  display:flex; align-items:center; flex-wrap:wrap; gap:8px;
+  padding:4px; border-radius:999px;
+  background:rgba(148,163,184,.05);
+  border:1px solid rgba(148,163,184,.10);
+}
+.nav a{
+  text-decoration:none;
+  color:var(--muted);
+  padding:9px 14px;
+  border-radius:999px;
+  transition:transform 160ms ease, background 160ms ease, color 160ms ease, border-color 160ms ease, box-shadow 160ms ease;
+  font-weight:650;
+  font-size:.89rem;
+}
+.nav a:hover,.nav a:focus-visible{
+  outline:none;
+  color:#fff;
+  background:rgba(148,163,184,.09);
+  transform:translateY(-1px);
+}
+.nav a.active{
+  color:#06111d;
+  background:linear-gradient(135deg, var(--accent), #c0b4ff);
+  box-shadow:0 12px 30px rgba(122,215,255,.18);
+}
+.status{
+  display:inline-flex; align-items:center; gap:8px;
+  padding:9px 12px;
+  border-radius:999px;
+  background:rgba(148,163,184,.05);
+  border:1px solid rgba(148,163,184,.12);
+  color:var(--muted);
+  font-size:.85rem;
+  white-space:nowrap;
+}
+.status-dot{
+  width:8px;height:8px;border-radius:999px;
+  background:linear-gradient(135deg, var(--good), var(--accent));
+  box-shadow:0 0 0 4px rgba(73,217,174,.12);
+}
+.page{padding:20px 0 0;}
+.stack{display:grid;gap:16px;}
+.panel{
+  position:relative;
+  overflow:hidden;
+  border-radius:var(--r-xl);
+  padding:22px;
+  background:linear-gradient(180deg, rgba(15,23,40,.80), rgba(10,16,28,.82));
+  border:1px solid var(--line);
+  box-shadow:var(--shadow);
+  backdrop-filter:blur(18px) saturate(130%);
+  -webkit-backdrop-filter:blur(18px) saturate(130%);
+}
+.panel::after{
+  content:"";
+  position:absolute;
+  inset:auto -40px -40px auto;
+  width:180px;height:180px;
+  background:radial-gradient(circle, rgba(122,215,255,.12), transparent 62%);
+  pointer-events:none;
+}
+.panel-head{
+  display:flex;
+  align-items:flex-end;
+  justify-content:space-between;
+  gap:12px;
+  margin-bottom:16px;
+}
+.section-kicker{
+  display:inline-flex;
+  align-items:center;
+  gap:8px;
+  padding:8px 12px;
+  border-radius:999px;
+  background:rgba(148,163,184,.06);
+  border:1px solid rgba(148,163,184,.12);
+  color:#dce8fb;
+  font-size:.76rem;
+  letter-spacing:.20em;
+  text-transform:uppercase;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.03);
+}
+.section-title{display:none}
+.section-note{display:none}
+textarea,input{
+  width:100%;
+  border:none;
+  outline:none;
+  color:var(--text);
+  background:rgba(6,11,20,.58);
+  border:1px solid rgba(148,163,184,.12);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.02);
+}
+textarea{
+  min-height:140px;
+  resize:vertical;
+  border-radius:22px;
+  padding:18px 18px;
+  font-size:1rem;
+  line-height:1.6;
+}
+textarea::placeholder,input::placeholder{color:#7d8fae}
+.search-grid{
+  display:grid;
+  grid-template-columns:1.55fr .75fr auto;
+  gap:12px;
+}
+input[type="text"],input[type="number"]{
+  height:52px;
+  padding:0 16px;
+  border-radius:16px;
+}
+.actions{
+  display:flex;
+  flex-wrap:wrap;
+  align-items:center;
+  gap:10px;
+  margin-top:14px;
+}
+.btn{
+  border:none;
+  border-radius:999px;
+  padding:11px 16px;
+  cursor:pointer;
+  transition:transform 160ms ease, box-shadow 160ms ease, background 160ms ease, opacity 160ms ease, border-color 160ms ease;
+  font-weight:700;
+  letter-spacing:.01em;
+}
+.btn:hover,.btn:focus-visible{outline:none;transform:translateY(-1px);}
+.btn-primary{
+  color:#05111b;
+  background:linear-gradient(135deg, var(--accent), #c4b3ff);
+  box-shadow:0 14px 28px rgba(122,215,255,.16);
+}
+.btn-secondary{
+  color:var(--text);
+  background:rgba(148,163,184,.06);
+  border:1px solid rgba(148,163,184,.12);
+}
+.btn-ghost{
+  color:var(--muted);
+  background:transparent;
+  border:1px solid rgba(148,163,184,.12);
+}
+.btn:disabled{opacity:.55; cursor:not-allowed; transform:none}
+.inline-toggle{
+  display:inline-flex;
+  align-items:center;
+  gap:10px;
+  user-select:none;
+  color:var(--muted);
+  font-size:.92rem;
+  padding:10px 12px;
+  border-radius:999px;
+  background:rgba(148,163,184,.05);
+  border:1px solid rgba(148,163,184,.10);
+}
+.inline-toggle input{
+  width:18px; height:18px;
+  accent-color:#7ad7ff;
+}
+.status-line{
+  min-height:22px;
+  margin-top:12px;
+  color:var(--muted);
+  font-size:.92rem;
+}
+.result-list{
+  display:grid;
+  gap:10px;
+  margin-top:14px;
+}
+.note-card{
+  display:block;
+  width:100%;
+  text-align:left;
+  border:none;
+  padding:14px 14px 13px;
+  border-radius:20px;
+  cursor:pointer;
+  color:inherit;
+  background:
+    linear-gradient(180deg, rgba(18,26,43,.72), rgba(13,20,35,.78));
+  border:1px solid rgba(148,163,184,.12);
+  box-shadow:0 10px 24px rgba(2,6,23,.20);
+  transition:transform 150ms ease, border-color 150ms ease, background 150ms ease, box-shadow 150ms ease, filter 150ms ease;
+  text-decoration:none;
+}
+.note-card.featured{
+  border-color:rgba(122,215,255,.24);
+  background:linear-gradient(180deg, rgba(20,31,51,.86), rgba(11,18,31,.86));
+  box-shadow:0 16px 34px rgba(2,6,23,.28);
+}
+.note-card:hover,
+.note-card:focus-visible{
+  transform:translateY(-2px);
+  border-color:rgba(122,215,255,.35);
+  box-shadow:0 16px 34px rgba(2,6,23,.34);
+  filter:saturate(1.05);
+  outline:none;
+}
+.note-top{
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:10px;
+}
+.note-title{
+  margin:0;
+  font-size:1rem;
+  font-weight:750;
+  letter-spacing:-.01em;
+}
+.note-summary{
+  margin:8px 0 0;
+  color:var(--muted);
+  font-size:.92rem;
+  line-height:1.55;
+}
+.chips{
+  display:flex;
+  flex-wrap:wrap;
+  gap:8px;
+  margin-top:12px;
+}
+.chip{
+  display:inline-flex;
+  align-items:center;
+  gap:6px;
+  padding:7px 10px;
+  border-radius:999px;
+  font-size:.78rem;
+  color:#dcebff;
+  background:rgba(122,215,255,.10);
+  border:1px solid rgba(122,215,255,.14);
+}
+.chip.soft{
+  color:#cddcff;
+  background:rgba(168,140,255,.10);
+  border-color:rgba(168,140,255,.14);
+}
+.chip.muted{
+  color:#d7e0ef;
+  background:rgba(148,163,184,.08);
+  border-color:rgba(148,163,184,.12);
+}
+.chip.good{
+  color:#daf8ed;
+  background:rgba(73,217,174,.10);
+  border-color:rgba(73,217,174,.14);
+}
+.clickable-chip{
+  border:none;
+  cursor:pointer;
+  font:inherit;
+  transition:transform 140ms ease, filter 140ms ease, background 140ms ease, border-color 140ms ease;
+}
+.clickable-chip:hover,
+.clickable-chip:focus-visible{
+  outline:none;
+  transform:translateY(-1px);
+  filter:brightness(1.08);
+  border-color:rgba(122,215,255,.4);
+}
+.note-grid{
+  display:grid;
+  grid-template-columns:1fr;
+  gap:12px;
+}
+.modal-backdrop{
+  position:fixed;
+  inset:0;
+  display:none;
+  align-items:center;
+  justify-content:center;
+  padding:24px;
+  background:rgba(4,8,16,.72);
+  backdrop-filter:blur(10px);
+  z-index:60;
+}
+.modal{
+  width:min(860px, 100%);
+  max-height:min(86vh, 900px);
+  overflow:auto;
+  border-radius:30px;
+  background:linear-gradient(180deg, rgba(15,23,41,.98), rgba(8,13,24,.98));
+  border:1px solid rgba(155,179,214,.18);
+  box-shadow:0 30px 90px rgba(0,0,0,.55);
+  padding:22px;
+}
+.modal-head{
+  display:flex; align-items:flex-start; justify-content:space-between; gap:12px;
+}
+.modal-title{
+  margin:0;
+  font-size:1.35rem;
+  line-height:1.1;
+  letter-spacing:-.02em;
+}
+.modal-sub{
+  margin:8px 0 0;
+  color:var(--muted);
+  font-size:.92rem;
+}
+.modal-close{
+  border:none;
+  width:40px; height:40px;
+  border-radius:999px;
+  cursor:pointer;
+  background:rgba(148,163,184,.08);
+  color:var(--text);
+  border:1px solid rgba(148,163,184,.14);
+  transition:transform 160ms ease, background 160ms ease;
+}
+.modal-close:hover,.modal-close:focus-visible{
+  outline:none;
+  transform:translateY(-1px);
+  background:rgba(122,215,255,.10);
+}
+.detail-grid{
+  display:grid;
+  gap:12px;
+  margin-top:18px;
+}
+.detail-block{
+  padding:14px 15px;
+  border-radius:20px;
+  background:rgba(148,163,184,.05);
+  border:1px solid rgba(148,163,184,.10);
+}
+.detail-label{
+  display:block;
+  margin-bottom:7px;
+  color:var(--muted);
+  text-transform:uppercase;
+  letter-spacing:.16em;
+  font-size:.7rem;
+}
+.detail-value{
+  white-space:pre-wrap;
+  line-height:1.6;
+  color:var(--text);
+  overflow-wrap:anywhere;
+}
+.footer-note{
+  margin-top:14px;
+  color:var(--faint);
+  font-size:.88rem;
+  text-align:center;
+}
+.hidden{display:none !important}
+.switch-row{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  margin-top:12px;
+}
+.toggle-pill{
+  display:inline-flex;
+  align-items:center;
+  gap:10px;
+  padding:10px 12px;
+  border-radius:999px;
+  background:rgba(148,163,184,.05);
+  border:1px solid rgba(148,163,184,.10);
+  color:var(--muted);
+  font-size:.92rem;
+}
+.toggle-pill input{
+  width:18px;
+  height:18px;
+  accent-color:#7ad7ff;
+}
+.spaced-top{margin-top:12px}
+.small{font-size:.9rem;color:var(--muted)}
+.home-layout{
+  display:grid;
+  grid-template-columns:minmax(0,1.05fr) minmax(320px,.95fr);
+  gap:16px;
+  align-items:start;
+}
+.home-stack{
+  display:grid;
+  gap:16px;
+}
+.tags-panel{
+  margin-top:16px;
+}
+.tag-bubbles{
+  display:flex;
+  flex-wrap:wrap;
+  gap:8px;
+}
+.topic-chip{
+  padding:9px 12px;
+  border-radius:999px;
+  font-size:.78rem;
+}
+.topic-chip::first-letter{text-transform:uppercase;}
+.context-list{
+  display:grid;
+  gap:10px;
+  margin-top:14px;
+}
+.context-item{
+  padding:13px 14px;
+  border-radius:18px;
+  background:rgba(148,163,184,.05);
+  border:1px solid rgba(148,163,184,.10);
+}
+.context-item-title{
+  margin:0;
+  font-size:1rem;
+  font-weight:730;
+}
+.context-item-meta{
+  margin-top:6px;
+  display:flex;
+  flex-wrap:wrap;
+  gap:8px;
+}
+.context-item-summary{
+  margin:8px 0 0;
+  color:var(--muted);
+  line-height:1.55;
+  font-size:.92rem;
+}
+.context-empty{
+  padding:14px;
+  border-radius:18px;
+  color:var(--muted);
+  background:rgba(148,163,184,.04);
+  border:1px dashed rgba(148,163,184,.15);
+}
+@media (max-width: 980px){
+  .home-layout{grid-template-columns:1fr}
+}
+@media (max-width: 840px){
+  .shell{width:min(100% - 18px, 100%)}
+  .topbar{border-radius:28px}
+  .topbar-inner{padding:12px}
+  .search-grid{grid-template-columns:1fr}
+  .brand-name{letter-spacing:.16em}
+  .hero-card,.panel,.modal{border-radius:24px}
+  .hero-title{font-size:2.2rem}
+}
+</style>
+</head>
+<body>
+  <div class="shell">
+    <header class="topbar">
+      <div class="topbar-inner">
+        <div class="brand">
+          <div class="brand-mark"><img src="/static/logo_reverie.png" alt="Reverie" /></div>
+          <div class="brand-copy">
+            <h1 class="brand-name">Reverie</h1>
+            <p class="brand-line">Remember better.</p>
+          </div>
+        </div>
+        <nav class="nav" aria-label="Primary">
+          <a class="" href="/">Home</a>
+          <a class="" href="/tasks">Tasks</a>
+          <a class="active" href="/recommendations">Recommendations</a>
+        </nav>
+        <div class="status"><span class="status-dot"></span> Ready</div>
+      </div>
+    </header>
+    
+  <main class="page">
+    <section class="stack">
+      <article class="panel">
+        <div class="panel-head">
+          <div class="section-kicker">Recommendations</div>
+        </div>
+        <div class="note-grid" id="recsRecentList">
+          <div class="note-card" id="recsRecentEmpty" style="cursor:default;">
+            <h4 class="note-title">No recent recommendations</h4>
+          </div>
+        </div>
+      </article>
+
+      <article class="panel">
+        <div class="panel-head">
+          <div class="section-kicker">Earlier</div>
+        </div>
+        <div class="note-grid" id="recsPastList">
+          <div class="note-card" id="recsPastEmpty" style="cursor:default;">
+            <h4 class="note-title">No earlier recommendations</h4>
+          </div>
+        </div>
+      </article>
+    </section>
+  </main>
+
+  <div class="modal-backdrop" id="recsModal" aria-hidden="true">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="recsDetailTitle">
+      <div class="modal-head">
+        <div>
+          <h3 class="modal-title" id="recsDetailTitle"></h3>
+          <p class="modal-sub" id="recsDetailSub"></p>
+        </div>
+        <button class="modal-close" id="recsCloseBtn" type="button" aria-label="Close">✕</button>
+      </div>
+      <div class="detail-grid">
+        <div class="detail-block">
+          <span class="detail-label">Summary</span>
+          <div class="detail-value" id="recsDetailSummary"></div>
+        </div>
+        <div class="detail-block">
+          <span class="detail-label">Raw note</span>
+          <div class="detail-value" id="recsDetailRaw"></div>
+        </div>
+        <div class="detail-block">
+          <span class="detail-label">Tags</span>
+          <div class="chips" id="recsDetailTags"></div>
+        </div>
+        <div class="detail-block">
+          <span class="detail-label">Person</span>
+          <div class="detail-value" id="recsDetailPerson"></div>
+        </div>
+        <div class="detail-block">
+          <span class="detail-label">Time</span>
+          <div class="detail-value" id="recsDetailTime"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-backdrop" id="recsContextBackdrop" aria-hidden="true">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="recsContextTitle">
+      <div class="modal-head">
+        <div>
+          <h3 class="modal-title" id="recsContextTitle"></h3>
+          <p class="modal-sub" id="recsContextSub"></p>
+        </div>
+        <button class="modal-close" id="recsContextClose" type="button" aria-label="Close">✕</button>
+      </div>
+      <div class="context-list" id="recsContextList"></div>
+    </div>
+  </div>
+
+  </div>
+  <script>
+
+const ALL_TAGS = ["travel","entertainment","food","study","school","fitness","health","friends","family","work","finance","personal","tasks","ideas","goals","communication","documents","events"];
+
+function normaliseTags(tags) {
+  if (!Array.isArray(tags)) return [];
+  return tags.map(t => String(t).trim()).filter(Boolean);
+}
+function formatWhen(value) {
+  if (!value) return '';
+  const d = new Date(value);
+  if (!isNaN(d.getTime())) {
+    return new Intl.DateTimeFormat('en-IN', {
+      day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit'
+    }).format(d);
+  }
+  return String(value);
+}
+function chipClass(index) {
+  return index % 3 === 0 ? 'chip' : (index % 3 === 1 ? 'chip soft' : 'chip muted');
+}
+function makeChip(text, cls, extra = '') {
+  const el = document.createElement('button');
+  el.type = 'button';
+  el.className = `chip clickable-chip ${cls || ''} ${extra || ''}`.trim();
+  el.textContent = text;
+  return el;
+}
+
+
+const recentList = document.getElementById('recsRecentList');
+const recentEmpty = document.getElementById('recsRecentEmpty');
+const pastList = document.getElementById('recsPastList');
+const pastEmpty = document.getElementById('recsPastEmpty');
+const modal = document.getElementById('recsModal');
+const modalClose = document.getElementById('recsCloseBtn');
+const titleEl = document.getElementById('recsDetailTitle');
+const subEl = document.getElementById('recsDetailSub');
+const summaryEl = document.getElementById('recsDetailSummary');
+const rawEl = document.getElementById('recsDetailRaw');
+const tagsEl = document.getElementById('recsDetailTags');
+const personEl = document.getElementById('recsDetailPerson');
+const timeEl = document.getElementById('recsDetailTime');
+
+const contextBackdrop = document.getElementById('recsContextBackdrop');
+const contextClose = document.getElementById('recsContextClose');
+const contextTitle = document.getElementById('recsContextTitle');
+const contextSub = document.getElementById('recsContextSub');
+const contextList = document.getElementById('recsContextList');
+
+function setModalVisible(backdrop, visible) {
+  backdrop.style.display = visible ? 'flex' : 'none';
+  backdrop.setAttribute('aria-hidden', visible ? 'false' : 'true');
+}
+function openDetail(note) {
+  titleEl.textContent = note?.title || '(no title)';
+  const bits = [];
+  if (note?.note_type) bits.push(note.note_type);
+  if (note?.person_name) bits.push(note.person_name);
+  if (note?.due_time) bits.push(formatWhen(note.due_time));
+  subEl.textContent = bits.join(' · ');
+  summaryEl.textContent = note?.summary || '';
+  rawEl.textContent = note?.raw_text || '';
+  personEl.textContent = note?.person_name || '—';
+  timeEl.textContent = note?.due_time ? formatWhen(note.due_time) : '—';
+  tagsEl.innerHTML = '';
+  const tags = normaliseTags(note?.tags);
+  if (!tags.length) {
+    const span = document.createElement('span');
+    span.className = 'chip muted';
+    span.textContent = 'No tags';
+    tagsEl.appendChild(span);
+  } else {
+    tags.forEach((tag, index) => {
+      const btn = makeChip(tag, chipClass(index), 'clickable-chip');
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        openContext('tag', tag, tag);
+      });
+      tagsEl.appendChild(btn);
+    });
+  }
+  setModalVisible(modal, true);
+}
+function closeDetail() { setModalVisible(modal, false); }
+modalClose.addEventListener('click', closeDetail);
+modal.addEventListener('click', (e) => { if (e.target === modal) closeDetail(); });
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') {
+    closeDetail();
+    setModalVisible(contextBackdrop, false);
+  }
+});
+
+function renderContextList(notes) {
+  contextList.innerHTML = '';
+  if (!notes || !notes.length) {
+    const empty = document.createElement('div');
+    empty.className = 'context-empty';
+    empty.textContent = 'Nothing filed here yet.';
+    contextList.appendChild(empty);
+    return;
+  }
+  notes.forEach(note => {
+    const item = document.createElement('div');
+    item.className = 'context-item';
+    const title = document.createElement('h4');
+    title.className = 'context-item-title';
+    title.textContent = note?.title || '(no title)';
+    item.appendChild(title);
+
+    const meta = document.createElement('div');
+    meta.className = 'context-item-meta';
+    if (note?.note_type) {
+      const chip = document.createElement('span');
+      chip.className = 'chip good';
+      chip.textContent = note.note_type;
+      meta.appendChild(chip);
+    }
+    if (note?.person_name) {
+      const chip = document.createElement('button');
+      chip.type = 'button';
+      chip.className = 'chip soft clickable-chip';
+      chip.textContent = note.person_name;
+      chip.addEventListener('click', (e) => {
+        e.stopPropagation();
+        openContext('person', note.person_name, note.person_name);
+      });
+      meta.appendChild(chip);
+    }
+    if (note?.due_time) {
+      const chip = document.createElement('span');
+      chip.className = 'chip muted';
+      chip.textContent = formatWhen(note.due_time);
+      meta.appendChild(chip);
+    }
+    normaliseTags(note?.tags).slice(0, 4).forEach((tag, index) => {
+      const chip = document.createElement('button');
+      chip.type = 'button';
+      chip.className = `chip clickable-chip ${index % 2 ? 'muted' : ''}`.trim();
+      chip.textContent = tag;
+      chip.addEventListener('click', (e) => {
+        e.stopPropagation();
+        openContext('tag', tag, tag);
+      });
+      meta.appendChild(chip);
+    });
+    item.appendChild(meta);
+
+    if (note?.summary) {
+      const summary = document.createElement('p');
+      summary.className = 'context-item-summary';
+      summary.textContent = note.summary;
+      item.appendChild(summary);
+    }
+    contextList.appendChild(item);
+  });
+}
+async function openContext(kind, value, label) {
+  contextTitle.textContent = label || value || 'Context';
+  contextSub.textContent = kind === 'person' ? 'Everything filed under this name' : 'Everything filed under this tag';
+  contextList.innerHTML = '';
+  setModalVisible(contextBackdrop, true);
+  try {
+    const params = new URLSearchParams({ kind, value });
+    const resp = await fetch(`/context?${params.toString()}`);
+    if (!resp.ok) throw new Error('HTTP ' + resp.status);
+    const data = await resp.json();
+    renderContextList(Array.isArray(data?.notes) ? data.notes : []);
+  } catch (err) {
+    console.error(err);
+    contextList.innerHTML = '';
+    const empty = document.createElement('div');
+    empty.className = 'context-empty';
+    empty.textContent = 'Could not load this view.';
+    contextList.appendChild(empty);
+  }
+}
+contextClose.addEventListener('click', () => setModalVisible(contextBackdrop, false));
+contextBackdrop.addEventListener('click', (e) => { if (e.target === contextBackdrop) setModalVisible(contextBackdrop, false); });
+
+function recCard(note) {
+  const btn = document.createElement('button');
+  btn.type = 'button';
+  btn.className = 'note-card';
+  btn.addEventListener('click', () => openDetail(note));
+
+  const top = document.createElement('div');
+  top.className = 'note-top';
+
+  const title = document.createElement('h4');
+  title.className = 'note-title';
+  title.textContent = note?.title || '(no title)';
+  top.appendChild(title);
+  btn.appendChild(top);
+
+  if (note?.summary) {
+    const summary = document.createElement('p');
+    summary.className = 'note-summary';
+    summary.textContent = note.summary;
+    btn.appendChild(summary);
+  }
+
+  const chips = document.createElement('div');
+  chips.className = 'chips';
+  const meta = [];
+  if (note?.person_name) meta.push({ text: note.person_name, cls: 'chip soft', kind: 'person', value: note.person_name });
+  if (note?.due_time) meta.push({ text: formatWhen(note.due_time), cls: 'chip muted' });
+  if (note?.note_type) meta.push({ text: note.note_type, cls: 'chip good' });
+  normaliseTags(note?.tags).slice(0, 4).forEach(tag => meta.push({ text: tag, cls: 'chip', kind: 'tag', value: tag }));
+  meta.slice(0, 6).forEach(item => {
+    const el = item.kind ? document.createElement('button') : document.createElement('span');
+    if (item.kind) {
+      el.type = 'button';
+      el.addEventListener('click', (e) => {
+        e.stopPropagation();
+        openContext(item.kind, item.value, item.text);
+      });
+    }
+    el.className = `${item.cls} ${item.kind ? 'clickable-chip' : ''}`.trim();
+    el.textContent = item.text;
+    chips.appendChild(el);
+  });
+  btn.appendChild(chips);
+  return btn;
+}
+
+async function loadRecs() {
+  try {
+    const resp = await fetch('/notes');
+    if (!resp.ok) return;
+    const notes = await resp.json();
+    const cutoff = new Date();
+    cutoff.setDate(cutoff.getDate() - 7);
+
+    const recs = (Array.isArray(notes) ? notes : [])
+      .filter(n => String(n?.note_type || '').toLowerCase() === 'recommendation')
+      .sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0));
+
+    const recent = [];
+    const past = [];
+    recs.forEach(n => {
+      const created = n?.created_at ? new Date(n.created_at) : null;
+      if (!created || isNaN(created.getTime()) || created >= cutoff) recent.push(n);
+      else past.push(n);
+    });
+
+    recentList.innerHTML = '';
+    pastList.innerHTML = '';
+
+    if (!recent.length) {
+      recentList.appendChild(recentEmpty);
+    } else {
+      recent.slice(0, 8).forEach(note => recentList.appendChild(recCard(note)));
+    }
+
+    if (!past.length) {
+      pastList.appendChild(pastEmpty);
+    } else {
+      past.slice(0, 8).forEach(note => pastList.appendChild(recCard(note)));
+    }
+  } catch (err) {
+    console.error(err);
+  }
+}
+loadRecs();
+
+  </script>
+</body>
+</html>

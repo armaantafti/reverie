@@ -1,0 +1,7 @@
+{
+  "provider": "openai",
+  "base_url": "https://api.openai.com/v1/chat/completions",
+  "model": "gpt-4o-mini",
+  "api_key": "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",
+  "timeout_seconds": 10
+}
