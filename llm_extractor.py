@@ -28,7 +28,7 @@ class LLMConfig:
             provider=raw.get("provider", "openai"),
             base_url=raw["base_url"],
             model=raw["model"],
-            api_key=raw.get("api_key"),
+            api_key=os.getenv("OPENAI_API_KEY"),
             timeout_seconds=int(raw.get("timeout_seconds", 10)),
         )
 
