@@ -1,0 +1,7 @@
+fastapi
+uvicorn
+jinja2
+requests
+python-dotenv
+openai
+python-multipart
