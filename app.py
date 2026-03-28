@@ -31,19 +31,17 @@ async def index(request: Request):
 @app.get("/tasks", response_class=HTMLResponse)
 async def tasks_page(request: Request):
     return templates.TemplateResponse(
-        request,
-        "tasks.html",
-        {"request": request}
-    )
+    "tasks.html",
+    {"request": request}
+)
 
 
 @app.get("/recommendations", response_class=HTMLResponse)
 async def recs_page(request: Request):
     return templates.TemplateResponse(
-        request,
-        "recommendations.html",
-        {"request": request}
-    )
+    "recommendations.html",
+    {"request": request}
+)
 
 class TextNoteIn(BaseModel):
     text: str
