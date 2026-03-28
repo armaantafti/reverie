@@ -23,14 +23,16 @@ templates = Jinja2Templates(directory="templates")
 @app.get("/", response_class=HTMLResponse)
 async def index(request: Request):
     return templates.TemplateResponse(
-        "index.html",
-        {"request": request}
-    )
+    request,
+    "index.html",
+    {"request": request}
+)
 
 
 @app.get("/tasks", response_class=HTMLResponse)
 async def tasks_page(request: Request):
     return templates.TemplateResponse(
+    request,
     "tasks.html",
     {"request": request}
 )
@@ -39,6 +41,7 @@ async def tasks_page(request: Request):
 @app.get("/recommendations", response_class=HTMLResponse)
 async def recs_page(request: Request):
     return templates.TemplateResponse(
+    request,
     "recommendations.html",
     {"request": request}
 )
