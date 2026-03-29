@@ -14,7 +14,7 @@ from llm_search import summarise_search, extract_keywords
 app = FastAPI(title="Reverie API")
 
 # Static files
-app.mount("/static", StaticFiles(directory="."), name="static")
+app.mount("/static", StaticFiles(directory="static"), name="static")
 
 # Templates
 templates = Jinja2Templates(directory="templates")
