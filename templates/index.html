@@ -594,9 +594,8 @@ input[type="text"],input[type="number"]{
           <textarea id="noteText" placeholder="Write a memory, reminder, or idea..."></textarea>
           <div class="actions">
             <button class="btn btn-primary" id="saveBtn" type="button">Save</button>
-            <button class="btn btn-ghost" id="syncCalendarBtn" type="button">Calendar sync</button>
           </div>
-          <div class="status-line" id="status" aria-live="polite"></div>
+          <div class="status-line" id="saveStatus" aria-live="polite"></div>
         </article>
 
         <article class="panel">
@@ -609,6 +608,8 @@ input[type="text"],input[type="number"]{
             <input id="searchRange" type="number" min="0" placeholder="Days" />
             <button class="btn btn-primary" id="searchBtn" type="button">Search</button>
           </div>
+
+          <div class="status-line" id="searchStatus" aria-live="polite"></div>
 
           <div class="switch-row">
             <label class="toggle-pill"><input type="checkbox" id="smartSearchToggle" /> Smart search</label>
@@ -732,7 +733,6 @@ function makeChip(text, cls, extra = '') {
   return el;
 }
 
-
 const forYouListEl = document.getElementById('forYouList');
 const forYouEmptyEl = document.getElementById('forYouEmpty');
 const forYouMoreBtn = document.getElementById('forYouMoreBtn');
@@ -740,12 +740,12 @@ const tagBubblesEl = document.getElementById('tagBubbles');
 
 const noteTextEl = document.getElementById('noteText');
 const saveBtn = document.getElementById('saveBtn');
-const statusEl = document.getElementById('status');
-const syncCalendarBtn = document.getElementById('syncCalendarBtn');
+const saveStatusEl = document.getElementById('saveStatus');
 
 const searchQueryEl = document.getElementById('searchQuery');
 const searchRangeEl = document.getElementById('searchRange');
 const searchBtn = document.getElementById('searchBtn');
+const searchStatusEl = document.getElementById('searchStatus');
 const searchResultsEl = document.getElementById('searchResults');
 const smartSearchToggle = document.getElementById('smartSearchToggle');
 const smartSummaryEl = document.getElementById('smartSummary');
@@ -1068,13 +1068,13 @@ forYouBackdrop.addEventListener('click', (e) => { if (e.target === forYouBackdro
 async function saveNote() {
   const text = noteTextEl.value.trim();
   if (!text) {
-    statusEl.textContent = 'Type something first.';
+    saveStatusEl.textContent = 'Type something first.';
     return;
   }
   const prev = saveBtn.textContent;
   saveBtn.disabled = true;
   saveBtn.textContent = 'Saving…';
-  statusEl.textContent = 'Saving…';
+  saveStatusEl.textContent = 'Saving…';
   try {
     const resp = await fetch('/notes/text', {
       method: 'POST',
@@ -1084,11 +1084,11 @@ async function saveNote() {
     if (!resp.ok) throw new Error('HTTP ' + resp.status);
     await resp.json();
     noteTextEl.value = '';
-    statusEl.textContent = 'Saved.';
+    saveStatusEl.textContent = 'Saved.';
     await Promise.all([loadForYou(), runSearch()]);
   } catch (err) {
     console.error(err);
-    statusEl.textContent = 'Save failed.';
+    saveStatusEl.textContent = 'Save failed.';
   } finally {
     saveBtn.disabled = false;
     saveBtn.textContent = prev;
@@ -1105,14 +1105,14 @@ async function runSearch() {
 
   if (!q && !rangeVal) {
     searchResultsEl.innerHTML = '';
-    statusEl.textContent = '';
+    searchStatusEl.textContent = '';
     return;
   }
 
   const prev = searchBtn.textContent;
   searchBtn.disabled = true;
   searchBtn.textContent = 'Searching…';
-  statusEl.textContent = 'Searching…';
+  searchStatusEl.textContent = 'Searching…';
 
   try {
     if (smartSearchToggle.checked && q) {
@@ -1126,7 +1126,7 @@ async function runSearch() {
       if (!resp.ok) throw new Error('HTTP ' + resp.status);
       const data = await resp.json();
       const notes = Array.isArray(data.notes) ? data.notes : [];
-      statusEl.textContent = notes.length ? '' : 'No matches.';
+      searchStatusEl.textContent = notes.length ? '' : 'No matches.';
       if (data.summary) {
         const summaryCard = document.createElement('div');
         summaryCard.className = 'note-card';
@@ -1152,12 +1152,12 @@ async function runSearch() {
       const resp = await fetch(url);
       if (!resp.ok) throw new Error('HTTP ' + resp.status);
       const notes = await resp.json();
-      statusEl.textContent = Array.isArray(notes) && notes.length ? '' : 'No matches.';
+      searchStatusEl.textContent = Array.isArray(notes) && notes.length ? '' : 'No matches.';
       (Array.isArray(notes) ? notes : []).forEach(note => searchResultsEl.appendChild(renderNoteCard(note)));
     }
   } catch (err) {
     console.error(err);
-    statusEl.textContent = 'Search failed.';
+    searchStatusEl.textContent = 'Search failed.';
   } finally {
     searchBtn.disabled = false;
     searchBtn.textContent = prev;
@@ -1165,25 +1165,6 @@ async function runSearch() {
 }
 searchBtn.addEventListener('click', runSearch);
 searchQueryEl.addEventListener('keydown', (e) => { if (e.key === 'Enter') runSearch(); });
-
-syncCalendarBtn.addEventListener('click', async () => {
-  const prev = syncCalendarBtn.textContent;
-  syncCalendarBtn.disabled = true;
-  syncCalendarBtn.textContent = 'Syncing…';
-  statusEl.textContent = 'Syncing calendar…';
-  try {
-    const resp = await fetch('/sync-calendar', { method: 'POST' });
-    if (!resp.ok) throw new Error('HTTP ' + resp.status);
-    const data = await resp.json();
-    statusEl.textContent = data.status === 'ok' ? 'Calendar synced.' : 'Calendar sync failed.';
-  } catch (err) {
-    console.error(err);
-    statusEl.textContent = 'Calendar sync failed.';
-  } finally {
-    syncCalendarBtn.disabled = false;
-    syncCalendarBtn.textContent = prev;
-  }
-});
 
 function buildTagShelf() {
   tagBubblesEl.innerHTML = '';
