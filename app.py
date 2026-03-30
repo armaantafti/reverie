@@ -6,12 +6,23 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
 
+from supabase_client import supabase
+
 from note_core import process_text_note
-from search_notes import load_notes, filter_notes, filter_by_keywords, rank_for_you, context_notes
 from sync_notes_to_gcal import sync_notes_to_calendar
+
+# OPTIONAL (still using JSON-based logic for now — we’ll migrate later)
+from search_notes import load_notes, filter_notes, filter_by_keywords, rank_for_you, context_notes
 from llm_search import summarise_search, extract_keywords
 
-from supabase_client import supabase
+
+# ✅ CREATE APP FIRST (CRITICAL FIX)
+app = FastAPI(title="Reverie API")
+
+
+# ---------------------------
+# AUTH ROUTES
+# ---------------------------
 
 @app.post("/signup")
 async def signup(data: dict):
@@ -25,6 +36,7 @@ async def signup(data: dict):
 
     return res
 
+
 @app.post("/login")
 async def login(data: dict):
     email = data.get("email")
@@ -37,50 +49,66 @@ async def login(data: dict):
 
     return res
 
-app = FastAPI(title="Reverie API")
 
-# Static files
+# ---------------------------
+# STATIC + TEMPLATES
+# ---------------------------
+
 app.mount("/static", StaticFiles(directory="static"), name="static")
-
-# Templates
 templates = Jinja2Templates(directory="templates")
 
+
+# ---------------------------
+# PAGES
+# ---------------------------
 
 @app.get("/", response_class=HTMLResponse)
 async def index(request: Request):
     return templates.TemplateResponse(
-    request,
-    "index.html",
-    {"request": request}
-)
+        "index.html",
+        {"request": request}
+    )
 
 
 @app.get("/tasks", response_class=HTMLResponse)
 async def tasks_page(request: Request):
     return templates.TemplateResponse(
-    request,
-    "tasks.html",
-    {"request": request}
-)
+        "tasks.html",
+        {"request": request}
+    )
 
 
 @app.get("/recommendations", response_class=HTMLResponse)
 async def recs_page(request: Request):
     return templates.TemplateResponse(
-    request,
-    "recommendations.html",
-    {"request": request}
-)
+        "recommendations.html",
+        {"request": request}
+    )
+
+
+# ---------------------------
+# CREATE NOTE
+# ---------------------------
 
 class TextNoteIn(BaseModel):
     text: str
+    user_id: str  # 🔥 REQUIRED
 
 
 @app.post("/notes/text")
 def create_text_note(payload: TextNoteIn):
-    note = process_text_note(payload.text, platform="web", message_id=None)
+    note = process_text_note(
+        payload.text,
+        platform="web",
+        message_id=None,
+        user_id=payload.user_id  # 🔥 PASS USER
+    )
     return note
 
+
+# ---------------------------
+# CALENDAR
+# ---------------------------
 
 @app.post("/sync-calendar")
 def sync_calendar():
@@ -91,10 +119,15 @@ def sync_calendar():
         return {"status": "error", "detail": str(e)}
 
 
+# ---------------------------
+# TEMP (JSON-BASED ROUTES)
+# ---------------------------
+# ⚠️ We will migrate these to Supabase next
+
 @app.get("/notes")
 def list_notes(
-    query: Optional[str] = Query(None, description="Search text in title/summary/person/tags"),
-    days: Optional[int] = Query(None, description="Limit to last N days"),
+    query: Optional[str] = Query(None),
+    days: Optional[int] = Query(None),
 ):
     notes = load_notes()
     results = filter_notes(notes, query=query, days=days)
@@ -119,8 +152,12 @@ def for_you_all():
 def context_view(kind: str = Query(...), value: str = Query(...)):
     notes = load_notes()
     results = context_notes(notes, kind=kind, value=value)
-    return {"kind": kind, "value": value, "notes": results, "count": len(results)}
+    return {"notes": results, "count": len(results)}
 
+
+# ---------------------------
+# SMART SEARCH
+# ---------------------------
 
 class SmartSearchIn(BaseModel):
     query: str
@@ -133,6 +170,7 @@ def smart_search(payload: SmartSearchIn):
     keywords = extract_keywords(payload.query)
     filtered = filter_by_keywords(notes, keywords=keywords, days=payload.days)
     summary = summarise_search(payload.query, filtered)
+
     return {
         "summary": summary,
         "keywords": keywords,
