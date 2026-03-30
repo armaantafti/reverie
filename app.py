@@ -11,6 +11,32 @@ from search_notes import load_notes, filter_notes, filter_by_keywords, rank_for_
 from sync_notes_to_gcal import sync_notes_to_calendar
 from llm_search import summarise_search, extract_keywords
 
+from supabase_client import supabase
+
+@app.post("/signup")
+async def signup(data: dict):
+    email = data.get("email")
+    password = data.get("password")
+
+    res = supabase.auth.sign_up({
+        "email": email,
+        "password": password
+    })
+
+    return res
+
+@app.post("/login")
+async def login(data: dict):
+    email = data.get("email")
+    password = data.get("password")
+
+    res = supabase.auth.sign_in_with_password({
+        "email": email,
+        "password": password
+    })
+
+    return res
+
 app = FastAPI(title="Reverie API")
 
 # Static files
