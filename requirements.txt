@@ -1,9 +1,0 @@
-fastapi==0.110.0
-starlette==0.36.3
-jinja2==3.1.3
-uvicorn==0.29.0
-requests
-python-dotenv
-openai
-python-multipart
-supabase
