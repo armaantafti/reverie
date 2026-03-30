@@ -1,6 +1,0 @@
-{
-  "provider": "openai",
-  "base_url": "https://api.openai.com/v1/chat/completions",
-  "model": "gpt-4o-mini",
-  "timeout_seconds": 10
-}
