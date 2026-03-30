@@ -5,13 +5,8 @@ from typing import Optional, Dict, Any
 from llm_extractor import extract_with_llm
 from supabase_client import supabase_admin
 
-DEFAULT_USER_ID = "public-beta"
-
-
 def resolve_user_id(user_id: Optional[str]) -> str:
-    value = (user_id or DEFAULT_USER_ID).strip()
-    return value or DEFAULT_USER_ID
-
+    return (user_id or "").strip()
 
 def summarise_text(text: str, max_sentences: int = 3) -> str:
     text = (text or "").strip()
@@ -23,10 +18,8 @@ def summarise_text(text: str, max_sentences: int = 3) -> str:
         return text
     return " ".join(sentences[:max_sentences])
 
-
 def generate_id() -> str:
     return datetime.now().strftime("%Y%m%dT%H%M%S%f")
-
 
 def process_text_note(
     text: str,
@@ -39,6 +32,10 @@ def process_text_note(
     transcript = (text or "").strip()
     if not transcript:
         raise ValueError("text cannot be empty")
+
+    resolved_user_id = resolve_user_id(user_id)
+    if not resolved_user_id:
+        raise ValueError("user_id is required")
 
     fields = extract_with_llm(transcript)
 
@@ -71,7 +68,7 @@ def process_text_note(
 
     note = {
         "id": generate_id(),
-        "user_id": resolve_user_id(user_id),
+        "user_id": resolved_user_id,
         "created_at": datetime.now().isoformat(),
         "person_name": person_name,
         "title": title,
@@ -82,6 +79,10 @@ def process_text_note(
         "entities": entities,
         "due_time": due_time_iso,
         "calendar_event_id": None,
+        "source": {
+            "platform": platform,
+            "message_id": message_id,
+        },
     }
 
     try:
