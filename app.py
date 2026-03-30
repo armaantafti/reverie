@@ -1,12 +1,13 @@
 from typing import Optional, Any
 
 from fastapi import FastAPI, Query, Request, HTTPException
+from fastapi.encoders import jsonable_encoder
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
 
-from supabase_client import supabase
+from supabase_client import supabase_admin, supabase_anon
 from note_core import process_text_note
 from search_notes import filter_notes, filter_by_keywords, rank_for_you, context_notes
 from sync_notes_to_gcal import sync_notes_to_calendar
@@ -28,17 +29,9 @@ def resolve_user_id(user_id: Optional[str]) -> str:
     return value or DEFAULT_USER_ID
 
 
-def serialise_supabase_response(value: Any):
-    if hasattr(value, "model_dump"):
-        return value.model_dump()
-    if hasattr(value, "dict"):
-        return value.dict()
-    return value
-
-
 def get_user_notes(user_id: str):
     result = (
-        supabase.table("notes")
+        supabase_admin.table("notes")
         .select("*")
         .eq("user_id", user_id)
         .order("created_at", desc=True)
@@ -60,11 +53,11 @@ async def signup(data: AuthIn):
     if not email or not password:
         raise HTTPException(status_code=400, detail="email and password are required")
 
-    res = supabase.auth.sign_up({
+    res = supabase_anon.auth.sign_up({
         "email": email,
         "password": password
     })
-    return serialise_supabase_response(res)
+    return jsonable_encoder(res)
 
 
 @app.post("/login")
@@ -75,39 +68,38 @@ async def login(data: AuthIn):
     if not email or not password:
         raise HTTPException(status_code=400, detail="email and password are required")
 
-    res = supabase.auth.sign_in_with_password({
+    res = supabase_anon.auth.sign_in_with_password({
         "email": email,
         "password": password
     })
-    return serialise_supabase_response(res)
+    return jsonable_encoder(res)
 
 
 @app.get("/", response_class=HTMLResponse)
 async def index(request: Request):
     return templates.TemplateResponse(
-        request,
-        "index.html",
-        {"request": request}
-    )
+    request,
+    "index.html",
+    {"request": request}
+)
 
 
 @app.get("/tasks", response_class=HTMLResponse)
 async def tasks_page(request: Request):
     return templates.TemplateResponse(
-        request,
-        "tasks.html",
-        {"request": request}
-    )
+    request,
+    "tasks.html",
+    {"request": request}
+)
 
 
 @app.get("/recommendations", response_class=HTMLResponse)
 async def recs_page(request: Request):
     return templates.TemplateResponse(
-        request,
-        "recommendations.html",
-        {"request": request}
-    )
-
+    request,
+    "recommendations.html",
+    {"request": request}
+)
 
 class TextNoteIn(BaseModel):
     text: str
