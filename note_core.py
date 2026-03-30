@@ -1,11 +1,9 @@
-from __future__ import annotations
-
 import re
 from datetime import datetime
 from typing import Optional, Dict, Any
 
 from llm_extractor import extract_with_llm
-from supabase_client import supabase
+from supabase_client import supabase_admin
 
 DEFAULT_USER_ID = "public-beta"
 
@@ -19,12 +17,10 @@ def summarise_text(text: str, max_sentences: int = 3) -> str:
     text = (text or "").strip()
     if not text:
         return ""
-
     sentences = re.split(r"(?<=[.!?])\s+", text)
     sentences = [s.strip() for s in sentences if s.strip()]
     if not sentences:
         return text
-
     return " ".join(sentences[:max_sentences])
 
 
@@ -86,16 +82,10 @@ def process_text_note(
         "entities": entities,
         "due_time": due_time_iso,
         "calendar_event_id": None,
-        "source": {
-            "platform": platform,
-            "message_id": message_id,
-            "audio_file": None,
-            "whisper_model": None,
-        },
     }
 
     try:
-        supabase.table("notes").insert(note).execute()
+        supabase_admin.table("notes").insert(note).execute()
     except Exception as e:
         raise RuntimeError(f"Failed to save note to Supabase: {e}") from e
 
