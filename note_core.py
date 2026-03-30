@@ -1,5 +1,6 @@
 import re
 from datetime import datetime
+import uuid
 from typing import Optional, Dict, Any
 
 from llm_extractor import extract_with_llm
@@ -19,7 +20,7 @@ def summarise_text(text: str, max_sentences: int = 3) -> str:
     return " ".join(sentences[:max_sentences])
 
 def generate_id() -> str:
-    return datetime.now().strftime("%Y%m%dT%H%M%S%f")
+    return str(uuid.uuid4())
 
 def process_text_note(
     text: str,
