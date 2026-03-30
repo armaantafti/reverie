@@ -1,0 +1,213 @@
+[
+  {
+    "id": "20260324T182422",
+    "created_at": "2026-03-24T18:24:22.200958",
+    "person_name": null,
+    "title": "Schedule AP Stats class",
+    "summary": "A reminder to arrange the AP Stats class for the following evening.",
+    "raw_text": "Set a reminder to schedule AP Stats class for tomorrow evening.",
+    "note_type": "reminder",
+    "tags": [
+      "tasks",
+      "school"
+    ],
+    "entities": [
+      "AP Stats",
+      "class"
+    ],
+    "due_time": "2026-03-25T18:00:00+05:30",
+    "source": {
+      "platform": "web",
+      "message_id": null,
+      "audio_file": null,
+      "whisper_model": null
+    }
+  },
+  {
+    "id": "20260324T190352",
+    "created_at": "2026-03-24T19:03:52.402035",
+    "person_name": null,
+    "title": "Watch Project Hail Mary",
+    "summary": "A suggestion to see the film when it releases in theaters.",
+    "raw_text": "Recommendation to watch project hail mary when it comes out in cinemas",
+    "note_type": "recommendation",
+    "tags": [
+      "entertainment"
+    ],
+    "entities": [
+      "Project Hail Mary",
+      "cinemas"
+    ],
+    "due_time": null,
+    "source": {
+      "platform": "web",
+      "message_id": null,
+      "audio_file": null,
+      "whisper_model": null
+    }
+  },
+  {
+    "id": "20260324T190449",
+    "created_at": "2026-03-24T19:04:49.578101",
+    "person_name": "Zubin kaka",
+    "title": "Get suggestions from Zubin kaka",
+    "summary": "Plan to discuss Reverie with Zubin kaka during the upcoming meeting.",
+    "raw_text": "Get suggestions from Zubin kaka on Reverie when we meet him on this thursday",
+    "note_type": "note",
+    "tags": [
+      "tasks",
+      "communication"
+    ],
+    "entities": [
+      "Reverie"
+    ],
+    "due_time": "2026-03-26T00:00:00+05:30",
+    "source": {
+      "platform": "web",
+      "message_id": null,
+      "audio_file": null,
+      "whisper_model": null
+    }
+  },
+  {
+    "id": "20260324T190514",
+    "created_at": "2026-03-24T19:05:14.259446",
+    "person_name": "Nakshatra",
+    "title": "Discuss Yatra's future",
+    "summary": "A conversation is needed regarding the future plans for Yatra.",
+    "raw_text": "Speak to Nakshatra about the future of Yatra",
+    "note_type": "note",
+    "tags": [
+      "work",
+      "communication"
+    ],
+    "entities": [
+      "Yatra"
+    ],
+    "due_time": null,
+    "source": {
+      "platform": "web",
+      "message_id": null,
+      "audio_file": null,
+      "whisper_model": null
+    }
+  },
+  {
+    "id": "20260327T080919",
+    "created_at": "2026-03-27T08:09:19.223855",
+    "person_name": null,
+    "title": "Prepare for SAT bootcamp",
+    "summary": "Get ready for the SAT teaching bootcamp scheduled for Sunday evening.",
+    "raw_text": "Prepare for SAT Teaching bootcamp before the class at Sunday, 730 pm",
+    "note_type": "reminder",
+    "tags": [
+      "tasks",
+      "study"
+    ],
+    "entities": [
+      "SAT",
+      "bootcamp"
+    ],
+    "due_time": "2026-03-29T19:30:00+05:30",
+    "source": {
+      "platform": "web",
+      "message_id": null,
+      "audio_file": null,
+      "whisper_model": null
+    }
+  },
+  {
+    "id": "20260327T081125",
+    "created_at": "2026-03-27T08:11:25.254306",
+    "person_name": null,
+    "title": "Discuss and register for Hackathon",
+    "summary": "Plan to talk with Nakshatra and Shaurya about the Meta Hackathon and complete the registration.",
+    "raw_text": "Remind me to discuss with Nakshatra and Shaurya and register for Meta Hackathon on Monday morning",
+    "note_type": "reminder",
+    "tags": [
+      "tasks"
+    ],
+    "entities": [
+      "Meta Hackathon"
+    ],
+    "due_time": "2026-03-30T09:00:00+05:30",
+    "source": {
+      "platform": "web",
+      "message_id": null,
+      "audio_file": null,
+      "whisper_model": null
+    }
+  },
+  {
+    "id": "20260327T081253",
+    "created_at": "2026-03-27T08:12:53.363648",
+    "person_name": null,
+    "title": "Complete Calculus BC FLT",
+    "summary": "Finish the Calculus BC FLT assignment promptly on Monday.",
+    "raw_text": "Do Calculus BC FLT as soon as possible on monday",
+    "note_type": "reminder",
+    "tags": [
+      "tasks",
+      "study"
+    ],
+    "entities": [
+      "Calculus BC",
+      "FLT"
+    ],
+    "due_time": "2026-03-30T00:00:00+05:30",
+    "source": {
+      "platform": "web",
+      "message_id": null,
+      "audio_file": null,
+      "whisper_model": null
+    }
+  },
+  {
+    "id": "20260327T081416",
+    "created_at": "2026-03-27T08:14:16.565428",
+    "person_name": null,
+    "title": "Explore MIT OpenCourseWare",
+    "summary": "Consider checking out the courses available on MIT's open courseware platform.",
+    "raw_text": "I have been recommended to look into MIT's open courseware for courses",
+    "note_type": "recommendation",
+    "tags": [
+      "study"
+    ],
+    "entities": [
+      "MIT",
+      "OpenCourseWare",
+      "courses"
+    ],
+    "due_time": null,
+    "source": {
+      "platform": "web",
+      "message_id": null,
+      "audio_file": null,
+      "whisper_model": null
+    }
+  },
+  {
+    "id": "20260327T102527",
+    "created_at": "2026-03-27T10:25:27.027703",
+    "person_name": null,
+    "title": "Finish AP stats syllabus",
+    "summary": "Complete the AP statistics syllabus before the school opens on April 6th.",
+    "raw_text": "Finish AP stats syllabus before school opens on the 6th april",
+    "note_type": "reminder",
+    "tags": [
+      "study",
+      "tasks"
+    ],
+    "entities": [
+      "AP statistics",
+      "school"
+    ],
+    "due_time": "2026-04-06T00:00:00+05:30",
+    "source": {
+      "platform": "web",
+      "message_id": null,
+      "audio_file": null,
+      "whisper_model": null
+    }
+  }
+]
