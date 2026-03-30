@@ -79,10 +79,6 @@ def process_text_note(
         "entities": entities,
         "due_time": due_time_iso,
         "calendar_event_id": None,
-        "source": {
-            "platform": platform,
-            "message_id": message_id,
-        },
     }
 
     try:
