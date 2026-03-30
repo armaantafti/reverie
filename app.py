@@ -7,7 +7,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
 
-from supabase_client import supabase_admin, supabase_anon
+from supabase_client import supabase_admin, supabase_auth
 from note_core import process_text_note
 from search_notes import filter_notes, filter_by_keywords, rank_for_you, context_notes
 from sync_notes_to_gcal import sync_notes_to_calendar
@@ -53,7 +53,7 @@ async def signup(data: AuthIn):
     if not email or not password:
         raise HTTPException(status_code=400, detail="email and password are required")
 
-    res = supabase_anon.auth.sign_up({
+    res = supabase_auth.auth.sign_up({
         "email": email,
         "password": password
     })
@@ -68,7 +68,7 @@ async def login(data: AuthIn):
     if not email or not password:
         raise HTTPException(status_code=400, detail="email and password are required")
 
-    res = supabase_anon.auth.sign_in_with_password({
+    res = supabase_auth.auth.sign_in_with_password({
         "email": email,
         "password": password
     })
