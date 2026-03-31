@@ -11,7 +11,7 @@ from supabase_client import supabase_admin, supabase_auth
 from note_core import process_text_note
 from search_notes import filter_notes, filter_by_keywords, rank_for_you, context_notes
 from sync_notes_to_gcal import sync_notes_to_calendar
-from llm_search import summarise_search, extract_keywords
+from llm_search import summarise_search, extract_search_signals
 
 DEFAULT_USER_ID = "public-beta"
 
@@ -40,6 +40,25 @@ def get_user_notes(user_id: str):
     return result.data or []
 
 
+VALID_NOTE_STATUSES = {"pending", "completed", "skipped"}
+
+
+class NoteStatusIn(BaseModel):
+    note_id: str
+    user_id: Optional[str] = None
+    status: str
+    status_note: Optional[str] = None
+
+
+def _error_detail(exc: Exception) -> str:
+    message = str(exc).strip()
+    if message:
+        return message
+    if getattr(exc, "args", None):
+        return str(exc.args[0])
+    return "Request failed"
+
+
 class AuthIn(BaseModel):
     email: str
     password: str
@@ -53,11 +72,14 @@ async def signup(data: AuthIn):
     if not email or not password:
         raise HTTPException(status_code=400, detail="email and password are required")
 
-    res = supabase_auth.auth.sign_up({
-        "email": email,
-        "password": password
-    })
-    return jsonable_encoder(res)
+    try:
+        res = supabase_auth.auth.sign_up({
+            "email": email,
+            "password": password
+        })
+        return jsonable_encoder(res)
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=_error_detail(e)) from e
 
 
 @app.post("/login")
@@ -68,38 +90,39 @@ async def login(data: AuthIn):
     if not email or not password:
         raise HTTPException(status_code=400, detail="email and password are required")
 
-    res = supabase_auth.auth.sign_in_with_password({
-        "email": email,
-        "password": password
-    })
-    return jsonable_encoder(res)
+    try:
+        res = supabase_auth.auth.sign_in_with_password({
+            "email": email,
+            "password": password
+        })
+        return jsonable_encoder(res)
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=_error_detail(e)) from e
 
 
 @app.get("/", response_class=HTMLResponse)
 async def index(request: Request):
     return templates.TemplateResponse(
-    request,
-    "index.html",
-    {"request": request}
-)
+        "index.html",
+        {"request": request}
+    )
 
 
 @app.get("/tasks", response_class=HTMLResponse)
 async def tasks_page(request: Request):
     return templates.TemplateResponse(
-    request,
-    "tasks.html",
-    {"request": request}
-)
+        "tasks.html",
+        {"request": request}
+    )
 
 
 @app.get("/recommendations", response_class=HTMLResponse)
 async def recs_page(request: Request):
     return templates.TemplateResponse(
-    request,
-    "recommendations.html",
-    {"request": request}
-)
+        "recommendations.html",
+        {"request": request}
+    )
+
 
 class TextNoteIn(BaseModel):
     text: str
@@ -108,13 +131,20 @@ class TextNoteIn(BaseModel):
 
 @app.post("/notes/text")
 def create_text_note(payload: TextNoteIn):
-    note = process_text_note(
-        payload.text,
-        platform="web",
-        message_id=None,
-        user_id=resolve_user_id(payload.user_id),
-    )
-    return note
+    try:
+        note = process_text_note(
+            payload.text,
+            platform="web",
+            message_id=None,
+            user_id=resolve_user_id(payload.user_id),
+        )
+        return note
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=_error_detail(e)) from e
+    except RuntimeError as e:
+        raise HTTPException(status_code=500, detail=_error_detail(e)) from e
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=_error_detail(e)) from e
 
 
 @app.post("/sync-calendar")
@@ -123,7 +153,42 @@ def sync_calendar():
         sync_notes_to_calendar()
         return {"status": "ok"}
     except Exception as e:
-        return {"status": "error", "detail": str(e)}
+        return {"status": "error", "detail": _error_detail(e)}
+
+
+@app.post("/notes/status")
+def update_note_status(payload: NoteStatusIn):
+    note_id = (payload.note_id or "").strip()
+    user_id = resolve_user_id(payload.user_id)
+    status = (payload.status or "").strip().lower()
+    status_note = (payload.status_note or "").strip() or None
+
+    if not note_id:
+        raise HTTPException(status_code=400, detail="note_id is required")
+    if not user_id:
+        raise HTTPException(status_code=400, detail="user_id is required")
+    if status not in VALID_NOTE_STATUSES:
+        raise HTTPException(status_code=400, detail="status must be pending, completed, or skipped")
+
+    try:
+        result = (
+            supabase_admin.table("notes")
+            .update({
+                "status": status,
+                "status_note": status_note,
+            })
+            .eq("id", note_id)
+            .eq("user_id", user_id)
+            .execute()
+        )
+        rows = result.data or []
+        if not rows:
+            raise HTTPException(status_code=404, detail="note not found")
+        return rows[0]
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=_error_detail(e)) from e
 
 
 @app.get("/notes")
@@ -173,12 +238,20 @@ class SmartSearchIn(BaseModel):
 
 @app.post("/smart-search")
 def smart_search(payload: SmartSearchIn):
-    notes = get_user_notes(resolve_user_id(payload.user_id))
-    keywords = extract_keywords(payload.query)
-    filtered = filter_by_keywords(notes, keywords=keywords, days=payload.days)
-    summary = summarise_search(payload.query, filtered)
-    return {
-        "summary": summary,
-        "keywords": keywords,
-        "notes": filtered
-    }
+    try:
+        notes = get_user_notes(resolve_user_id(payload.user_id))
+        signals = extract_search_signals(payload.query)
+        keywords = list(signals.get("keywords") or [])
+        matched_tag = signals.get("best_matching_tag")
+        if isinstance(matched_tag, str) and matched_tag and matched_tag not in keywords:
+            keywords = [matched_tag] + keywords
+        filtered = filter_by_keywords(notes, keywords=keywords, days=payload.days)
+        summary = summarise_search(payload.query, filtered)
+        return {
+            "summary": summary,
+            "keywords": keywords,
+            "matched_tag": matched_tag,
+            "notes": filtered,
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=_error_detail(e)) from e
