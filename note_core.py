@@ -185,6 +185,8 @@ def process_text_note(
         "entities": normalized["entities"],
         "due_time": normalized["due_time"],
         "calendar_event_id": None,
+        "status": "pending",
+        "status_note": None,
     }
 
     try:
