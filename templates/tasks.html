@@ -334,6 +334,85 @@ input[type="text"],input[type="number"]{
   font-size:.92rem;
   line-height:1.55;
 }
+
+.note-title-wrap{
+  display:grid;
+  gap:6px;
+  min-width:0;
+  flex:1;
+}
+.status-btn{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  gap:6px;
+  border:none;
+  border-radius:999px;
+  padding:8px 11px;
+  cursor:pointer;
+  color:var(--text);
+  background:rgba(148,163,184,.06);
+  border:1px solid rgba(148,163,184,.14);
+  transition:transform 150ms ease, background 150ms ease, border-color 150ms ease, filter 150ms ease;
+  white-space:nowrap;
+  font-size:.76rem;
+  font-weight:700;
+}
+.status-btn:hover,
+.status-btn:focus-visible{
+  outline:none;
+  transform:translateY(-1px);
+  background:rgba(122,215,255,.10);
+  border-color:rgba(122,215,255,.28);
+}
+.status-label{
+  color:var(--muted);
+  font-size:.82rem;
+  font-weight:700;
+  letter-spacing:.01em;
+}
+.status-modal-form{
+  display:grid;
+  gap:14px;
+  margin-top:18px;
+}
+.status-field{
+  display:grid;
+  gap:8px;
+}
+.status-select,
+.status-note{
+  width:100%;
+  border:none;
+  outline:none;
+  color:var(--text);
+  background:rgba(6,11,20,.58);
+  border:1px solid rgba(148,163,184,.12);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.02);
+}
+.status-select{
+  height:52px;
+  padding:0 16px;
+  border-radius:16px;
+}
+.status-note{
+  min-height:110px;
+  resize:vertical;
+  border-radius:18px;
+  padding:16px 16px;
+  line-height:1.55;
+}
+.status-select::placeholder,
+.status-note::placeholder{
+  color:#7d8fae;
+}
+.status-actions{
+  display:flex;
+  justify-content:flex-end;
+  gap:10px;
+  flex-wrap:wrap;
+  margin-top:2px;
+}
 .chips{
   display:flex;
   flex-wrap:wrap;
@@ -656,6 +735,37 @@ input[type="text"],input[type="number"]{
     </div>
   </div>
 
+  <div class="modal-backdrop" id="taskStatusBackdrop" aria-hidden="true">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="taskStatusTitle">
+      <div class="modal-head">
+        <div>
+          <h3 class="modal-title" id="taskStatusTitle">Update status</h3>
+          <p class="modal-sub" id="taskStatusSub"></p>
+        </div>
+        <button class="modal-close" id="taskStatusClose" type="button" aria-label="Close">✕</button>
+      </div>
+      <div class="status-modal-form">
+        <div class="status-field">
+          <label class="status-label" for="taskStatusSelect">Status</label>
+          <select id="taskStatusSelect" class="status-select">
+            <option value="pending">Pending</option>
+            <option value="completed">Completed</option>
+            <option value="skipped">Skipped</option>
+          </select>
+        </div>
+        <div class="status-field">
+          <label class="status-label" for="taskStatusNote">Add a brief update (optional)</label>
+          <textarea id="taskStatusNote" class="status-note" placeholder="What changed?"></textarea>
+        </div>
+        <div class="status-actions">
+          <button class="btn btn-secondary" id="taskStatusCancel" type="button">Cancel</button>
+          <button class="btn btn-primary" id="taskStatusSave" type="button">Save</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+
   </div>
   <script>
 
@@ -690,6 +800,23 @@ function makeChip(text, cls, extra = '') {
 function currentUserId() {
   return localStorage.getItem('reverie_user_id') || '';
 }
+
+function noteStatus(value) {
+  const status = String(value || 'pending').trim().toLowerCase();
+  return ['pending', 'completed', 'skipped'].includes(status) ? status : 'pending';
+}
+function statusLabel(value) {
+  const status = noteStatus(value);
+  return status.charAt(0).toUpperCase() + status.slice(1);
+}
+function statusClass(value) {
+  const status = noteStatus(value);
+  if (status === 'completed') return 'chip good';
+  if (status === 'skipped') return 'chip muted';
+  return 'chip soft';
+}
+
+let activeStatusNote = null;
 
 const TASK_HINTS = ['remind', 'reminder', 'call', 'email', 'text', 'message', 'reply', 'submit', 'finish', 'buy', 'pick up', 'pickup', 'meet', 'pay', 'book', 'schedule', 'appointment', 'todo', 'to do'];
 
@@ -868,26 +995,117 @@ async function openContext(kind, value, label) {
 contextClose.addEventListener('click', () => setModalVisible(contextBackdrop, false));
 contextBackdrop.addEventListener('click', (e) => { if (e.target === contextBackdrop) setModalVisible(contextBackdrop, false); });
 
+function openStatusModal(note) {
+  activeStatusNote = note || null;
+  if (!activeStatusNote) return;
+  const backdrop = document.getElementById('taskStatusBackdrop');
+  const title = document.getElementById('taskStatusTitle');
+  const sub = document.getElementById('taskStatusSub');
+  const select = document.getElementById('taskStatusSelect');
+  const noteInput = document.getElementById('taskStatusNote');
+
+  title.textContent = `Update status`;
+  sub.textContent = activeStatusNote?.title ? activeStatusNote.title : '(no title)';
+  select.value = noteStatus(activeStatusNote?.status);
+  noteInput.value = activeStatusNote?.status_note || '';
+  setModalVisible(backdrop, true);
+  setTimeout(() => select.focus(), 0);
+}
+function closeStatusModal() {
+  const backdrop = document.getElementById('taskStatusBackdrop');
+  setModalVisible(backdrop, false);
+  activeStatusNote = null;
+}
+async function saveStatusUpdate() {
+  if (!activeStatusNote) return;
+  const userId = currentUserId();
+  if (!userId) {
+    alert('Please sign in first.');
+    return;
+  }
+  const status = document.getElementById('taskStatusSelect').value;
+  const statusNote = document.getElementById('taskStatusNote').value.trim();
+  const resp = await fetch('/notes/status', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      note_id: activeStatusNote.id,
+      user_id: userId,
+      status,
+      status_note: statusNote,
+    }),
+  });
+  const data = await resp.json().catch(() => ({}));
+  if (!resp.ok) {
+    throw new Error(data.detail || ('HTTP ' + resp.status));
+  }
+  closeStatusModal();
+  await loadTasks();
+}
+
+document.getElementById('taskStatusClose').addEventListener('click', closeStatusModal);
+document.getElementById('taskStatusCancel').addEventListener('click', closeStatusModal);
+document.getElementById('taskStatusSave').addEventListener('click', async () => {
+  try {
+    await saveStatusUpdate();
+  } catch (err) {
+    alert(err?.message || 'Could not update status.');
+    console.error(err);
+  }
+});
+document.getElementById('taskStatusBackdrop').addEventListener('click', (e) => {
+  if (e.target === document.getElementById('taskStatusBackdrop')) closeStatusModal();
+});
+
 function taskCard(note) {
-  const btn = document.createElement('button');
-  btn.type = 'button';
-  btn.className = 'note-card';
-  btn.addEventListener('click', () => openDetail(note));
+  const card = document.createElement('div');
+  card.className = 'note-card';
+  card.setAttribute('role', 'button');
+  card.tabIndex = 0;
+  card.addEventListener('click', () => openDetail(note));
+  card.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      openDetail(note);
+    }
+  });
 
   const top = document.createElement('div');
   top.className = 'note-top';
 
+  const titleWrap = document.createElement('div');
+  titleWrap.className = 'note-title-wrap';
+
   const title = document.createElement('h4');
   title.className = 'note-title';
   title.textContent = note?.title || '(no title)';
-  top.appendChild(title);
-  btn.appendChild(top);
+  titleWrap.appendChild(title);
+
+  const statusChip = document.createElement('span');
+  statusChip.className = statusClass(note?.status);
+  statusChip.textContent = statusLabel(note?.status);
+  titleWrap.appendChild(statusChip);
+
+  top.appendChild(titleWrap);
+
+  const statusBtn = document.createElement('button');
+  statusBtn.type = 'button';
+  statusBtn.className = 'status-btn';
+  statusBtn.textContent = 'Update status';
+  statusBtn.setAttribute('aria-label', `Update status for ${note?.title || 'this note'}`);
+  statusBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    openStatusModal(note);
+  });
+  top.appendChild(statusBtn);
+
+  card.appendChild(top);
 
   if (note?.summary) {
     const summary = document.createElement('p');
     summary.className = 'note-summary';
     summary.textContent = note.summary;
-    btn.appendChild(summary);
+    card.appendChild(summary);
   }
 
   const chips = document.createElement('div');
@@ -910,8 +1128,8 @@ function taskCard(note) {
     el.textContent = item.text;
     chips.appendChild(el);
   });
-  btn.appendChild(chips);
-  return btn;
+  card.appendChild(chips);
+  return card;
 }
 
 async function loadTasks() {
