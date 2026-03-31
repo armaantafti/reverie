@@ -687,6 +687,36 @@ function makeChip(text, cls, extra = '') {
 }
 
 
+function currentUserId() {
+  return localStorage.getItem('reverie_user_id') || '';
+}
+
+const RECOMMENDATION_TAGS = new Set(['entertainment', 'travel', 'food', 'ideas', 'goals', 'events']);
+const RECOMMENDATION_HINTS = ['watch', 'watching', 'read', 'reading', 'listen', 'listening', 'try', 'check out', 'look up', 'visit', 'go to', 'movie', 'movies', 'film', 'films', 'show', 'series', 'podcast', 'song', 'album', 'restaurant', 'cafe', 'trip', 'vacation', 'recommend', 'suggest'];
+
+function isRecommendationNote(note) {
+  const type = String(note?.note_type || '').toLowerCase();
+  if (type === 'recommendation') return true;
+  const tags = normaliseTags(note?.tags).map(t => t.toLowerCase());
+  if (tags.some(tag => RECOMMENDATION_TAGS.has(tag))) return true;
+  const haystack = [note?.title || '', note?.summary || '', note?.raw_text || ''].join(' ').toLowerCase();
+  return RECOMMENDATION_HINTS.some(hint => haystack.includes(hint));
+}
+
+function resetEmptyState() {
+  recentEmpty.querySelector('.note-title').textContent = 'No recent recommendations';
+  pastEmpty.querySelector('.note-title').textContent = 'No past recommendations';
+}
+
+function setSignedOutState() {
+  recentList.innerHTML = '';
+  pastList.innerHTML = '';
+  recentEmpty.querySelector('.note-title').textContent = 'Sign in on Home to view recommendations';
+  pastEmpty.querySelector('.note-title').textContent = 'Sign in on Home to view recommendations';
+  recentList.appendChild(recentEmpty);
+  pastList.appendChild(pastEmpty);
+}
+
 const recentList = document.getElementById('recsRecentList');
 const recentEmpty = document.getElementById('recsRecentEmpty');
 const pastList = document.getElementById('recsPastList');
@@ -822,6 +852,9 @@ async function openContext(kind, value, label) {
   setModalVisible(contextBackdrop, true);
   try {
     const params = new URLSearchParams({ kind, value });
+    const userId = currentUserId();
+    if (!userId) throw new Error('Missing user session');
+    params.set('user_id', userId);
     const resp = await fetch(`/context?${params.toString()}`);
     if (!resp.ok) throw new Error('HTTP ' + resp.status);
     const data = await resp.json();
@@ -886,14 +919,20 @@ function recCard(note) {
 
 async function loadRecs() {
   try {
-    const resp = await fetch('/notes');
-    if (!resp.ok) return;
+    resetEmptyState();
+    const userId = currentUserId();
+    if (!userId) {
+      setSignedOutState();
+      return;
+    }
+    const resp = await fetch(`/notes?user_id=${encodeURIComponent(userId)}`);
+    if (!resp.ok) throw new Error('HTTP ' + resp.status);
     const notes = await resp.json();
     const cutoff = new Date();
     cutoff.setDate(cutoff.getDate() - 7);
 
     const recs = (Array.isArray(notes) ? notes : [])
-      .filter(n => String(n?.note_type || '').toLowerCase() === 'recommendation')
+      .filter(n => isRecommendationNote(n))
       .sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0));
 
     const recent = [];
@@ -923,6 +962,9 @@ async function loadRecs() {
   }
 }
 loadRecs();
+window.addEventListener('focus', loadRecs);
+document.addEventListener('visibilitychange', () => { if (!document.hidden) loadRecs(); });
+setInterval(loadRecs, 30000);
 
   </script>
 </body>
