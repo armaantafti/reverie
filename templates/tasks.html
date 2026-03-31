@@ -687,6 +687,35 @@ function makeChip(text, cls, extra = '') {
 }
 
 
+function currentUserId() {
+  return localStorage.getItem('reverie_user_id') || '';
+}
+
+const TASK_HINTS = ['remind', 'reminder', 'call', 'email', 'text', 'message', 'reply', 'submit', 'finish', 'buy', 'pick up', 'pickup', 'meet', 'pay', 'book', 'schedule', 'appointment', 'todo', 'to do'];
+
+function isTaskNote(note) {
+  const type = String(note?.note_type || '').toLowerCase();
+  if (type === 'reminder') return true;
+  const tags = new Set(normaliseTags(note?.tags).map(t => t.toLowerCase()));
+  if (tags.has('tasks')) return true;
+  const haystack = [note?.title || '', note?.summary || '', note?.raw_text || ''].join(' ').toLowerCase();
+  return TASK_HINTS.some(hint => haystack.includes(hint));
+}
+
+function resetEmptyState() {
+  upcomingEmpty.querySelector('.note-title').textContent = 'No upcoming tasks';
+  pastEmpty.querySelector('.note-title').textContent = 'No past tasks';
+}
+
+function setSignedOutState() {
+  upcomingList.innerHTML = '';
+  pastList.innerHTML = '';
+  upcomingEmpty.querySelector('.note-title').textContent = 'Sign in on Home to view tasks';
+  pastEmpty.querySelector('.note-title').textContent = 'Sign in on Home to view tasks';
+  upcomingList.appendChild(upcomingEmpty);
+  pastList.appendChild(pastEmpty);
+}
+
 const upcomingList = document.getElementById('tasksUpcomingList');
 const upcomingEmpty = document.getElementById('tasksUpcomingEmpty');
 const pastList = document.getElementById('tasksPastList');
@@ -822,6 +851,7 @@ async function openContext(kind, value, label) {
   setModalVisible(contextBackdrop, true);
   try {
     const params = new URLSearchParams({ kind, value });
+    params.set('user_id', currentUserId());
     const resp = await fetch(`/context?${params.toString()}`);
     if (!resp.ok) throw new Error('HTTP ' + resp.status);
     const data = await resp.json();
@@ -886,8 +916,14 @@ function taskCard(note) {
 
 async function loadTasks() {
   try {
-    const resp = await fetch('/notes');
-    if (!resp.ok) return;
+    resetEmptyState();
+    const userId = currentUserId();
+    if (!userId) {
+      setSignedOutState();
+      return;
+    }
+    const resp = await fetch(`/notes?user_id=${encodeURIComponent(userId)}`);
+    if (!resp.ok) throw new Error('HTTP ' + resp.status);
     const notes = await resp.json();
     const now = new Date();
     const upcoming = [];
@@ -895,8 +931,7 @@ async function loadTasks() {
 
     (Array.isArray(notes) ? notes : []).forEach(n => {
       const type = (n?.note_type || '').toLowerCase();
-      const tags = normaliseTags(n?.tags).map(t => t.toLowerCase());
-      const isTask = type === 'reminder' || type === 'note' || tags.includes('tasks');
+      const isTask = isTaskNote(n);
       if (!isTask) return;
 
       let due = null;
@@ -934,6 +969,9 @@ async function loadTasks() {
   }
 }
 loadTasks();
+window.addEventListener('focus', loadTasks);
+document.addEventListener('visibilitychange', () => { if (!document.hidden) loadTasks(); });
+setInterval(loadTasks, 30000);
 
   </script>
 </body>
