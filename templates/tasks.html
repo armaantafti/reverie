@@ -347,23 +347,25 @@ input[type="text"],input[type="number"]{
   justify-content:center;
   gap:6px;
   border:none;
-  border-radius:999px;
-  padding:8px 11px;
+  border-radius:12px;
+  padding:6px 10px;
+  min-width:74px;
   cursor:pointer;
   color:var(--text);
-  background:rgba(148,163,184,.06);
-  border:1px solid rgba(148,163,184,.14);
+  background:rgba(148,163,184,.08);
+  border:1px solid rgba(148,163,184,.16);
   transition:transform 150ms ease, background 150ms ease, border-color 150ms ease, filter 150ms ease;
   white-space:nowrap;
-  font-size:.76rem;
+  font-size:.72rem;
   font-weight:700;
+  line-height:1;
 }
 .status-btn:hover,
 .status-btn:focus-visible{
   outline:none;
   transform:translateY(-1px);
-  background:rgba(122,215,255,.10);
-  border-color:rgba(122,215,255,.28);
+  background:rgba(122,215,255,.12);
+  border-color:rgba(122,215,255,.26);
 }
 .status-label{
   color:var(--muted);
@@ -1081,18 +1083,14 @@ function taskCard(note) {
   title.textContent = note?.title || '(no title)';
   titleWrap.appendChild(title);
 
-  const statusChip = document.createElement('span');
-  statusChip.className = statusClass(note?.status);
-  statusChip.textContent = statusLabel(note?.status);
-  titleWrap.appendChild(statusChip);
 
   top.appendChild(titleWrap);
 
   const statusBtn = document.createElement('button');
   statusBtn.type = 'button';
   statusBtn.className = 'status-btn';
-  statusBtn.textContent = 'Update status';
-  statusBtn.setAttribute('aria-label', `Update status for ${note?.title || 'this note'}`);
+  statusBtn.textContent = statusLabel(note?.status);
+  statusBtn.setAttribute('aria-label', `Change status for ${note?.title || 'this note'}`);
   statusBtn.addEventListener('click', (e) => {
     e.stopPropagation();
     openStatusModal(note);
