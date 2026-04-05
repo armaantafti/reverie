@@ -73,37 +73,8 @@ def _clean_tags(tags: list[str]) -> list[str]:
     return cleaned
 
 
-def _build_extraction_prompt(transcript: str) -> str:
-    tags_text = ", ".join(PREDEFINED_TAGS)
-    return f"""
-You are extracting structured data from a note.
-
-Return a JSON object with these keys:
-- person_name: string or null
-- note_type: one of "reminder", "recommendation", or "note"
-- title: short string
-- summary: short string
-- tags: a list of 1 to 2 tags chosen ONLY from this list:
-  {tags_text}
-- entities: list of strings
-- due_time: ISO timestamp string or null
-
-Rules:
-- Choose the most suitable 1 to 2 tags from the predefined list only.
-- Do not invent new tags.
-- Keep title short.
-- If the note is clearly a task or reminder, use note_type "reminder".
-- If the note is clearly a suggestion, watch/listen/read/try type of note, use "recommendation".
-- Otherwise use "note".
-
-Note:
-{transcript}
-""".strip()
-
-
 def _call_extractor(transcript: str) -> Dict[str, Any]:
-    prompt = _build_extraction_prompt(transcript)
-    return extract_with_llm(prompt)
+    return extract_with_llm(transcript)
 
 
 def _fallback_extract(transcript: str) -> Dict[str, Any]:

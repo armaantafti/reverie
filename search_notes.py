@@ -1,11 +1,5 @@
-import argparse
-import json
-import os
 from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, Iterable, List, Optional
-
-WORKDIR = os.path.dirname(os.path.abspath(__file__))
-NOTES_FILE = os.path.join(WORKDIR, "notes.json")
 IST = timezone(timedelta(hours=5, minutes=30))
 
 TAGS_KNOWN = {
@@ -34,17 +28,6 @@ TAG_WEIGHTS = {
     "food": 0.46,
     "entertainment": 0.40,
 }
-
-def load_notes():
-    if not os.path.exists(NOTES_FILE):
-        return []
-    with open(NOTES_FILE, "r", encoding="utf-8") as f:
-        try:
-            data = json.load(f)
-        except json.JSONDecodeError:
-            return []
-    return data if isinstance(data, list) else data.get("notes", [])
-
 
 def _parse_datetime(value: Any) -> Optional[datetime]:
     if not value:
@@ -275,25 +258,3 @@ def filter_by_keywords(notes, keywords=None, days=None):
         if keep:
             results.append(n)
     return results
-
-
-def main():
-    parser = argparse.ArgumentParser(description="Search notes.json offline")
-    parser.add_argument("--query", "-q", help="Text to search in title/summary/person/tags", default=None)
-    parser.add_argument("--days", type=int, default=None, help="Limit to last N days")
-    args = parser.parse_args()
-    notes = load_notes()
-    results = filter_notes(notes, query=args.query, days=args.days)
-    for n in results:
-        print("-", n.get("title"))
-        print("  type:", n.get("note_type"), "due:", n.get("due_time"))
-        if n.get("person_name"):
-            print("  person:", n.get("person_name"))
-        if n.get("tags"):
-            print("  tags:", ", ".join(n.get("tags")))
-        print("  created:", n.get("created_at"))
-        print()
-
-
-if __name__ == "__main__":
-    main()

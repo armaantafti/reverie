@@ -241,16 +241,26 @@ def smart_search(payload: SmartSearchIn):
     try:
         notes = get_user_notes(resolve_user_id(payload.user_id))
         signals = extract_search_signals(payload.query)
-        keywords = list(signals.get("keywords") or [])
+        keywords = list(signals.get("keywords") or [])[:5]
         matched_tag = signals.get("best_matching_tag")
-        if isinstance(matched_tag, str) and matched_tag and matched_tag not in keywords:
-            keywords = [matched_tag] + keywords
-        filtered = filter_by_keywords(notes, keywords=keywords, days=payload.days)
-        summary = summarise_search(payload.query, filtered)
+
+        search_terms = list(keywords)
+        if isinstance(matched_tag, str) and matched_tag and matched_tag not in search_terms:
+            search_terms.append(matched_tag)
+
+        if not search_terms:
+            return {
+                "summary": "I couldn't understand that search well enough to find relevant notes.",
+                "notes": [],
+            }
+
+        filtered = filter_by_keywords(notes, keywords=search_terms, days=payload.days)
+        try:
+            summary = summarise_search(payload.query, filtered)
+        except Exception:
+            summary = "Smart summarise failed."
         return {
             "summary": summary,
-            "keywords": keywords,
-            "matched_tag": matched_tag,
             "notes": filtered,
         }
     except Exception as e:

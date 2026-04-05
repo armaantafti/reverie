@@ -607,6 +607,62 @@
       background:rgba(148,163,184,.04);
       border:1px dashed rgba(148,163,184,.15);
     }
+    .status-btn{
+      border:none;
+      border-radius:999px;
+      padding:8px 11px;
+      cursor:pointer;
+      background:rgba(148,163,184,.08);
+      color:var(--text);
+      border:1px solid rgba(148,163,184,.14);
+      font-weight:700;
+      transition:transform 160ms ease, background 160ms ease, border-color 160ms ease;
+      white-space:nowrap;
+    }
+    .status-btn:hover,.status-btn:focus-visible{
+      outline:none;
+      transform:translateY(-1px);
+      background:rgba(122,215,255,.10);
+      border-color:rgba(122,215,255,.24);
+    }
+    .status-modal-form{
+      display:grid;
+      gap:14px;
+      margin-top:18px;
+    }
+    .status-field{display:grid;gap:8px;}
+    .status-label{
+      color:var(--muted);
+      font-size:.82rem;
+      letter-spacing:.02em;
+    }
+    .status-select,
+    .status-note{
+      width:100%;
+      border:none;
+      outline:none;
+      color:var(--text);
+      background:rgba(6,11,20,.58);
+      border:1px solid rgba(148,163,184,.12);
+      box-shadow:inset 0 1px 0 rgba(255,255,255,.02);
+    }
+    .status-select{
+      height:48px;
+      padding:0 14px;
+      border-radius:14px;
+    }
+    .status-note{
+      min-height:110px;
+      resize:vertical;
+      border-radius:16px;
+      padding:14px;
+      line-height:1.55;
+    }
+    .status-actions{
+      display:flex;
+      justify-content:flex-end;
+      gap:10px;
+    }
     @media (max-width: 980px){
       .layout,.auth-grid{grid-template-columns:1fr}
     }
@@ -799,6 +855,36 @@
     </div>
   </div>
 
+  <div class="modal-backdrop" id="statusBackdrop" aria-hidden="true">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="statusTitle">
+      <div class="modal-head">
+        <div>
+          <h3 class="modal-title" id="statusTitle">Update status</h3>
+          <p class="modal-sub" id="statusSub"></p>
+        </div>
+        <button class="modal-close" id="statusClose" type="button" aria-label="Close">✕</button>
+      </div>
+      <div class="status-modal-form">
+        <div class="status-field">
+          <label class="status-label" for="statusSelect">Status</label>
+          <select id="statusSelect" class="status-select">
+            <option value="pending">Pending</option>
+            <option value="completed">Completed</option>
+            <option value="skipped">Skipped</option>
+          </select>
+        </div>
+        <div class="status-field">
+          <label class="status-label" for="statusNote">Add a brief update (optional)</label>
+          <textarea id="statusNote" class="status-note" placeholder="What changed?"></textarea>
+        </div>
+        <div class="status-actions">
+          <button class="btn btn-secondary" id="statusCancel" type="button">Cancel</button>
+          <button class="btn btn-primary" id="statusSave" type="button">Save</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <script>
     const ALL_TAGS = ["travel","entertainment","food","study","school","fitness","health","friends","family","work","finance","personal","tasks","ideas","goals","communication","documents","events"];
 
@@ -880,11 +966,30 @@
     const forYouBackdrop = document.getElementById("forYouBackdrop");
     const forYouClose = document.getElementById("forYouClose");
     const forYouModalList = document.getElementById("forYouModalList");
+    const statusBackdrop = document.getElementById("statusBackdrop");
+    const statusClose = document.getElementById("statusClose");
+    const statusCancel = document.getElementById("statusCancel");
+    const statusSave = document.getElementById("statusSave");
+    const statusTitle = document.getElementById("statusTitle");
+    const statusSub = document.getElementById("statusSub");
+    const statusSelect = document.getElementById("statusSelect");
+    const statusNote = document.getElementById("statusNote");
 
     let authMode = "login";
+    let activeStatusNote = null;
 
     function currentUserId() {
       return localStorage.getItem("reverie_user_id") || "";
+    }
+
+    function noteStatus(value) {
+      const status = String(value || "pending").trim().toLowerCase();
+      return ["pending", "completed", "skipped"].includes(status) ? status : "pending";
+    }
+
+    function statusLabel(value) {
+      const status = noteStatus(value);
+      return status.charAt(0).toUpperCase() + status.slice(1);
     }
 
     function setAuthMode(nextMode) {
@@ -958,11 +1063,59 @@
       return await resp.json();
     }
 
-    function renderNoteCard(note, extraClass = "") {
-      const btn = document.createElement("button");
-      btn.type = "button";
+    function openStatusModal(note) {
+      activeStatusNote = note || null;
+      if (!activeStatusNote) return;
+      statusTitle.textContent = "Update status";
+      statusSub.textContent = activeStatusNote?.title || "(no title)";
+      statusSelect.value = noteStatus(activeStatusNote?.status);
+      statusNote.value = activeStatusNote?.status_note || "";
+      setModalVisible(statusBackdrop, true);
+      setTimeout(() => statusSelect.focus(), 0);
+    }
+
+    function closeStatusModal() {
+      setModalVisible(statusBackdrop, false);
+      activeStatusNote = null;
+    }
+
+    async function refreshAfterStatusChange() {
+      const refreshes = [loadForYou()];
+      if ((searchQueryEl.value || "").trim() || (searchRangeEl.value || "").trim()) {
+        refreshes.push(runSearch());
+      }
+      if (forYouBackdrop.getAttribute("aria-hidden") === "false") {
+        refreshes.push(openForYouModal());
+      }
+      await Promise.all(refreshes);
+    }
+
+    async function saveStatusUpdate() {
+      if (!activeStatusNote) return;
+      const userId = currentUserId();
+      if (!userId) throw new Error("Please log in first.");
+      await apiPost("/notes/status", {
+        note_id: activeStatusNote.id,
+        user_id: userId,
+        status: statusSelect.value,
+        status_note: statusNote.value.trim(),
+      });
+      closeStatusModal();
+      await refreshAfterStatusChange();
+    }
+
+    function renderNoteCard(note, extraClass = "", options = {}) {
+      const btn = document.createElement("div");
       btn.className = `note-card ${extraClass}`.trim();
+      btn.setAttribute("role", "button");
+      btn.tabIndex = 0;
       btn.addEventListener("click", () => openDetail(note));
+      btn.addEventListener("keydown", (e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          openDetail(note);
+        }
+      });
 
       const top = document.createElement("div");
       top.className = "note-top";
@@ -971,6 +1124,20 @@
       title.className = "note-title";
       title.textContent = note?.title || "(no title)";
       top.appendChild(title);
+
+      if (options.showStatusButton) {
+        const statusBtn = document.createElement("button");
+        statusBtn.type = "button";
+        statusBtn.className = "status-btn";
+        statusBtn.textContent = statusLabel(note?.status);
+        statusBtn.setAttribute("aria-label", `Change status for ${note?.title || "this note"}`);
+        statusBtn.addEventListener("click", (e) => {
+          e.stopPropagation();
+          openStatusModal(note);
+        });
+        top.appendChild(statusBtn);
+      }
+
       btn.appendChild(top);
 
       if (note?.summary) {
@@ -1138,17 +1305,32 @@
         return;
       }
       notes.forEach(note => {
-        forYouModalList.appendChild(renderContextItem(note));
+        forYouModalList.appendChild(renderContextItem(note, true));
       });
     }
 
-    function renderContextItem(note) {
+    function renderContextItem(note, showStatusButton = false) {
       const item = document.createElement("div");
       item.className = "context-item";
+      const top = document.createElement("div");
+      top.className = "note-top";
       const title = document.createElement("h4");
       title.className = "context-item-title";
       title.textContent = note?.title || "(no title)";
-      item.appendChild(title);
+      top.appendChild(title);
+      if (showStatusButton) {
+        const statusBtn = document.createElement("button");
+        statusBtn.type = "button";
+        statusBtn.className = "status-btn";
+        statusBtn.textContent = statusLabel(note?.status);
+        statusBtn.setAttribute("aria-label", `Change status for ${note?.title || "this note"}`);
+        statusBtn.addEventListener("click", (e) => {
+          e.stopPropagation();
+          openStatusModal(note);
+        });
+        top.appendChild(statusBtn);
+      }
+      item.appendChild(top);
 
       const meta = document.createElement("div");
       meta.className = "context-item-meta";
@@ -1209,7 +1391,7 @@
           return;
         }
         notes.forEach(note => {
-          const card = renderNoteCard(note, "featured");
+          const card = renderNoteCard(note, "featured", { showStatusButton: true });
           forYouListEl.appendChild(card);
         });
       } catch (err) {
@@ -1240,6 +1422,17 @@
     forYouMoreBtn.addEventListener("click", openForYouModal);
     forYouClose.addEventListener("click", () => setModalVisible(forYouBackdrop, false));
     forYouBackdrop.addEventListener("click", (e) => { if (e.target === forYouBackdrop) setModalVisible(forYouBackdrop, false); });
+    statusClose.addEventListener("click", closeStatusModal);
+    statusCancel.addEventListener("click", closeStatusModal);
+    statusSave.addEventListener("click", async () => {
+      try {
+        await saveStatusUpdate();
+      } catch (err) {
+        console.error(err);
+        alert(err?.message || "Could not update status.");
+      }
+    });
+    statusBackdrop.addEventListener("click", (e) => { if (e.target === statusBackdrop) closeStatusModal(); });
 
     async function saveNote() {
       const userId = currentUserId();
@@ -1427,6 +1620,7 @@
         closeDetail();
         setModalVisible(contextBackdrop, false);
         setModalVisible(forYouBackdrop, false);
+        setModalVisible(statusBackdrop, false);
       }
     });
 
