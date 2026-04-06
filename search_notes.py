@@ -59,19 +59,30 @@ def _note_reference_time(note: Dict[str, Any], now: datetime) -> Optional[dateti
 
 
 def _time_score(note: Dict[str, Any], now: datetime) -> float:
-    ref = _note_reference_time(note, now)
-    if ref is None:
-        return 0.15
+    note_type = (note.get("note_type") or "").lower()
+    status = (note.get("status") or "pending").strip().lower()
+    due_time = _parse_datetime(note.get("due_time"))
+    created_at = _parse_datetime(note.get("created_at"))
 
-    hours = abs((now - ref).total_seconds()) / 3600.0
+    if note_type == "reminder" and status == "pending" and due_time is not None:
+        if due_time < now:
+            return 1.00
+        hours_until_due = (due_time - now).total_seconds() / 3600.0
+        if hours_until_due <= 24:
+            return 0.95
+        if hours_until_due <= 168:
+            return 0.75
+        return 0.30
 
-    if hours <= 24:
-        return 1.00
-    if hours <= 168:
-        return 1.00 - ((hours - 24.0) / 144.0) * 0.35
-    if hours <= 720:
-        return 0.65 - ((hours - 168.0) / 552.0) * 0.25
-    return 0.40
+    if created_at is None:
+        return 0.30
+
+    hours_since_created = max((now - created_at).total_seconds() / 3600.0, 0.0)
+    if hours_since_created <= 24:
+        return 0.70
+    if hours_since_created <= 720:
+        return 0.50
+    return 0.30
 
 
 def _type_score(note: Dict[str, Any]) -> float:
@@ -106,19 +117,32 @@ def _entity_score(note: Dict[str, Any]) -> float:
     return min(count, 5) / 5.0
 
 
+def _status_score(note: Dict[str, Any]) -> float:
+    status = (note.get("status") or "pending").strip().lower()
+    if status == "pending":
+        return 1.00
+    if status == "skipped":
+        return 0.45
+    return 0.0
+
+
+def _richness_score(note: Dict[str, Any]) -> float:
+    return (0.5 * _person_score(note)) + (0.5 * _entity_score(note))
+
+
 def score_for_you(note: Dict[str, Any], now: Optional[datetime] = None) -> float:
     now = now or datetime.now(IST)
+    status_component = _status_score(note)
     time_component = _time_score(note, now)
     type_component = _type_score(note)
     tag_component = _tag_score(note)
-    person_component = _person_score(note)
-    entity_component = _entity_score(note)
+    richness_component = _richness_score(note)
     score = (
-        0.58 * time_component +
-        0.20 * type_component +
-        0.14 * tag_component +
-        0.04 * person_component +
-        0.04 * entity_component
+        0.40 * status_component +
+        0.35 * time_component +
+        0.15 * type_component +
+        0.07 * tag_component +
+        0.03 * richness_component
     )
     return round(score, 6)
 
@@ -128,23 +152,24 @@ def rank_for_you(notes: Iterable[Dict[str, Any]], limit: Optional[int] = 6) -> L
     ranked: List[Dict[str, Any]] = []
     for note in notes:
         note_type = (note.get("note_type") or "").lower()
-        due_time = _parse_datetime(note.get("due_time"))
+        status = (note.get("status") or "pending").strip().lower()
 
-        # Skip overdue items in the For You feed.
-        if due_time is not None and due_time < now:
+        if status == "completed":
             continue
 
         item = dict(note)
         item["score"] = score_for_you(note, now=now)
         reference = _note_reference_time(note, now) or now
         item["_reference_ts"] = reference.timestamp()
+        item["_status_rank"] = {"pending": 2, "skipped": 1}.get(status, 0)
         item["_type_rank"] = {"reminder": 3, "recommendation": 2, "note": 1}.get(note_type, 0)
         ranked.append(item)
-    ranked.sort(key=lambda n: (-float(n.get("score", 0.0)), -float(n.get("_reference_ts", 0.0)), -int(n.get("_type_rank", 0)), str(n.get("title") or "").lower()))
+    ranked.sort(key=lambda n: (-float(n.get("score", 0.0)), -int(n.get("_status_rank", 0)), -float(n.get("_reference_ts", 0.0)), -int(n.get("_type_rank", 0)), str(n.get("title") or "").lower()))
     cleaned = []
     for item in ranked[:limit] if limit is not None else ranked:
         item = dict(item)
         item.pop("_reference_ts", None)
+        item.pop("_status_rank", None)
         item.pop("_type_rank", None)
         cleaned.append(item)
     return cleaned
