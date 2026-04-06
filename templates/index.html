@@ -1039,8 +1039,12 @@
 
     function getAuthPayloadToken(payload) {
       return (
+        payload?.access_token ||
+        payload?.data?.access_token ||
         payload?.session?.access_token ||
         payload?.data?.session?.access_token ||
+        payload?.user?.access_token ||
+        payload?.data?.user?.access_token ||
         ""
       );
     }
@@ -1595,12 +1599,13 @@
         if (!userId) {
           throw new Error("Could not read user id from auth response.");
         }
+        if (!token) {
+          throw new Error("Could not read access token from auth response.");
+        }
 
         localStorage.setItem("reverie_email", email);
-        if (token) {
-          sessionStorage.setItem("reverie_access_token", token);
-          localStorage.removeItem("reverie_access_token");
-        }
+        sessionStorage.setItem("reverie_access_token", token);
+        localStorage.removeItem("reverie_access_token");
 
         authStatus.textContent = authMode === "login" ? "Logged in." : "Account created.";
         showAppForUser();
