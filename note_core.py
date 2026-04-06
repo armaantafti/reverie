@@ -27,11 +27,6 @@ PREDEFINED_TAGS = [
     "events",
 ]
 
-
-def resolve_user_id(user_id: Optional[str]) -> str:
-    return (user_id or "").strip()
-
-
 def summarise_text(text: str, max_sentences: int = 3) -> str:
     text = (text or "").strip()
     if not text:
@@ -124,15 +119,15 @@ def process_text_note(
     text: str,
     platform: str = "web",
     message_id: Optional[str] = None,
-    user_id: Optional[str] = None,
+    user_id: str = "",
 ) -> Dict[str, Any]:
-    """Process a raw text note and store it in Supabase."""
+    """Process a raw text note and store it in Supabase for an authenticated user."""
 
     transcript = (text or "").strip()
     if not transcript:
         raise ValueError("text cannot be empty")
 
-    resolved_user_id = resolve_user_id(user_id)
+    resolved_user_id = (user_id or "").strip()
     if not resolved_user_id:
         raise ValueError("user_id is required")
 

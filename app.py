@@ -13,8 +13,6 @@ from search_notes import filter_notes, filter_by_keywords, rank_for_you, context
 from sync_notes_to_gcal import sync_notes_to_calendar
 from llm_search import summarise_search, extract_search_signals
 
-DEFAULT_USER_ID = "public-beta"
-
 app = FastAPI(title="Reverie API")
 
 # Static files
@@ -22,11 +20,6 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 
 # Templates
 templates = Jinja2Templates(directory="templates")
-
-
-def resolve_user_id(user_id: Optional[str]) -> str:
-    value = (user_id or DEFAULT_USER_ID).strip()
-    return value or DEFAULT_USER_ID
 
 
 def get_user_notes(user_id: str):
@@ -57,6 +50,30 @@ def _error_detail(exc: Exception) -> str:
     if getattr(exc, "args", None):
         return str(exc.args[0])
     return "Request failed"
+
+
+def _extract_bearer_token(request: Request) -> str:
+    auth_header = (request.headers.get("Authorization") or "").strip()
+    if not auth_header.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="missing bearer token")
+    token = auth_header[7:].strip()
+    if not token:
+        raise HTTPException(status_code=401, detail="missing bearer token")
+    return token
+
+
+def _get_authenticated_user_id(request: Request) -> str:
+    token = _extract_bearer_token(request)
+    try:
+        response = supabase_auth.auth.get_user(token)
+    except Exception as e:
+        raise HTTPException(status_code=401, detail="invalid access token") from e
+
+    user = getattr(response, "user", None) or (response.get("user") if isinstance(response, dict) else None)
+    user_id = getattr(user, "id", None) or (user.get("id") if isinstance(user, dict) else None)
+    if not isinstance(user_id, str) or not user_id.strip():
+        raise HTTPException(status_code=401, detail="invalid access token")
+    return user_id.strip()
 
 
 class AuthIn(BaseModel):
@@ -130,15 +147,18 @@ class TextNoteIn(BaseModel):
 
 
 @app.post("/notes/text")
-def create_text_note(payload: TextNoteIn):
+def create_text_note(payload: TextNoteIn, request: Request):
     try:
+        user_id = _get_authenticated_user_id(request)
         note = process_text_note(
             payload.text,
             platform="web",
             message_id=None,
-            user_id=resolve_user_id(payload.user_id),
+            user_id=user_id,
         )
         return note
+    except HTTPException:
+        raise
     except ValueError as e:
         raise HTTPException(status_code=400, detail=_error_detail(e)) from e
     except RuntimeError as e:
@@ -157,16 +177,14 @@ def sync_calendar():
 
 
 @app.post("/notes/status")
-def update_note_status(payload: NoteStatusIn):
+def update_note_status(payload: NoteStatusIn, request: Request):
     note_id = (payload.note_id or "").strip()
-    user_id = resolve_user_id(payload.user_id)
+    user_id = _get_authenticated_user_id(request)
     status = (payload.status or "").strip().lower()
     status_note = (payload.status_note or "").strip() or None
 
     if not note_id:
         raise HTTPException(status_code=400, detail="note_id is required")
-    if not user_id:
-        raise HTTPException(status_code=400, detail="user_id is required")
     if status not in VALID_NOTE_STATUSES:
         raise HTTPException(status_code=400, detail="status must be pending, completed, or skipped")
 
@@ -193,39 +211,42 @@ def update_note_status(payload: NoteStatusIn):
 
 @app.get("/notes")
 def list_notes(
+    request: Request,
     user_id: Optional[str] = Query(None, description="Supabase user id"),
     query: Optional[str] = Query(None, description="Search text in title/summary/person/tags"),
     days: Optional[int] = Query(None, description="Limit to last N days"),
 ):
-    notes = get_user_notes(resolve_user_id(user_id))
+    notes = get_user_notes(_get_authenticated_user_id(request))
     results = filter_notes(notes, query=query, days=days)
     return results
 
 
 @app.get("/for-you")
 def for_you(
+    request: Request,
     user_id: Optional[str] = Query(None, description="Supabase user id"),
     limit: Optional[int] = Query(6, ge=1, le=20),
 ):
-    notes = get_user_notes(resolve_user_id(user_id))
+    notes = get_user_notes(_get_authenticated_user_id(request))
     ranked = rank_for_you(notes, limit=limit)
     return {"notes": ranked, "count": len(ranked)}
 
 
 @app.get("/for-you/all")
-def for_you_all(user_id: Optional[str] = Query(None, description="Supabase user id")):
-    notes = get_user_notes(resolve_user_id(user_id))
+def for_you_all(request: Request, user_id: Optional[str] = Query(None, description="Supabase user id")):
+    notes = get_user_notes(_get_authenticated_user_id(request))
     ranked = rank_for_you(notes, limit=None)
     return {"notes": ranked, "count": len(ranked)}
 
 
 @app.get("/context")
 def context_view(
+    request: Request,
     user_id: Optional[str] = Query(None, description="Supabase user id"),
     kind: str = Query(...),
     value: str = Query(...),
 ):
-    notes = get_user_notes(resolve_user_id(user_id))
+    notes = get_user_notes(_get_authenticated_user_id(request))
     results = context_notes(notes, kind=kind, value=value)
     return {"kind": kind, "value": value, "notes": results, "count": len(results)}
 
@@ -237,9 +258,9 @@ class SmartSearchIn(BaseModel):
 
 
 @app.post("/smart-search")
-def smart_search(payload: SmartSearchIn):
+def smart_search(payload: SmartSearchIn, request: Request):
     try:
-        notes = get_user_notes(resolve_user_id(payload.user_id))
+        notes = get_user_notes(_get_authenticated_user_id(request))
         signals = extract_search_signals(payload.query)
         keywords = list(signals.get("keywords") or [])[:5]
         matched_tag = signals.get("best_matching_tag")
@@ -263,5 +284,7 @@ def smart_search(payload: SmartSearchIn):
             "summary": summary,
             "notes": filtered,
         }
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=_error_detail(e)) from e

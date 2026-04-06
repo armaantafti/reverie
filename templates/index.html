@@ -978,8 +978,19 @@
     let authMode = "login";
     let activeStatusNote = null;
 
-    function currentUserId() {
-      return localStorage.getItem("reverie_user_id") || "";
+    function currentAccessToken() {
+      const sessionToken = sessionStorage.getItem("reverie_access_token") || "";
+      if (sessionToken) return sessionToken;
+      const legacyToken = localStorage.getItem("reverie_access_token") || "";
+      if (legacyToken) {
+        sessionStorage.setItem("reverie_access_token", legacyToken);
+        localStorage.removeItem("reverie_access_token");
+      }
+      return legacyToken;
+    }
+
+    function hasSession() {
+      return Boolean(currentAccessToken());
     }
 
     function noteStatus(value) {
@@ -1041,15 +1052,21 @@
           url.searchParams.set(key, String(value));
         }
       });
-      const resp = await fetch(url.toString());
+      const headers = {};
+      const token = currentAccessToken();
+      if (token) headers.Authorization = `Bearer ${token}`;
+      const resp = await fetch(url.toString(), { headers });
       if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
       return await resp.json();
     }
 
     async function apiPost(path, body) {
+      const headers = { "Content-Type": "application/json" };
+      const token = currentAccessToken();
+      if (token) headers.Authorization = `Bearer ${token}`;
       const resp = await fetch(path, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers,
         body: JSON.stringify(body),
       });
       if (!resp.ok) {
@@ -1092,11 +1109,9 @@
 
     async function saveStatusUpdate() {
       if (!activeStatusNote) return;
-      const userId = currentUserId();
-      if (!userId) throw new Error("Please log in first.");
+      if (!hasSession()) throw new Error("Please log in first.");
       await apiPost("/notes/status", {
         note_id: activeStatusNote.id,
-        user_id: userId,
         status: statusSelect.value,
         status_note: statusNote.value.trim(),
       });
@@ -1274,14 +1289,13 @@
     detailBackdrop.addEventListener("click", (e) => { if (e.target === detailBackdrop) closeDetail(); });
 
     async function openContext(kind, value, label) {
-      const userId = currentUserId();
-      if (!userId) return;
+      if (!hasSession()) return;
       contextTitle.textContent = label || value || "Context";
       contextSub.textContent = kind === "person" ? "Everything filed under this name" : "Everything filed under this tag";
       contextList.innerHTML = "";
       setModalVisible(contextBackdrop, true);
       try {
-        const data = await apiGet("/context", { user_id: userId, kind, value });
+        const data = await apiGet("/context", { kind, value });
         renderContextList(Array.isArray(data?.notes) ? data.notes : []);
       } catch (err) {
         console.error(err);
@@ -1380,10 +1394,9 @@
     }
 
     async function loadForYou() {
-      const userId = currentUserId();
-      if (!userId) return;
+      if (!hasSession()) return;
       try {
-        const data = await apiGet("/for-you", { user_id: userId, limit: 3 });
+        const data = await apiGet("/for-you", { limit: 3 });
         const notes = Array.isArray(data?.notes) ? data.notes : [];
         forYouListEl.innerHTML = "";
         if (!notes.length) {
@@ -1402,12 +1415,11 @@
     }
 
     async function openForYouModal() {
-      const userId = currentUserId();
-      if (!userId) return;
+      if (!hasSession()) return;
       setModalVisible(forYouBackdrop, true);
       forYouModalList.innerHTML = "";
       try {
-        const data = await apiGet("/for-you/all", { user_id: userId });
+        const data = await apiGet("/for-you/all");
         const notes = Array.isArray(data?.notes) ? data.notes : [];
         renderForYouModal(notes);
       } catch (err) {
@@ -1435,8 +1447,7 @@
     statusBackdrop.addEventListener("click", (e) => { if (e.target === statusBackdrop) closeStatusModal(); });
 
     async function saveNote() {
-      const userId = currentUserId();
-      if (!userId) {
+      if (!hasSession()) {
         saveStatusEl.textContent = "Please log in first.";
         return;
       }
@@ -1452,7 +1463,6 @@
       try {
         const note = await apiPost("/notes/text", {
           text,
-          user_id: userId,
         });
         noteTextEl.value = "";
         saveStatusEl.textContent = "Saved.";
@@ -1468,8 +1478,7 @@
     saveBtn.addEventListener("click", saveNote);
 
     async function runSearch() {
-      const userId = currentUserId();
-      if (!userId) {
+      if (!hasSession()) {
         searchStatusEl.textContent = "Please log in first.";
         return;
       }
@@ -1492,7 +1501,7 @@
 
       try {
         if (smartSearchToggle.checked && q) {
-          const body = { query: q, user_id: userId };
+          const body = { query: q };
           if (rangeVal && rangeVal !== "0") body.days = parseInt(rangeVal, 10);
           const data = await apiPost("/smart-search", body);
           const notes = Array.isArray(data.notes) ? data.notes : [];
@@ -1516,7 +1525,6 @@
           notes.forEach(note => searchResultsEl.appendChild(renderNoteCard(note)));
         } else {
           const data = await apiGet("/notes", {
-            user_id: userId,
             query: q || undefined,
             days: rangeVal || undefined
           });
@@ -1547,8 +1555,7 @@
       });
     }
 
-    function showAppForUser(userId) {
-      localStorage.setItem("reverie_user_id", userId);
+    function showAppForUser() {
       setAuthedState(true);
       buildTagShelf();
       loadForYou();
@@ -1556,7 +1563,7 @@
     }
 
     function clearSession() {
-      localStorage.removeItem("reverie_user_id");
+      sessionStorage.removeItem("reverie_access_token");
       localStorage.removeItem("reverie_access_token");
       localStorage.removeItem("reverie_email");
       setAuthedState(false);
@@ -1589,12 +1596,14 @@
           throw new Error("Could not read user id from auth response.");
         }
 
-        localStorage.setItem("reverie_user_id", userId);
         localStorage.setItem("reverie_email", email);
-        if (token) localStorage.setItem("reverie_access_token", token);
+        if (token) {
+          sessionStorage.setItem("reverie_access_token", token);
+          localStorage.removeItem("reverie_access_token");
+        }
 
         authStatus.textContent = authMode === "login" ? "Logged in." : "Account created.";
-        showAppForUser(userId);
+        showAppForUser();
       } catch (err) {
         console.error(err);
         authStatus.textContent = err.message || "Authentication failed.";
@@ -1626,8 +1635,7 @@
 
     (function boot() {
       setAuthMode("login");
-      const userId = currentUserId();
-      if (userId) {
+      if (hasSession()) {
         setAuthedState(true);
         buildTagShelf();
         loadForYou();

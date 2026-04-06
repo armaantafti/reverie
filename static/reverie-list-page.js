@@ -30,8 +30,28 @@
     return el;
   }
 
-  function currentUserId() {
-    return localStorage.getItem("reverie_user_id") || "";
+  function currentAccessToken() {
+    const sessionToken = sessionStorage.getItem("reverie_access_token") || "";
+    if (sessionToken) return sessionToken;
+    const legacyToken = localStorage.getItem("reverie_access_token") || "";
+    if (legacyToken) {
+      sessionStorage.setItem("reverie_access_token", legacyToken);
+      localStorage.removeItem("reverie_access_token");
+    }
+    return legacyToken;
+  }
+
+  function hasSession() {
+    return Boolean(currentAccessToken());
+  }
+
+  function authHeaders(extraHeaders) {
+    const headers = Object.assign({}, extraHeaders || {});
+    const token = currentAccessToken();
+    if (token) {
+      headers.Authorization = `Bearer ${token}`;
+    }
+    return headers;
   }
 
   function noteStatus(value) {
@@ -207,8 +227,7 @@
     }
 
     async function openContext(kind, value, label) {
-      const userId = currentUserId();
-      if (!userId) return;
+      if (!hasSession()) return;
 
       contextTitle.textContent = label || value || "Context";
       contextSub.textContent = kind === "person" ? "Everything filed under this name" : "Everything filed under this tag";
@@ -217,8 +236,9 @@
 
       try {
         const params = new URLSearchParams({ kind, value });
-        params.set("user_id", userId);
-        const resp = await fetch(`/context?${params.toString()}`);
+        const resp = await fetch(`/context?${params.toString()}`, {
+          headers: authHeaders(),
+        });
         if (!resp.ok) throw new Error("HTTP " + resp.status);
         const data = await resp.json();
         renderContextList(Array.isArray(data?.notes) ? data.notes : []);
@@ -250,18 +270,16 @@
 
     async function saveStatusUpdate() {
       if (!activeStatusNote) return;
-      const userId = currentUserId();
-      if (!userId) {
+      if (!hasSession()) {
         alert("Please sign in first.");
         return;
       }
 
       const resp = await fetch("/notes/status", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: authHeaders({ "Content-Type": "application/json" }),
         body: JSON.stringify({
           note_id: activeStatusNote.id,
-          user_id: userId,
           status: statusSelect.value,
           status_note: statusNote.value.trim(),
         }),
@@ -350,13 +368,14 @@
     async function loadItems() {
       try {
         resetEmptyState();
-        const userId = currentUserId();
-        if (!userId) {
+        if (!hasSession()) {
           setSignedOutState();
           return;
         }
 
-        const resp = await fetch(`/notes?user_id=${encodeURIComponent(userId)}`);
+        const resp = await fetch("/notes", {
+          headers: authHeaders(),
+        });
         if (!resp.ok) throw new Error("HTTP " + resp.status);
         const notes = await resp.json();
         const groups = config.splitNotes(Array.isArray(notes) ? notes : []);
