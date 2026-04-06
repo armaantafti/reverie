@@ -30,28 +30,31 @@
     return el;
   }
 
-  function currentAccessToken() {
-    const sessionToken = sessionStorage.getItem("reverie_access_token") || "";
-    if (sessionToken) return sessionToken;
-    const legacyToken = localStorage.getItem("reverie_access_token") || "";
-    if (legacyToken) {
-      sessionStorage.setItem("reverie_access_token", legacyToken);
-      localStorage.removeItem("reverie_access_token");
-    }
-    return legacyToken;
+  let sessionInfoPromise = null;
+
+  async function getSessionInfo(force) {
+    if (!force && sessionInfoPromise) return sessionInfoPromise;
+    sessionInfoPromise = (async () => {
+      try {
+        const resp = await fetch("/session", {
+          credentials: "same-origin",
+        });
+        if (!resp.ok) return null;
+        const data = await resp.json();
+        return data?.authenticated ? data : null;
+      } catch (_) {
+        return null;
+      }
+    })();
+    return sessionInfoPromise;
   }
 
-  function hasSession() {
-    return Boolean(currentAccessToken());
+  async function ensureSession(force) {
+    return Boolean((await getSessionInfo(force))?.authenticated);
   }
 
-  function authHeaders(extraHeaders) {
-    const headers = Object.assign({}, extraHeaders || {});
-    const token = currentAccessToken();
-    if (token) {
-      headers.Authorization = `Bearer ${token}`;
-    }
-    return headers;
+  function invalidateSession() {
+    sessionInfoPromise = Promise.resolve(null);
   }
 
   function noteStatus(value) {
@@ -227,7 +230,7 @@
     }
 
     async function openContext(kind, value, label) {
-      if (!hasSession()) return;
+      if (!(await ensureSession())) return;
 
       contextTitle.textContent = label || value || "Context";
       contextSub.textContent = kind === "person" ? "Everything filed under this name" : "Everything filed under this tag";
@@ -237,8 +240,13 @@
       try {
         const params = new URLSearchParams({ kind, value });
         const resp = await fetch(`/context?${params.toString()}`, {
-          headers: authHeaders(),
+          credentials: "same-origin",
         });
+        if (resp.status === 401) {
+          invalidateSession();
+          setSignedOutState();
+          return;
+        }
         if (!resp.ok) throw new Error("HTTP " + resp.status);
         const data = await resp.json();
         renderContextList(Array.isArray(data?.notes) ? data.notes : []);
@@ -270,20 +278,27 @@
 
     async function saveStatusUpdate() {
       if (!activeStatusNote) return;
-      if (!hasSession()) {
+      if (!(await ensureSession())) {
         alert("Please sign in first.");
         return;
       }
 
       const resp = await fetch("/notes/status", {
         method: "POST",
-        headers: authHeaders({ "Content-Type": "application/json" }),
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           note_id: activeStatusNote.id,
           status: statusSelect.value,
           status_note: statusNote.value.trim(),
         }),
+        credentials: "same-origin",
       });
+      if (resp.status === 401) {
+        invalidateSession();
+        closeStatusModal();
+        setSignedOutState();
+        throw new Error("Please sign in first.");
+      }
 
       const data = await resp.json().catch(() => ({}));
       if (!resp.ok) {
@@ -368,14 +383,19 @@
     async function loadItems() {
       try {
         resetEmptyState();
-        if (!hasSession()) {
+        if (!(await ensureSession())) {
           setSignedOutState();
           return;
         }
 
         const resp = await fetch("/notes", {
-          headers: authHeaders(),
+          credentials: "same-origin",
         });
+        if (resp.status === 401) {
+          invalidateSession();
+          setSignedOutState();
+          return;
+        }
         if (!resp.ok) throw new Error("HTTP " + resp.status);
         const notes = await resp.json();
         const groups = config.splitNotes(Array.isArray(notes) ? notes : []);

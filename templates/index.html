@@ -977,21 +977,7 @@
 
     let authMode = "login";
     let activeStatusNote = null;
-
-    function currentAccessToken() {
-      const sessionToken = sessionStorage.getItem("reverie_access_token") || "";
-      if (sessionToken) return sessionToken;
-      const legacyToken = localStorage.getItem("reverie_access_token") || "";
-      if (legacyToken) {
-        sessionStorage.setItem("reverie_access_token", legacyToken);
-        localStorage.removeItem("reverie_access_token");
-      }
-      return legacyToken;
-    }
-
-    function hasSession() {
-      return Boolean(currentAccessToken());
-    }
+    let sessionInfoPromise = null;
 
     function noteStatus(value) {
       const status = String(value || "pending").trim().toLowerCase();
@@ -1027,26 +1013,33 @@
       loginState.textContent = isAuthed ? "Signed in" : "Signed out";
     }
 
-    function getAuthPayloadUserId(payload) {
-      const user =
-        payload?.user ||
-        payload?.data?.user ||
-        payload?.session?.user ||
-        payload?.data?.session?.user ||
-        null;
-      return user?.id || payload?.user_id || payload?.id || "";
+    async function getSessionInfo(force = false) {
+      if (!force && sessionInfoPromise) return sessionInfoPromise;
+      sessionInfoPromise = (async () => {
+        try {
+          const resp = await fetch("/session", {
+            credentials: "same-origin",
+          });
+          if (!resp.ok) return null;
+          const data = await resp.json();
+          return data?.authenticated ? data : null;
+        } catch (_) {
+          return null;
+        }
+      })();
+      return sessionInfoPromise;
     }
 
-    function getAuthPayloadToken(payload) {
-      return (
-        payload?.access_token ||
-        payload?.data?.access_token ||
-        payload?.session?.access_token ||
-        payload?.data?.session?.access_token ||
-        payload?.user?.access_token ||
-        payload?.data?.user?.access_token ||
-        ""
-      );
+    async function ensureSession(force = false) {
+      const session = await getSessionInfo(force);
+      const isAuthed = Boolean(session?.authenticated);
+      setAuthedState(isAuthed);
+      return isAuthed;
+    }
+
+    function invalidateSessionUi() {
+      clearSession();
+      throw new Error("Please log in first.");
     }
 
     async function apiGet(path, params = {}) {
@@ -1056,23 +1049,23 @@
           url.searchParams.set(key, String(value));
         }
       });
-      const headers = {};
-      const token = currentAccessToken();
-      if (token) headers.Authorization = `Bearer ${token}`;
-      const resp = await fetch(url.toString(), { headers });
+      const resp = await fetch(url.toString(), {
+        credentials: "same-origin",
+      });
+      if (resp.status === 401) invalidateSessionUi();
       if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
       return await resp.json();
     }
 
     async function apiPost(path, body) {
       const headers = { "Content-Type": "application/json" };
-      const token = currentAccessToken();
-      if (token) headers.Authorization = `Bearer ${token}`;
       const resp = await fetch(path, {
         method: "POST",
         headers,
         body: JSON.stringify(body),
+        credentials: "same-origin",
       });
+      if (resp.status === 401) invalidateSessionUi();
       if (!resp.ok) {
         let detail = `HTTP ${resp.status}`;
         try {
@@ -1113,7 +1106,7 @@
 
     async function saveStatusUpdate() {
       if (!activeStatusNote) return;
-      if (!hasSession()) throw new Error("Please log in first.");
+      if (!(await ensureSession())) throw new Error("Please log in first.");
       await apiPost("/notes/status", {
         note_id: activeStatusNote.id,
         status: statusSelect.value,
@@ -1293,7 +1286,7 @@
     detailBackdrop.addEventListener("click", (e) => { if (e.target === detailBackdrop) closeDetail(); });
 
     async function openContext(kind, value, label) {
-      if (!hasSession()) return;
+      if (!(await ensureSession())) return;
       contextTitle.textContent = label || value || "Context";
       contextSub.textContent = kind === "person" ? "Everything filed under this name" : "Everything filed under this tag";
       contextList.innerHTML = "";
@@ -1398,7 +1391,7 @@
     }
 
     async function loadForYou() {
-      if (!hasSession()) return;
+      if (!(await ensureSession())) return;
       try {
         const data = await apiGet("/for-you", { limit: 3 });
         const notes = Array.isArray(data?.notes) ? data.notes : [];
@@ -1419,7 +1412,7 @@
     }
 
     async function openForYouModal() {
-      if (!hasSession()) return;
+      if (!(await ensureSession())) return;
       setModalVisible(forYouBackdrop, true);
       forYouModalList.innerHTML = "";
       try {
@@ -1451,7 +1444,7 @@
     statusBackdrop.addEventListener("click", (e) => { if (e.target === statusBackdrop) closeStatusModal(); });
 
     async function saveNote() {
-      if (!hasSession()) {
+      if (!(await ensureSession())) {
         saveStatusEl.textContent = "Please log in first.";
         return;
       }
@@ -1482,7 +1475,7 @@
     saveBtn.addEventListener("click", saveNote);
 
     async function runSearch() {
-      if (!hasSession()) {
+      if (!(await ensureSession())) {
         searchStatusEl.textContent = "Please log in first.";
         return;
       }
@@ -1567,8 +1560,7 @@
     }
 
     function clearSession() {
-      sessionStorage.removeItem("reverie_access_token");
-      localStorage.removeItem("reverie_access_token");
+      sessionInfoPromise = Promise.resolve(null);
       localStorage.removeItem("reverie_email");
       setAuthedState(false);
       authEmail.value = "";
@@ -1592,20 +1584,16 @@
 
       try {
         const path = authMode === "login" ? "/login" : "/signup";
-        const payload = await apiPost(path, { email, password });
-        const userId = getAuthPayloadUserId(payload);
-        const token = getAuthPayloadToken(payload);
-
-        if (!userId) {
-          throw new Error("Could not read user id from auth response.");
-        }
-        if (!token) {
-          throw new Error("Could not read access token from auth response.");
-        }
+        await apiPost(path, { email, password });
 
         localStorage.setItem("reverie_email", email);
-        sessionStorage.setItem("reverie_access_token", token);
-        localStorage.removeItem("reverie_access_token");
+        const authed = await ensureSession(true);
+        if (!authed) {
+          authStatus.textContent = authMode === "signup"
+            ? "Account created. Sign in after verification if required."
+            : "Login failed to establish a session.";
+          return;
+        }
 
         authStatus.textContent = authMode === "login" ? "Logged in." : "Account created.";
         showAppForUser();
@@ -1621,7 +1609,10 @@
     loginTab.addEventListener("click", () => setAuthMode("login"));
     signupTab.addEventListener("click", () => setAuthMode("signup"));
     authForm.addEventListener("submit", handleAuthSubmit);
-    logoutBtn.addEventListener("click", () => {
+    logoutBtn.addEventListener("click", async () => {
+      try {
+        await apiPost("/logout", {});
+      } catch (_) {}
       clearSession();
     });
 
@@ -1638,9 +1629,9 @@
       }
     });
 
-    (function boot() {
+    (async function boot() {
       setAuthMode("login");
-      if (hasSession()) {
+      if (await ensureSession(true)) {
         setAuthedState(true);
         buildTagShelf();
         loadForYou();

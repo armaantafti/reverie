@@ -2,7 +2,7 @@ from typing import Optional, Any
 
 from fastapi import FastAPI, Query, Request, HTTPException
 from fastapi.encoders import jsonable_encoder
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
@@ -14,6 +14,8 @@ from sync_notes_to_gcal import sync_notes_to_calendar
 from llm_search import summarise_search, extract_search_signals
 
 app = FastAPI(title="Reverie API")
+
+SESSION_COOKIE_NAME = "reverie_session"
 
 # Static files
 app.mount("/static", StaticFiles(directory="static"), name="static")
@@ -52,7 +54,38 @@ def _error_detail(exc: Exception) -> str:
     return "Request failed"
 
 
-def _extract_bearer_token(request: Request) -> str:
+def _cookie_secure(request: Request) -> bool:
+    forwarded_proto = (request.headers.get("x-forwarded-proto") or "").lower()
+    if "https" in forwarded_proto:
+        return True
+    return request.url.scheme == "https"
+
+
+def _set_session_cookie(response: JSONResponse, request: Request, token: str) -> None:
+    response.set_cookie(
+        key=SESSION_COOKIE_NAME,
+        value=token,
+        httponly=True,
+        secure=_cookie_secure(request),
+        samesite="lax",
+        path="/",
+    )
+
+
+def _clear_session_cookie(response: JSONResponse, request: Request) -> None:
+    response.delete_cookie(
+        key=SESSION_COOKIE_NAME,
+        path="/",
+        samesite="lax",
+        secure=_cookie_secure(request),
+    )
+
+
+def _extract_request_token(request: Request) -> str:
+    cookie_token = (request.cookies.get(SESSION_COOKIE_NAME) or "").strip()
+    if cookie_token:
+        return cookie_token
+
     auth_header = (request.headers.get("Authorization") or "").strip()
     if not auth_header.startswith("Bearer "):
         raise HTTPException(status_code=401, detail="missing bearer token")
@@ -63,7 +96,7 @@ def _extract_bearer_token(request: Request) -> str:
 
 
 def _get_authenticated_user_id(request: Request) -> str:
-    token = _extract_bearer_token(request)
+    token = _extract_request_token(request)
     try:
         response = supabase_auth.auth.get_user(token)
     except Exception as e:
@@ -76,13 +109,38 @@ def _get_authenticated_user_id(request: Request) -> str:
     return user_id.strip()
 
 
+def _get_authenticated_user(request: Request) -> dict[str, Any]:
+    token = _extract_request_token(request)
+    try:
+        response = supabase_auth.auth.get_user(token)
+    except Exception as e:
+        raise HTTPException(status_code=401, detail="invalid access token") from e
+
+    user = getattr(response, "user", None) or (response.get("user") if isinstance(response, dict) else None)
+    encoded = jsonable_encoder(user) if user is not None else None
+    if not isinstance(encoded, dict) or not str(encoded.get("id") or "").strip():
+        raise HTTPException(status_code=401, detail="invalid access token")
+    return encoded
+
+
+def _get_auth_payload_token(payload: Any) -> str:
+    data = jsonable_encoder(payload)
+    return str(
+        data.get("access_token")
+        or (data.get("session") or {}).get("access_token")
+        or (data.get("data") or {}).get("access_token")
+        or ((data.get("data") or {}).get("session") or {}).get("access_token")
+        or ""
+    ).strip()
+
+
 class AuthIn(BaseModel):
     email: str
     password: str
 
 
 @app.post("/signup")
-async def signup(data: AuthIn):
+async def signup(data: AuthIn, request: Request):
     email = data.email.strip()
     password = data.password
 
@@ -94,13 +152,18 @@ async def signup(data: AuthIn):
             "email": email,
             "password": password
         })
-        return jsonable_encoder(res)
+        body = jsonable_encoder(res)
+        response = JSONResponse(content=body)
+        token = _get_auth_payload_token(res)
+        if token:
+            _set_session_cookie(response, request, token)
+        return response
     except Exception as e:
         raise HTTPException(status_code=400, detail=_error_detail(e)) from e
 
 
 @app.post("/login")
-async def login(data: AuthIn):
+async def login(data: AuthIn, request: Request):
     email = data.email.strip()
     password = data.password
 
@@ -112,9 +175,33 @@ async def login(data: AuthIn):
             "email": email,
             "password": password
         })
-        return jsonable_encoder(res)
+        body = jsonable_encoder(res)
+        response = JSONResponse(content=body)
+        token = _get_auth_payload_token(res)
+        if token:
+            _set_session_cookie(response, request, token)
+        return response
     except Exception as e:
         raise HTTPException(status_code=400, detail=_error_detail(e)) from e
+
+
+@app.get("/session")
+def get_session(request: Request):
+    user = _get_authenticated_user(request)
+    return {
+        "authenticated": True,
+        "user": {
+            "id": user.get("id"),
+            "email": user.get("email"),
+        },
+    }
+
+
+@app.post("/logout")
+def logout(request: Request):
+    response = JSONResponse(content={"ok": True})
+    _clear_session_cookie(response, request)
+    return response
 
 
 @app.get("/", response_class=HTMLResponse)
