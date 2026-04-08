@@ -1,6 +1,6 @@
 from typing import Optional, Any
 
-from fastapi import FastAPI, Query, Request, HTTPException
+from fastapi import FastAPI, Query, Request, HTTPException, BackgroundTasks, UploadFile, File
 from fastapi.encoders import jsonable_encoder
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
@@ -9,6 +9,14 @@ from pydantic import BaseModel
 
 from supabase_client import supabase_admin, supabase_auth
 from note_core import process_text_note
+from image_pipeline import (
+    MAX_IMAGE_MEMORIES_PER_USER,
+    MAX_IMAGE_UPLOADS_PER_REQUEST,
+    count_image_memories,
+    create_image_note_placeholder,
+    process_uploaded_image_note,
+    upload_image_bytes,
+)
 from search_notes import filter_notes, filter_by_keywords, rank_for_you, context_notes
 from sync_notes_to_gcal import sync_notes_to_calendar
 from llm_search import summarise_search, extract_search_signals
@@ -375,3 +383,64 @@ def smart_search(payload: SmartSearchIn, request: Request):
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=_error_detail(e)) from e
+
+
+@app.post("/notes/images")
+async def create_image_notes(
+    request: Request,
+    background_tasks: BackgroundTasks,
+    files: list[UploadFile] = File(...),
+):
+    user_id = _get_authenticated_user_id(request)
+
+    if not files:
+        raise HTTPException(status_code=400, detail="at least one image is required")
+    if len(files) > MAX_IMAGE_UPLOADS_PER_REQUEST:
+        raise HTTPException(status_code=400, detail=f"upload at most {MAX_IMAGE_UPLOADS_PER_REQUEST} images at once")
+
+    existing_total = count_image_memories(user_id)
+    if existing_total + len(files) > MAX_IMAGE_MEMORIES_PER_USER:
+        raise HTTPException(status_code=400, detail=f"image memory limit is {MAX_IMAGE_MEMORIES_PER_USER} per user")
+
+    prepared_uploads: list[tuple[str, str, bytes]] = []
+    for upload in files:
+        content_type = (upload.content_type or "").lower()
+        if not content_type.startswith("image/"):
+            raise HTTPException(status_code=400, detail="only image uploads are supported")
+        image_bytes = await upload.read()
+        if not image_bytes:
+            raise HTTPException(status_code=400, detail="one of the uploaded images was empty")
+        prepared_uploads.append((upload.filename or "screenshot.png", content_type, image_bytes))
+
+    created = []
+    for file_name, content_type, image_bytes in prepared_uploads:
+        try:
+            image_url = upload_image_bytes(
+                user_id=user_id,
+                file_name=file_name,
+                image_bytes=image_bytes,
+                content_type=content_type,
+            )
+            note = create_image_note_placeholder(
+                user_id=user_id,
+                image_url=image_url,
+                file_name=file_name,
+            )
+            background_tasks.add_task(
+                process_uploaded_image_note,
+                note["id"],
+                user_id,
+                image_url,
+                image_bytes,
+            )
+            created.append(note)
+        except HTTPException:
+            raise
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=_error_detail(e)) from e
+
+    return {
+        "notes": created,
+        "count": len(created),
+        "message": "Images uploaded. OCR is processing in the background.",
+    }

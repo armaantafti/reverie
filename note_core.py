@@ -115,6 +115,92 @@ def _normalise_extracted_fields(fields: Dict[str, Any], transcript: str) -> Dict
     }
 
 
+def extract_note_fields(transcript: str) -> Dict[str, Any]:
+    text = (transcript or "").strip()
+    if not text:
+        raise ValueError("text cannot be empty")
+
+    try:
+        fields = _call_extractor(text)
+    except Exception:
+        fields = _fallback_extract(text)
+
+    return _normalise_extracted_fields(fields, text)
+
+
+def build_text_note_payload(
+    transcript: str,
+    user_id: str,
+    *,
+    note_id: Optional[str] = None,
+    created_at: Optional[str] = None,
+) -> Dict[str, Any]:
+    text = (transcript or "").strip()
+    if not text:
+        raise ValueError("text cannot be empty")
+
+    resolved_user_id = (user_id or "").strip()
+    if not resolved_user_id:
+        raise ValueError("user_id is required")
+
+    normalized = extract_note_fields(text)
+
+    return {
+        "id": note_id or generate_id(),
+        "user_id": resolved_user_id,
+        "created_at": created_at or datetime.now().isoformat(),
+        "person_name": normalized["person_name"],
+        "title": normalized["title"],
+        "summary": normalized["summary"],
+        "raw_text": text,
+        "extracted_text": None,
+        "image_url": None,
+        "memory_type": "text",
+        "note_type": normalized["note_type"],
+        "tags": normalized["tags"],
+        "entities": normalized["entities"],
+        "due_time": normalized["due_time"],
+        "calendar_event_id": None,
+        "status": "pending",
+        "status_note": None,
+    }
+
+
+def build_image_note_update(extracted_text: str, image_url: str) -> Dict[str, Any]:
+    text = (extracted_text or "").strip()
+    image = (image_url or "").strip() or None
+
+    if not text:
+        return {
+            "person_name": None,
+            "title": "Screenshot memory",
+            "summary": "Image saved. OCR could not read enough text.",
+            "raw_text": "",
+            "extracted_text": "",
+            "image_url": image,
+            "memory_type": "image",
+            "note_type": "note",
+            "tags": [],
+            "entities": [],
+            "due_time": None,
+        }
+
+    normalized = extract_note_fields(text)
+    return {
+        "person_name": normalized["person_name"],
+        "title": normalized["title"],
+        "summary": normalized["summary"],
+        "raw_text": text,
+        "extracted_text": text,
+        "image_url": image,
+        "memory_type": "image",
+        "note_type": normalized["note_type"],
+        "tags": normalized["tags"],
+        "entities": normalized["entities"],
+        "due_time": normalized["due_time"],
+    }
+
+
 def process_text_note(
     text: str,
     platform: str = "web",
@@ -131,29 +217,7 @@ def process_text_note(
     if not resolved_user_id:
         raise ValueError("user_id is required")
 
-    try:
-        fields = _call_extractor(transcript)
-    except Exception:
-        fields = _fallback_extract(transcript)
-
-    normalized = _normalise_extracted_fields(fields, transcript)
-
-    note = {
-        "id": generate_id(),
-        "user_id": resolved_user_id,
-        "created_at": datetime.now().isoformat(),
-        "person_name": normalized["person_name"],
-        "title": normalized["title"],
-        "summary": normalized["summary"],
-        "raw_text": transcript,
-        "note_type": normalized["note_type"],
-        "tags": normalized["tags"],
-        "entities": normalized["entities"],
-        "due_time": normalized["due_time"],
-        "calendar_event_id": None,
-        "status": "pending",
-        "status_note": None,
-    }
+    note = build_text_note_payload(transcript, resolved_user_id)
 
     try:
         supabase_admin.table("notes").insert(note).execute()

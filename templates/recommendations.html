@@ -68,12 +68,20 @@
             <div class="detail-value" id="recsDetailSummary"></div>
           </div>
           <div class="detail-block">
-            <span class="detail-label">Raw note</span>
+            <span class="detail-label">Image</span>
+            <img class="detail-image" id="recsDetailImage" alt="Memory image preview" style="display:none;" />
+          </div>
+          <div class="detail-block">
+            <span class="detail-label">Text</span>
             <div class="detail-value" id="recsDetailRaw"></div>
           </div>
           <div class="detail-block">
             <span class="detail-label">Tags</span>
             <div class="chips" id="recsDetailTags"></div>
+          </div>
+          <div class="detail-block">
+            <span class="detail-label">Entities</span>
+            <div class="chips" id="recsDetailEntities"></div>
           </div>
           <div class="detail-block">
             <span class="detail-label">Person</span>
@@ -153,8 +161,10 @@
         summaryId: "recsDetailSummary",
         rawId: "recsDetailRaw",
         tagsId: "recsDetailTags",
+        entitiesId: "recsDetailEntities",
         personId: "recsDetailPerson",
         timeId: "recsDetailTime",
+        imageId: "recsDetailImage",
       },
       context: {
         backdropId: "recsContextBackdrop",

@@ -337,6 +337,15 @@
       font-size:.92rem;
       line-height:1.55;
     }
+    .note-image-preview{
+      width:100%;
+      max-height:220px;
+      object-fit:cover;
+      border-radius:16px;
+      margin-top:12px;
+      border:1px solid rgba(148,163,184,.14);
+      background:rgba(6,11,20,.48);
+    }
     .chips{
       display:flex;
       flex-wrap:wrap;
@@ -572,6 +581,14 @@
       color:var(--text);
       overflow-wrap:anywhere;
     }
+    .detail-image{
+      width:100%;
+      max-height:420px;
+      object-fit:contain;
+      border-radius:18px;
+      border:1px solid rgba(148,163,184,.14);
+      background:rgba(6,11,20,.48);
+    }
     .context-list{
       display:grid;
       gap:10px;
@@ -745,6 +762,8 @@
             <textarea id="noteText" placeholder="Write a memory, reminder, or idea..."></textarea>
             <div class="actions">
               <button class="btn btn-primary" id="saveBtn" type="button">Save</button>
+              <button class="btn btn-secondary" id="uploadBtn" type="button">Upload Screenshot</button>
+              <input id="imageInput" type="file" accept="image/*" multiple class="hidden" />
             </div>
             <div class="status-line" id="saveStatus" aria-live="polite"></div>
           </article>
@@ -810,12 +829,20 @@
           <div class="detail-value" id="detailSummary"></div>
         </div>
         <div class="detail-block">
-          <span class="detail-label">Raw note</span>
+          <span class="detail-label">Image</span>
+          <img class="detail-image" id="detailImage" alt="Memory image preview" style="display:none;" />
+        </div>
+        <div class="detail-block">
+          <span class="detail-label">Text</span>
           <div class="detail-value" id="detailRaw"></div>
         </div>
         <div class="detail-block">
           <span class="detail-label">Tags</span>
           <div class="chips" id="detailTags"></div>
+        </div>
+        <div class="detail-block">
+          <span class="detail-label">Entities</span>
+          <div class="chips" id="detailEntities"></div>
         </div>
         <div class="detail-block">
           <span class="detail-label">Person</span>
@@ -893,6 +920,11 @@
       return tags.map(t => String(t).trim()).filter(Boolean);
     }
 
+    function normaliseEntities(values) {
+      if (!Array.isArray(values)) return [];
+      return values.map(v => String(v).trim()).filter(Boolean);
+    }
+
     function formatWhen(value) {
       if (!value) return "";
       const d = new Date(value);
@@ -919,6 +951,36 @@
       return el;
     }
 
+    function appendImagePreview(parent, note) {
+      if (!note?.image_url) return;
+      const img = document.createElement("img");
+      img.className = "note-image-preview";
+      img.src = note.image_url;
+      img.alt = note?.title || "Image memory";
+      img.loading = "lazy";
+      parent.appendChild(img);
+    }
+
+    function fillChipContainer(container, values, kind) {
+      container.innerHTML = "";
+      const list = kind === "entity" ? normaliseEntities(values) : normaliseTags(values);
+      if (!list.length) {
+        const span = document.createElement("span");
+        span.className = "chip muted";
+        span.textContent = kind === "entity" ? "No entities" : "No tags";
+        container.appendChild(span);
+        return;
+      }
+      list.forEach((value, index) => {
+        const btn = makeChip(value, chipClass(index), "clickable-chip");
+        btn.addEventListener("click", (e) => {
+          e.stopPropagation();
+          openContext(kind, value, value);
+        });
+        container.appendChild(btn);
+      });
+    }
+
     const authPanel = document.getElementById("authPanel");
     const appShell = document.getElementById("appShell");
     const authForm = document.getElementById("authForm");
@@ -933,6 +995,8 @@
     const loginState = document.getElementById("loginState");
 
     const saveBtn = document.getElementById("saveBtn");
+    const uploadBtn = document.getElementById("uploadBtn");
+    const imageInput = document.getElementById("imageInput");
     const noteTextEl = document.getElementById("noteText");
     const saveStatusEl = document.getElementById("saveStatus");
     const searchQueryEl = document.getElementById("searchQuery");
@@ -953,7 +1017,9 @@
     const detailSub = document.getElementById("detailSub");
     const detailSummary = document.getElementById("detailSummary");
     const detailRaw = document.getElementById("detailRaw");
+    const detailImage = document.getElementById("detailImage");
     const detailTags = document.getElementById("detailTags");
+    const detailEntities = document.getElementById("detailEntities");
     const detailPerson = document.getElementById("detailPerson");
     const detailTime = document.getElementById("detailTime");
 
@@ -1159,6 +1225,8 @@
         btn.appendChild(summary);
       }
 
+      appendImagePreview(btn, note);
+
       const chips = document.createElement("div");
       chips.className = "chips";
       const meta = [];
@@ -1166,6 +1234,7 @@
       if (note?.person_name) meta.push({ text: note.person_name, cls: "chip soft", kind: "person", value: note.person_name });
       if (note?.due_time) meta.push({ text: formatWhen(note.due_time), cls: "chip muted" });
       normaliseTags(note?.tags).slice(0, 4).forEach(tag => meta.push({ text: tag, cls: "chip", kind: "tag", value: tag }));
+      normaliseEntities(note?.entities).slice(0, 2).forEach((entity, index) => meta.push({ text: entity, cls: index % 2 ? "chip soft" : "chip muted", kind: "entity", value: entity }));
       meta.slice(0, 6).forEach(item => chips.appendChild(cardChip(item.text, item.cls, item.kind, item.value)));
       btn.appendChild(chips);
       return btn;
@@ -1238,7 +1307,19 @@
           });
           meta.appendChild(chip);
         });
+        normaliseEntities(note?.entities).slice(0, 2).forEach((entity, index) => {
+          const chip = document.createElement("button");
+          chip.type = "button";
+          chip.className = `chip clickable-chip ${index % 2 ? "soft" : "muted"}`.trim();
+          chip.textContent = entity;
+          chip.addEventListener("click", (e) => {
+            e.stopPropagation();
+            openContext("entity", entity, entity);
+          });
+          meta.appendChild(chip);
+        });
         item.appendChild(meta);
+        appendImagePreview(item, note);
 
         if (note?.summary) {
           const summary = document.createElement("p");
@@ -1254,29 +1335,22 @@
       detailTitle.textContent = note?.title || "(no title)";
       const bits = [];
       if (note?.note_type) bits.push(note.note_type);
+      if (note?.memory_type === "image") bits.push("image");
       if (note?.person_name) bits.push(note.person_name);
       if (note?.due_time) bits.push(formatWhen(note.due_time));
       detailSub.textContent = bits.join(" · ");
       detailSummary.textContent = note?.summary || "";
-      detailRaw.textContent = note?.raw_text || "";
+      detailRaw.textContent = note?.extracted_text || note?.raw_text || "";
       detailPerson.textContent = note?.person_name || "—";
       detailTime.textContent = note?.due_time ? formatWhen(note.due_time) : "—";
-      detailTags.innerHTML = "";
-      const tags = normaliseTags(note?.tags);
-      if (!tags.length) {
-        const span = document.createElement("span");
-        span.className = "chip muted";
-        span.textContent = "No tags";
-        detailTags.appendChild(span);
+      fillChipContainer(detailTags, note?.tags, "tag");
+      fillChipContainer(detailEntities, note?.entities, "entity");
+      if (note?.image_url) {
+        detailImage.src = note.image_url;
+        detailImage.style.display = "block";
       } else {
-        tags.forEach((tag, index) => {
-          const btn = makeChip(tag, chipClass(index), "clickable-chip");
-          btn.addEventListener("click", (e) => {
-            e.stopPropagation();
-            openContext("tag", tag, tag);
-          });
-          detailTags.appendChild(btn);
-        });
+        detailImage.removeAttribute("src");
+        detailImage.style.display = "none";
       }
       setModalVisible(detailBackdrop, true);
     }
@@ -1288,7 +1362,11 @@
     async function openContext(kind, value, label) {
       if (!(await ensureSession())) return;
       contextTitle.textContent = label || value || "Context";
-      contextSub.textContent = kind === "person" ? "Everything filed under this name" : "Everything filed under this tag";
+      contextSub.textContent = kind === "person"
+        ? "Everything filed under this name"
+        : kind === "entity"
+          ? "Everything filed under this entity"
+          : "Everything filed under this tag";
       contextList.innerHTML = "";
       setModalVisible(contextBackdrop, true);
       try {
@@ -1379,7 +1457,19 @@
         });
         meta.appendChild(chip);
       });
+      normaliseEntities(note?.entities).slice(0, 2).forEach((entity, index) => {
+        const chip = document.createElement("button");
+        chip.type = "button";
+        chip.className = `chip clickable-chip ${index % 2 ? "soft" : "muted"}`.trim();
+        chip.textContent = entity;
+        chip.addEventListener("click", (e) => {
+          e.stopPropagation();
+          openContext("entity", entity, entity);
+        });
+        meta.appendChild(chip);
+      });
       item.appendChild(meta);
+      appendImagePreview(item, note);
 
       if (note?.summary) {
         const summary = document.createElement("p");
@@ -1443,6 +1533,101 @@
     });
     statusBackdrop.addEventListener("click", (e) => { if (e.target === statusBackdrop) closeStatusModal(); });
 
+    function loadImageElement(file) {
+      return new Promise((resolve, reject) => {
+        const url = URL.createObjectURL(file);
+        const img = new Image();
+        img.onload = () => {
+          URL.revokeObjectURL(url);
+          resolve(img);
+        };
+        img.onerror = () => {
+          URL.revokeObjectURL(url);
+          reject(new Error("Could not read image."));
+        };
+        img.src = url;
+      });
+    }
+
+    async function compressImageFile(file) {
+      if (!file?.type?.startsWith("image/")) return file;
+      try {
+        const img = await loadImageElement(file);
+        const maxSide = 1600;
+        let width = img.naturalWidth || img.width;
+        let height = img.naturalHeight || img.height;
+        const scale = Math.min(1, maxSide / Math.max(width, height));
+        width = Math.max(1, Math.round(width * scale));
+        height = Math.max(1, Math.round(height * scale));
+
+        const canvas = document.createElement("canvas");
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) return file;
+        ctx.drawImage(img, 0, 0, width, height);
+
+        const targetType = file.type === "image/png" ? "image/png" : "image/jpeg";
+        const blob = await new Promise((resolve) => canvas.toBlob(resolve, targetType, 0.82));
+        if (!blob || blob.size >= file.size) return file;
+
+        const name = file.name.replace(/\.[^.]+$/, targetType === "image/png" ? ".png" : ".jpg");
+        return new File([blob], name, { type: targetType });
+      } catch (_) {
+        return file;
+      }
+    }
+
+    async function uploadImages(files) {
+      if (!(await ensureSession())) {
+        saveStatusEl.textContent = "Please log in first.";
+        return;
+      }
+      if (!files.length) return;
+      if (files.length > 10) {
+        saveStatusEl.textContent = "Upload at most 10 images at once.";
+        return;
+      }
+
+      const prev = uploadBtn.textContent;
+      uploadBtn.disabled = true;
+      uploadBtn.textContent = "Uploading…";
+      saveStatusEl.textContent = "Uploading screenshots…";
+      try {
+        const prepared = [];
+        for (const file of files) prepared.push(await compressImageFile(file));
+
+        const form = new FormData();
+        prepared.forEach((file) => form.append("files", file, file.name));
+
+        const resp = await fetch("/notes/images", {
+          method: "POST",
+          body: form,
+          credentials: "same-origin",
+        });
+        if (resp.status === 401) invalidateSessionUi();
+        if (!resp.ok) {
+          let detail = `HTTP ${resp.status}`;
+          try {
+            const data = await resp.json();
+            detail = data?.detail || detail;
+          } catch (_) {}
+          throw new Error(detail);
+        }
+
+        const data = await resp.json();
+        saveStatusEl.textContent = data?.message || "Images uploaded. OCR is processing in the background.";
+        await Promise.all([loadForYou(), runSearch()]);
+      } catch (err) {
+        console.error(err);
+        saveStatusEl.textContent = err?.message || "Image upload failed.";
+      } finally {
+        uploadBtn.disabled = false;
+        uploadBtn.textContent = prev;
+        imageInput.value = "";
+      }
+    }
+
     async function saveNote() {
       if (!(await ensureSession())) {
         saveStatusEl.textContent = "Please log in first.";
@@ -1473,6 +1658,12 @@
       }
     }
     saveBtn.addEventListener("click", saveNote);
+    uploadBtn.addEventListener("click", () => imageInput.click());
+    imageInput.addEventListener("change", async () => {
+      const files = Array.from(imageInput.files || []);
+      if (!files.length) return;
+      await uploadImages(files);
+    });
 
     async function runSearch() {
       if (!(await ensureSession())) {

@@ -30,6 +30,41 @@
     return el;
   }
 
+  function normaliseEntities(values) {
+    if (!Array.isArray(values)) return [];
+    return values.map((value) => String(value).trim()).filter(Boolean);
+  }
+
+  function appendImagePreview(parent, note) {
+    if (!note?.image_url) return;
+    const img = document.createElement("img");
+    img.className = "note-image-preview";
+    img.src = note.image_url;
+    img.alt = note?.title || "Image memory";
+    img.loading = "lazy";
+    parent.appendChild(img);
+  }
+
+  function fillChipContainer(container, values, kind, openContext) {
+    container.innerHTML = "";
+    const list = kind === "entity" ? normaliseEntities(values) : normaliseTags(values);
+    if (!list.length) {
+      const span = document.createElement("span");
+      span.className = "chip muted";
+      span.textContent = kind === "entity" ? "No entities" : "No tags";
+      container.appendChild(span);
+      return;
+    }
+    list.forEach((value, index) => {
+      const btn = makeChip(value, chipClass(index), "clickable-chip");
+      btn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        openContext(kind, value, value);
+      });
+      container.appendChild(btn);
+    });
+  }
+
   let sessionInfoPromise = null;
 
   async function getSessionInfo(force) {
@@ -85,8 +120,10 @@
     const detailSummary = document.getElementById(config.detail.summaryId);
     const detailRaw = document.getElementById(config.detail.rawId);
     const detailTags = document.getElementById(config.detail.tagsId);
+    const detailEntities = document.getElementById(config.detail.entitiesId);
     const detailPerson = document.getElementById(config.detail.personId);
     const detailTime = document.getElementById(config.detail.timeId);
+    const detailImage = document.getElementById(config.detail.imageId);
 
     const contextBackdrop = document.getElementById(config.context.backdropId);
     const contextClose = document.getElementById(config.context.closeId);
@@ -123,30 +160,24 @@
       detailTitle.textContent = note?.title || "(no title)";
       const bits = [];
       if (note?.note_type) bits.push(note.note_type);
+      if (note?.memory_type === "image") bits.push("image");
       if (note?.person_name) bits.push(note.person_name);
       if (note?.due_time) bits.push(formatWhen(note.due_time));
       detailSub.textContent = bits.join(" · ");
       detailSummary.textContent = note?.summary || "";
-      detailRaw.textContent = note?.raw_text || "";
+      detailRaw.textContent = note?.extracted_text || note?.raw_text || "";
       detailPerson.textContent = note?.person_name || "—";
       detailTime.textContent = note?.due_time ? formatWhen(note.due_time) : "—";
-      detailTags.innerHTML = "";
-
-      const tags = normaliseTags(note?.tags);
-      if (!tags.length) {
-        const span = document.createElement("span");
-        span.className = "chip muted";
-        span.textContent = "No tags";
-        detailTags.appendChild(span);
-      } else {
-        tags.forEach((tag, index) => {
-          const btn = makeChip(tag, chipClass(index), "clickable-chip");
-          btn.addEventListener("click", (e) => {
-            e.stopPropagation();
-            openContext("tag", tag, tag);
-          });
-          detailTags.appendChild(btn);
-        });
+      fillChipContainer(detailTags, note?.tags, "tag", openContext);
+      fillChipContainer(detailEntities, note?.entities, "entity", openContext);
+      if (detailImage) {
+        if (note?.image_url) {
+          detailImage.src = note.image_url;
+          detailImage.style.display = "block";
+        } else {
+          detailImage.removeAttribute("src");
+          detailImage.style.display = "none";
+        }
       }
 
       setModalVisible(detailBackdrop, true);
@@ -216,7 +247,20 @@
           meta.appendChild(chip);
         });
 
+        normaliseEntities(note?.entities).slice(0, 2).forEach((entity, index) => {
+          const chip = document.createElement("button");
+          chip.type = "button";
+          chip.className = `chip clickable-chip ${index % 2 ? "soft" : "muted"}`.trim();
+          chip.textContent = entity;
+          chip.addEventListener("click", (e) => {
+            e.stopPropagation();
+            openContext("entity", entity, entity);
+          });
+          meta.appendChild(chip);
+        });
+
         item.appendChild(meta);
+        appendImagePreview(item, note);
 
         if (note?.summary) {
           const summary = document.createElement("p");
@@ -233,7 +277,11 @@
       if (!(await ensureSession())) return;
 
       contextTitle.textContent = label || value || "Context";
-      contextSub.textContent = kind === "person" ? "Everything filed under this name" : "Everything filed under this tag";
+      contextSub.textContent = kind === "person"
+        ? "Everything filed under this name"
+        : kind === "entity"
+          ? "Everything filed under this entity"
+          : "Everything filed under this tag";
       contextList.innerHTML = "";
       setModalVisible(contextBackdrop, true);
 
@@ -354,6 +402,8 @@
         card.appendChild(summary);
       }
 
+      appendImagePreview(card, note);
+
       const chips = document.createElement("div");
       chips.className = "chips";
       const meta = [];
@@ -361,6 +411,7 @@
       if (note?.due_time) meta.push({ text: formatWhen(note.due_time), cls: "chip muted" });
       if (note?.note_type) meta.push({ text: note.note_type, cls: "chip good" });
       normaliseTags(note?.tags).slice(0, 4).forEach((tag) => meta.push({ text: tag, cls: "chip", kind: "tag", value: tag }));
+      normaliseEntities(note?.entities).slice(0, 2).forEach((entity, index) => meta.push({ text: entity, cls: index % 2 ? "chip soft" : "chip muted", kind: "entity", value: entity }));
 
       meta.slice(0, 6).forEach((item) => {
         const el = item.kind ? document.createElement("button") : document.createElement("span");

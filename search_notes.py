@@ -186,6 +186,8 @@ def context_notes(notes: Iterable[Dict[str, Any]], kind: str, value: str) -> Lis
             matches = value_l in {str(t).strip().lower() for t in (note.get("tags") or [])}
         elif kind == "person":
             matches = value_l == str(note.get("person_name") or "").strip().lower()
+        elif kind == "entity":
+            matches = value_l in {str(e).strip().lower() for e in (note.get("entities") or [])}
         else:
             continue
         if not matches:
@@ -229,6 +231,8 @@ def filter_notes(notes, query=None, days=None):
                 haystack = " ".join([
                     n.get("title") or "",
                     n.get("summary") or "",
+                    n.get("raw_text") or "",
+                    n.get("extracted_text") or "",
                     n.get("person_name") or "",
                     " ".join(n.get("tags") or []),
                     " ".join(n.get("entities") or []),
@@ -257,6 +261,8 @@ def filter_by_keywords(notes, keywords=None, days=None):
         person = (n.get("person_name") or "").lower()
         title = (n.get("title") or "").lower()
         summary = (n.get("summary") or "").lower()
+        raw_text = (n.get("raw_text") or "").lower()
+        extracted_text = (n.get("extracted_text") or "").lower()
         keep = False
         for k in kws:
             if k in {"reminder", "recommendation", "note"}:
@@ -278,6 +284,9 @@ def filter_by_keywords(notes, keywords=None, days=None):
                     keep = True
                     break
                 if k in title or k in summary:
+                    keep = True
+                    break
+                if k in raw_text or k in extracted_text:
                     keep = True
                     break
         if keep:
