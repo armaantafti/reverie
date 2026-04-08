@@ -7,7 +7,7 @@ from typing import Dict, Optional
 from urllib.parse import quote
 
 import requests
-from PIL import Image, ImageOps
+from PIL import Image, ImageOps, ImageFilter, ImageStat
 import pytesseract
 
 from note_core import build_image_note_update
@@ -84,11 +84,87 @@ def create_image_note_placeholder(user_id: str, image_url: str, file_name: str) 
     return note
 
 
+def _estimate_brightness(image: Image.Image) -> float:
+    return float(ImageStat.Stat(image).mean[0])
+
+
+def _prepare_ocr_variants(image: Image.Image):
+    """
+    Build a few OCR-friendly variants without changing the rest of the pipeline.
+    This keeps the feature cost-effective while making screenshots much easier for Tesseract.
+    """
+    variants = []
+
+    # Base grayscale + contrast + sharpen
+    base = ImageOps.grayscale(image)
+    base = ImageOps.autocontrast(base)
+    width, height = base.size
+    if width < 1400:
+        scale = 1400 / max(width, 1)
+        base = base.resize((int(width * scale), int(height * scale)), Image.Resampling.LANCZOS)
+    base = base.filter(ImageFilter.SHARPEN)
+    variants.append(base)
+
+    # Slightly more aggressive variant for crisp screenshots
+    strong = ImageOps.grayscale(image)
+    strong = ImageOps.autocontrast(strong)
+    width, height = strong.size
+    if width < 1600:
+        scale = 1600 / max(width, 1)
+        strong = strong.resize((int(width * scale), int(height * scale)), Image.Resampling.LANCZOS)
+    strong = strong.filter(ImageFilter.SHARPEN)
+    strong = strong.filter(ImageFilter.EDGE_ENHANCE_MORE)
+    variants.append(strong)
+
+    # Thresholded variant for high-contrast screenshots
+    thresh = ImageOps.grayscale(image)
+    thresh = ImageOps.autocontrast(thresh)
+    width, height = thresh.size
+    if width < 1400:
+        scale = 1400 / max(width, 1)
+        thresh = thresh.resize((int(width * scale), int(height * scale)), Image.Resampling.LANCZOS)
+    thresh = thresh.point(lambda p: 255 if p > 170 else 0)
+    variants.append(thresh)
+
+    # Inverted variant for dark mode screenshots
+    inverted = ImageOps.grayscale(image)
+    inverted = ImageOps.autocontrast(inverted)
+    width, height = inverted.size
+    if width < 1400:
+        scale = 1400 / max(width, 1)
+        inverted = inverted.resize((int(width * scale), int(height * scale)), Image.Resampling.LANCZOS)
+    inverted = ImageOps.invert(inverted)
+    inverted = inverted.filter(ImageFilter.SHARPEN)
+    variants.append(inverted)
+
+    return variants
+
+
 def _run_ocr(image_bytes: bytes) -> str:
     image = Image.open(BytesIO(image_bytes))
     image = ImageOps.exif_transpose(image)
-    image = ImageOps.autocontrast(ImageOps.grayscale(image))
-    return pytesseract.image_to_string(image) or ""
+
+    # If the screenshot is dark, try an inverted version too.
+    # This is kept inside the OCR preprocessing only, so nothing else in the app changes.
+    variants = _prepare_ocr_variants(image)
+
+    configs = [
+        "--psm 6",
+        "--psm 11",
+        "--psm 3",
+    ]
+
+    results = []
+    for variant in variants:
+        for config in configs:
+            try:
+                text = pytesseract.image_to_string(variant, config=config) or ""
+                results.append(text)
+            except Exception:
+                continue
+
+    best = max(results, key=lambda x: len((x or "").strip()), default="")
+    return best or ""
 
 
 def clean_ocr_text(text: str) -> str:
