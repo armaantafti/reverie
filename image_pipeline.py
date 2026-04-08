@@ -195,8 +195,6 @@ def process_uploaded_image_note(note_id: str, user_id: str, image_url: str, imag
     try:
         extracted = _run_ocr(image_bytes)
         cleaned = clean_ocr_text(extracted)
-        if len(cleaned) < 12:
-            cleaned = ""
         update = build_image_note_update(cleaned, image_url)
     except Exception:
         update = build_image_note_update("", image_url)
