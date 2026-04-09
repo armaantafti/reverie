@@ -1,0 +1,6 @@
+.git
+__pycache__/
+*.pyc
+google_calendar_credentials.json
+google_calendar_token.json
+supabase_image_memories.sql
