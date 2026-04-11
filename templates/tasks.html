@@ -204,7 +204,7 @@
             return;
           }
 
-          if (status === "pending" && due && due < now) {
+          if (status === "skipped" && due && due < now) {
             secondary.push(note);
             return;
           }
