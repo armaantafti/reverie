@@ -101,7 +101,7 @@ def _normalise_extracted_fields(fields: Dict[str, Any], transcript: str) -> Dict
     entities = _coerce_list(raw.get("entities"))[:5]
     due_time = raw.get("due_time") if isinstance(raw.get("due_time"), str) and raw.get("due_time").strip() else None
 
-    if note_type not in {"reminder", "recommendation", "note"}:
+    if note_type not in {"reminder", "recommendation", "note", "passive"}:
         note_type = "note"
 
     return {
@@ -179,7 +179,7 @@ def build_image_note_update(extracted_text: str, image_url: str) -> Dict[str, An
             "extracted_text": "",
             "image_url": image,
             "memory_type": "image",
-            "note_type": "note",
+            "note_type": "passive",
             "tags": [],
             "entities": [],
             "due_time": None,

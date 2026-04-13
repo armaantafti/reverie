@@ -1050,6 +1050,11 @@
       return ["pending", "completed", "skipped"].includes(status) ? status : "pending";
     }
 
+    function isActionableNote(note) {
+      const type = String(note?.note_type || "").trim().toLowerCase();
+      return type === "note" || type === "recommendation" || type === "reminder";
+    }
+
     function statusLabel(value) {
       const status = noteStatus(value);
       return status.charAt(0).toUpperCase() + status.slice(1);
@@ -1203,7 +1208,7 @@
       title.textContent = note?.title || "(no title)";
       top.appendChild(title);
 
-      if (options.showStatusButton) {
+      if (options.showStatusButton && isActionableNote(note)) {
         const statusBtn = document.createElement("button");
         statusBtn.type = "button";
         statusBtn.className = "status-btn";
@@ -1407,7 +1412,7 @@
       title.className = "context-item-title";
       title.textContent = note?.title || "(no title)";
       top.appendChild(title);
-      if (showStatusButton) {
+      if (showStatusButton && isActionableNote(note)) {
         const statusBtn = document.createElement("button");
         statusBtn.type = "button";
         statusBtn.className = "status-btn";

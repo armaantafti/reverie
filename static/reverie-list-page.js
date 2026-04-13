@@ -97,6 +97,11 @@
     return ["pending", "completed", "skipped"].includes(status) ? status : "pending";
   }
 
+  function isActionableNote(note) {
+    const type = String(note?.note_type || "").trim().toLowerCase();
+    return type === "note" || type === "recommendation" || type === "reminder";
+  }
+
   function statusLabel(value) {
     const status = noteStatus(value);
     return status.charAt(0).toUpperCase() + status.slice(1);
@@ -382,16 +387,18 @@
       titleWrap.appendChild(title);
       top.appendChild(titleWrap);
 
-      const statusBtn = document.createElement("button");
-      statusBtn.type = "button";
-      statusBtn.className = "status-btn";
-      statusBtn.textContent = statusLabel(note?.status);
-      statusBtn.setAttribute("aria-label", `Change status for ${note?.title || "this note"}`);
-      statusBtn.addEventListener("click", (e) => {
-        e.stopPropagation();
-        openStatusModal(note);
-      });
-      top.appendChild(statusBtn);
+      if (isActionableNote(note)) {
+        const statusBtn = document.createElement("button");
+        statusBtn.type = "button";
+        statusBtn.className = "status-btn";
+        statusBtn.textContent = statusLabel(note?.status);
+        statusBtn.setAttribute("aria-label", `Change status for ${note?.title || "this note"}`);
+        statusBtn.addEventListener("click", (e) => {
+          e.stopPropagation();
+          openStatusModal(note);
+        });
+        top.appendChild(statusBtn);
+      }
 
       card.appendChild(top);
 

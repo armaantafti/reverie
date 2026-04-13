@@ -91,6 +91,8 @@ def _type_score(note: Dict[str, Any]) -> float:
         return 1.00
     if note_type == "recommendation":
         return 0.72
+    if note_type == "passive":
+        return 0.32
     return 0.45
 
 
@@ -212,7 +214,7 @@ def filter_notes(notes, query=None, days=None):
     cutoff = now - timedelta(days=days) if days is not None else None
     results = []
     q = (query or "").lower()
-    type_like = q in {"reminder", "recommendation", "note"}
+    type_like = q in {"reminder", "recommendation", "note", "passive"}
     tag_like = q in TAGS_KNOWN
     for n in notes:
         if cutoff is not None:
@@ -265,7 +267,7 @@ def filter_by_keywords(notes, keywords=None, days=None):
         extracted_text = (n.get("extracted_text") or "").lower()
         keep = False
         for k in kws:
-            if k in {"reminder", "recommendation", "note"}:
+            if k in {"reminder", "recommendation", "note", "passive"}:
                 if type_str == k:
                     keep = True
                     break
