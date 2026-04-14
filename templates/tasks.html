@@ -92,6 +92,10 @@
             <div class="detail-value" id="taskDetailTime"></div>
           </div>
         </div>
+        <div class="manage-actions">
+          <button class="btn btn-secondary" id="taskEditBtn" type="button">Edit</button>
+          <button class="btn btn-danger" id="taskDeleteBtn" type="button">Delete</button>
+        </div>
       </div>
     </div>
 
@@ -137,6 +141,52 @@
         </div>
       </div>
     </div>
+
+    <div class="modal-backdrop" id="taskEditBackdrop" aria-hidden="true">
+      <div class="modal" role="dialog" aria-modal="true" aria-labelledby="taskEditTitle">
+        <div class="modal-head">
+          <div>
+            <h3 class="modal-title" id="taskEditTitle">Edit memory</h3>
+            <p class="modal-sub" id="taskEditSub"></p>
+          </div>
+          <button class="modal-close" id="taskEditClose" type="button" aria-label="Close">&#10005;</button>
+        </div>
+        <div class="edit-modal-form">
+          <div class="edit-grid">
+            <div class="edit-field">
+              <label class="status-label" for="taskEditType">Memory type</label>
+              <select id="taskEditType" class="edit-select">
+                <option value="note">Note</option>
+                <option value="recommendation">Recommendation</option>
+                <option value="reminder">Reminder</option>
+                <option value="passive">Passive</option>
+              </select>
+            </div>
+            <div class="edit-field">
+              <label class="status-label" for="taskEditDueTime">Due time</label>
+              <input id="taskEditDueTime" class="edit-input" type="datetime-local" />
+            </div>
+            <div class="edit-field full">
+              <label class="status-label" for="taskEditPerson">Person</label>
+              <input id="taskEditPerson" class="edit-input" type="text" placeholder="Add or correct a name" />
+            </div>
+            <div class="edit-field full">
+              <label class="status-label" for="taskEditTags">Tags</label>
+              <input id="taskEditTags" class="edit-input" type="text" placeholder="Friends, School, Health" />
+            </div>
+            <div class="edit-field full">
+              <label class="status-label" for="taskEditEntities">Entities</label>
+              <input id="taskEditEntities" class="edit-input" type="text" placeholder="Physics Class, Group Chat" />
+            </div>
+          </div>
+          <div class="field-help">Use commas between tags or entities. Leave due time blank if it should be empty.</div>
+          <div class="status-actions">
+            <button class="btn btn-secondary" id="taskEditCancel" type="button">Cancel</button>
+            <button class="btn btn-primary" id="taskEditSave" type="button">Save changes</button>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 
   <script src="/static/reverie-list-page.js"></script>
@@ -165,6 +215,8 @@
         personId: "taskDetailPerson",
         timeId: "taskDetailTime",
         imageId: "taskDetailImage",
+        editBtnId: "taskEditBtn",
+        deleteBtnId: "taskDeleteBtn",
       },
       context: {
         backdropId: "taskContextBackdrop",
@@ -182,6 +234,19 @@
         subId: "taskStatusSub",
         selectId: "taskStatusSelect",
         noteId: "taskStatusNote",
+      },
+      edit: {
+        backdropId: "taskEditBackdrop",
+        closeId: "taskEditClose",
+        cancelId: "taskEditCancel",
+        saveId: "taskEditSave",
+        titleId: "taskEditTitle",
+        subId: "taskEditSub",
+        typeId: "taskEditType",
+        dueTimeId: "taskEditDueTime",
+        personId: "taskEditPerson",
+        tagsId: "taskEditTags",
+        entitiesId: "taskEditEntities",
       },
       splitNotes(notes) {
         const now = new Date();

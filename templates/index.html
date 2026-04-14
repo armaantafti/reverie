@@ -680,6 +680,53 @@
       justify-content:flex-end;
       gap:10px;
     }
+    .manage-actions{
+      display:flex;
+      justify-content:flex-end;
+      gap:10px;
+      flex-wrap:wrap;
+      margin-top:18px;
+    }
+    .btn-danger{
+      color:#ffe4e6;
+      background:rgba(244,63,94,.12);
+      border:1px solid rgba(244,63,94,.22);
+    }
+    .btn-danger:hover,.btn-danger:focus-visible{
+      background:rgba(244,63,94,.18);
+      border-color:rgba(251,113,133,.34);
+    }
+    .edit-modal-form{
+      display:grid;
+      gap:14px;
+      margin-top:18px;
+    }
+    .edit-grid{
+      display:grid;
+      grid-template-columns:repeat(2, minmax(0, 1fr));
+      gap:12px;
+    }
+    .edit-field{display:grid;gap:8px;}
+    .edit-field.full{grid-column:1 / -1;}
+    .edit-input,
+    .edit-select{
+      width:100%;
+      height:48px;
+      border:none;
+      outline:none;
+      color:var(--text);
+      background:rgba(6,11,20,.58);
+      border:1px solid rgba(148,163,184,.12);
+      box-shadow:inset 0 1px 0 rgba(255,255,255,.02);
+      border-radius:14px;
+      padding:0 14px;
+    }
+    .edit-input::placeholder{color:#7d8fae;}
+    .field-help{
+      color:var(--faint);
+      font-size:.8rem;
+      line-height:1.45;
+    }
     @media (max-width: 980px){
       .layout,.auth-grid{grid-template-columns:1fr}
     }
@@ -691,6 +738,7 @@
       .brand-name{letter-spacing:.16em}
       .panel,.modal{border-radius:24px}
       .hero-title{font-size:2rem}
+      .edit-grid{grid-template-columns:1fr}
     }
   </style>
 </head>
@@ -853,6 +901,10 @@
           <div class="detail-value" id="detailTime"></div>
         </div>
       </div>
+      <div class="manage-actions">
+        <button class="btn btn-secondary" id="detailEditBtn" type="button">Edit</button>
+        <button class="btn btn-danger" id="detailDeleteBtn" type="button">Delete</button>
+      </div>
     </div>
   </div>
 
@@ -912,6 +964,52 @@
     </div>
   </div>
 
+  <div class="modal-backdrop" id="editBackdrop" aria-hidden="true">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="editTitle">
+      <div class="modal-head">
+        <div>
+          <h3 class="modal-title" id="editTitle">Edit memory</h3>
+          <p class="modal-sub" id="editSub"></p>
+        </div>
+        <button class="modal-close" id="editClose" type="button" aria-label="Close">âœ•</button>
+      </div>
+      <div class="edit-modal-form">
+        <div class="edit-grid">
+          <div class="edit-field">
+            <label class="status-label" for="editType">Memory type</label>
+            <select id="editType" class="edit-select">
+              <option value="note">Note</option>
+              <option value="recommendation">Recommendation</option>
+              <option value="reminder">Reminder</option>
+              <option value="passive">Passive</option>
+            </select>
+          </div>
+          <div class="edit-field">
+            <label class="status-label" for="editDueTime">Due time</label>
+            <input id="editDueTime" class="edit-input" type="datetime-local" />
+          </div>
+          <div class="edit-field full">
+            <label class="status-label" for="editPerson">Person</label>
+            <input id="editPerson" class="edit-input" type="text" placeholder="Add or correct a name" />
+          </div>
+          <div class="edit-field full">
+            <label class="status-label" for="editTags">Tags</label>
+            <input id="editTags" class="edit-input" type="text" placeholder="Friends, School, Health" />
+          </div>
+          <div class="edit-field full">
+            <label class="status-label" for="editEntities">Entities</label>
+            <input id="editEntities" class="edit-input" type="text" placeholder="Physics Class, Group Chat" />
+          </div>
+        </div>
+        <div class="field-help">Use commas between tags or entities. Leave due time blank if it should be empty.</div>
+        <div class="status-actions">
+          <button class="btn btn-secondary" id="editCancel" type="button">Cancel</button>
+          <button class="btn btn-primary" id="editSave" type="button">Save changes</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <script>
     const ALL_TAGS = ["travel","entertainment","food","study","school","fitness","health","friends","family","work","finance","personal","tasks","ideas","goals","communication","documents","events"];
 
@@ -925,6 +1023,17 @@
       return values.map(v => String(v).trim()).filter(Boolean);
     }
 
+    function toDisplayCase(value) {
+      const text = String(value || "").trim().replace(/[_-]+/g, " ");
+      if (!text) return "";
+      return text.toLowerCase().replace(/\b([a-z])/g, (match) => match.toUpperCase());
+    }
+
+    function displayNoteType(value) { return toDisplayCase(value); }
+    function displayPerson(value) { return toDisplayCase(value); }
+    function displayTag(value) { return toDisplayCase(value); }
+    function displayEntity(value) { return toDisplayCase(value); }
+
     function formatWhen(value) {
       if (!value) return "";
       const d = new Date(value);
@@ -937,6 +1046,30 @@
         }).format(d);
       }
       return String(value);
+    }
+
+    function toInputDateTimeValue(value) {
+      if (!value) return "";
+      const date = new Date(value);
+      if (isNaN(date.getTime())) return "";
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, "0");
+      const day = String(date.getDate()).padStart(2, "0");
+      const hour = String(date.getHours()).padStart(2, "0");
+      const minute = String(date.getMinutes()).padStart(2, "0");
+      return `${year}-${month}-${day}T${hour}:${minute}`;
+    }
+
+    function fromInputDateTimeValue(value) {
+      const text = String(value || "").trim();
+      if (!text) return null;
+      const date = new Date(text);
+      if (isNaN(date.getTime())) throw new Error("Due time is invalid.");
+      return date.toISOString();
+    }
+
+    function splitCommaList(value) {
+      return String(value || "").split(",").map(item => item.trim()).filter(Boolean);
     }
 
     function chipClass(index) {
@@ -972,10 +1105,12 @@
         return;
       }
       list.forEach((value, index) => {
-        const btn = makeChip(value, chipClass(index), "clickable-chip");
+        const rawValue = String(value).trim();
+        const label = kind === "entity" ? displayEntity(rawValue) : displayTag(rawValue);
+        const btn = makeChip(label, chipClass(index), "clickable-chip");
         btn.addEventListener("click", (e) => {
           e.stopPropagation();
-          openContext(kind, value, value);
+          openContext(kind, rawValue, label);
         });
         container.appendChild(btn);
       });
@@ -1040,9 +1175,24 @@
     const statusSub = document.getElementById("statusSub");
     const statusSelect = document.getElementById("statusSelect");
     const statusNote = document.getElementById("statusNote");
+    const detailEditBtn = document.getElementById("detailEditBtn");
+    const detailDeleteBtn = document.getElementById("detailDeleteBtn");
+    const editBackdrop = document.getElementById("editBackdrop");
+    const editClose = document.getElementById("editClose");
+    const editCancel = document.getElementById("editCancel");
+    const editSave = document.getElementById("editSave");
+    const editTitle = document.getElementById("editTitle");
+    const editSub = document.getElementById("editSub");
+    const editType = document.getElementById("editType");
+    const editDueTime = document.getElementById("editDueTime");
+    const editPerson = document.getElementById("editPerson");
+    const editTags = document.getElementById("editTags");
+    const editEntities = document.getElementById("editEntities");
 
     let authMode = "login";
     let activeStatusNote = null;
+    let activeDetailNote = null;
+    let activeEditNote = null;
     let sessionInfoPromise = null;
 
     function noteStatus(value) {
@@ -1187,6 +1337,56 @@
       await refreshAfterStatusChange();
     }
 
+    function closeEditModal() {
+      setModalVisible(editBackdrop, false);
+      activeEditNote = null;
+    }
+
+    function openEditModal(note) {
+      activeEditNote = note || activeDetailNote || null;
+      if (!activeEditNote) return;
+      editTitle.textContent = "Edit memory";
+      editSub.textContent = activeEditNote?.title || "(no title)";
+      editType.value = String(activeEditNote?.note_type || "note").toLowerCase();
+      editDueTime.value = toInputDateTimeValue(activeEditNote?.due_time);
+      editPerson.value = activeEditNote?.person_name || "";
+      editTags.value = normaliseTags(activeEditNote?.tags).join(", ");
+      editEntities.value = normaliseEntities(activeEditNote?.entities).join(", ");
+      setModalVisible(editBackdrop, true);
+      setTimeout(() => editPerson.focus(), 0);
+    }
+
+    async function refreshAfterNoteMutation() {
+      await refreshAfterStatusChange();
+    }
+
+    async function saveNoteEdit() {
+      if (!activeEditNote) return;
+      if (!(await ensureSession())) throw new Error("Please log in first.");
+      await apiPost("/notes/update", {
+        note_id: activeEditNote.id,
+        note_type: editType.value,
+        due_time: fromInputDateTimeValue(editDueTime.value),
+        person_name: editPerson.value.trim(),
+        tags: splitCommaList(editTags.value),
+        entities: splitCommaList(editEntities.value),
+      });
+      closeEditModal();
+      closeDetail();
+      await refreshAfterNoteMutation();
+    }
+
+    async function deleteActiveNote() {
+      const note = activeDetailNote || activeEditNote;
+      if (!note) return;
+      if (!window.confirm("Remove this memory entirely?")) return;
+      if (!(await ensureSession())) throw new Error("Please log in first.");
+      await apiPost("/notes/delete", { note_id: note.id });
+      closeEditModal();
+      closeDetail();
+      await refreshAfterNoteMutation();
+    }
+
     function renderNoteCard(note, extraClass = "", options = {}) {
       const btn = document.createElement("div");
       btn.className = `note-card ${extraClass}`.trim();
@@ -1235,11 +1435,11 @@
       const chips = document.createElement("div");
       chips.className = "chips";
       const meta = [];
-      if (note?.note_type) meta.push({ text: note.note_type, cls: "chip good" });
-      if (note?.person_name) meta.push({ text: note.person_name, cls: "chip soft", kind: "person", value: note.person_name });
+      if (note?.note_type) meta.push({ text: displayNoteType(note.note_type), cls: "chip good" });
+      if (note?.person_name) meta.push({ text: displayPerson(note.person_name), cls: "chip soft", kind: "person", value: note.person_name });
       if (note?.due_time) meta.push({ text: formatWhen(note.due_time), cls: "chip muted" });
-      normaliseTags(note?.tags).slice(0, 4).forEach(tag => meta.push({ text: tag, cls: "chip", kind: "tag", value: tag }));
-      normaliseEntities(note?.entities).slice(0, 2).forEach((entity, index) => meta.push({ text: entity, cls: index % 2 ? "chip soft" : "chip muted", kind: "entity", value: entity }));
+      normaliseTags(note?.tags).slice(0, 4).forEach(tag => meta.push({ text: displayTag(tag), cls: "chip", kind: "tag", value: tag }));
+      normaliseEntities(note?.entities).slice(0, 2).forEach((entity, index) => meta.push({ text: displayEntity(entity), cls: index % 2 ? "chip soft" : "chip muted", kind: "entity", value: entity }));
       meta.slice(0, 6).forEach(item => chips.appendChild(cardChip(item.text, item.cls, item.kind, item.value)));
       btn.appendChild(chips);
       return btn;
@@ -1281,17 +1481,17 @@
         if (note?.note_type) {
           const chip = document.createElement("span");
           chip.className = "chip good";
-          chip.textContent = note.note_type;
+          chip.textContent = displayNoteType(note.note_type);
           meta.appendChild(chip);
         }
         if (note?.person_name) {
           const chip = document.createElement("button");
           chip.type = "button";
           chip.className = "chip soft clickable-chip";
-          chip.textContent = note.person_name;
+          chip.textContent = displayPerson(note.person_name);
           chip.addEventListener("click", (e) => {
             e.stopPropagation();
-            openContext("person", note.person_name, note.person_name);
+            openContext("person", note.person_name, displayPerson(note.person_name));
           });
           meta.appendChild(chip);
         }
@@ -1305,10 +1505,10 @@
           const chip = document.createElement("button");
           chip.type = "button";
           chip.className = `chip clickable-chip ${index % 2 ? "muted" : ""}`.trim();
-          chip.textContent = tag;
+          chip.textContent = displayTag(tag);
           chip.addEventListener("click", (e) => {
             e.stopPropagation();
-            openContext("tag", tag, tag);
+            openContext("tag", tag, displayTag(tag));
           });
           meta.appendChild(chip);
         });
@@ -1316,10 +1516,10 @@
           const chip = document.createElement("button");
           chip.type = "button";
           chip.className = `chip clickable-chip ${index % 2 ? "soft" : "muted"}`.trim();
-          chip.textContent = entity;
+          chip.textContent = displayEntity(entity);
           chip.addEventListener("click", (e) => {
             e.stopPropagation();
-            openContext("entity", entity, entity);
+            openContext("entity", entity, displayEntity(entity));
           });
           meta.appendChild(chip);
         });
@@ -1337,17 +1537,18 @@
     }
 
     function openDetail(note) {
+      activeDetailNote = note || null;
       detailTitle.textContent = note?.title || "(no title)";
       const bits = [];
-      if (note?.note_type) bits.push(note.note_type);
-      if (note?.memory_type === "image") bits.push("image");
-      if (note?.person_name) bits.push(note.person_name);
+      if (note?.note_type) bits.push(displayNoteType(note.note_type));
+      if (note?.memory_type === "image") bits.push("Image");
+      if (note?.person_name) bits.push(displayPerson(note.person_name));
       if (note?.due_time) bits.push(formatWhen(note.due_time));
-      detailSub.textContent = bits.join(" · ");
+      detailSub.textContent = bits.join(" � ");
       detailSummary.textContent = note?.summary || "";
       detailRaw.textContent = note?.extracted_text || note?.raw_text || "";
-      detailPerson.textContent = note?.person_name || "—";
-      detailTime.textContent = note?.due_time ? formatWhen(note.due_time) : "—";
+      detailPerson.textContent = note?.person_name ? displayPerson(note.person_name) : "-";
+      detailTime.textContent = note?.due_time ? formatWhen(note.due_time) : "-";
       fillChipContainer(detailTags, note?.tags, "tag");
       fillChipContainer(detailEntities, note?.entities, "entity");
       if (note?.image_url) {
@@ -1360,9 +1561,21 @@
       setModalVisible(detailBackdrop, true);
     }
 
-    function closeDetail() { setModalVisible(detailBackdrop, false); }
+    function closeDetail() {
+      setModalVisible(detailBackdrop, false);
+      activeDetailNote = null;
+    }
     detailClose.addEventListener("click", closeDetail);
     detailBackdrop.addEventListener("click", (e) => { if (e.target === detailBackdrop) closeDetail(); });
+    detailEditBtn.addEventListener("click", () => openEditModal(activeDetailNote));
+    detailDeleteBtn.addEventListener("click", async () => {
+      try {
+        await deleteActiveNote();
+      } catch (err) {
+        console.error(err);
+        alert(err?.message || "Could not remove this memory.");
+      }
+    });
 
     async function openContext(kind, value, label) {
       if (!(await ensureSession())) return;
@@ -1431,17 +1644,17 @@
       if (note?.note_type) {
         const chip = document.createElement("span");
         chip.className = "chip good";
-        chip.textContent = note.note_type;
+        chip.textContent = displayNoteType(note.note_type);
         meta.appendChild(chip);
       }
       if (note?.person_name) {
         const chip = document.createElement("button");
         chip.type = "button";
         chip.className = "chip soft clickable-chip";
-        chip.textContent = note.person_name;
+        chip.textContent = displayPerson(note.person_name);
         chip.addEventListener("click", (e) => {
           e.stopPropagation();
-          openContext("person", note.person_name, note.person_name);
+          openContext("person", note.person_name, displayPerson(note.person_name));
         });
         meta.appendChild(chip);
       }
@@ -1455,10 +1668,10 @@
         const chip = document.createElement("button");
         chip.type = "button";
         chip.className = `chip clickable-chip ${index % 2 ? "muted" : ""}`.trim();
-        chip.textContent = tag;
+        chip.textContent = displayTag(tag);
         chip.addEventListener("click", (e) => {
           e.stopPropagation();
-          openContext("tag", tag, tag);
+          openContext("tag", tag, displayTag(tag));
         });
         meta.appendChild(chip);
       });
@@ -1466,10 +1679,10 @@
         const chip = document.createElement("button");
         chip.type = "button";
         chip.className = `chip clickable-chip ${index % 2 ? "soft" : "muted"}`.trim();
-        chip.textContent = entity;
+        chip.textContent = displayEntity(entity);
         chip.addEventListener("click", (e) => {
           e.stopPropagation();
-          openContext("entity", entity, entity);
+          openContext("entity", entity, displayEntity(entity));
         });
         meta.appendChild(chip);
       });
@@ -1537,6 +1750,17 @@
       }
     });
     statusBackdrop.addEventListener("click", (e) => { if (e.target === statusBackdrop) closeStatusModal(); });
+    editClose.addEventListener("click", closeEditModal);
+    editCancel.addEventListener("click", closeEditModal);
+    editSave.addEventListener("click", async () => {
+      try {
+        await saveNoteEdit();
+      } catch (err) {
+        console.error(err);
+        alert(err?.message || "Could not update this memory.");
+      }
+    });
+    editBackdrop.addEventListener("click", (e) => { if (e.target === editBackdrop) closeEditModal(); });
 
     function loadImageElement(file) {
       return new Promise((resolve, reject) => {
@@ -1742,8 +1966,8 @@
         const btn = document.createElement("button");
         btn.type = "button";
         btn.className = "chip topic-chip clickable-chip";
-        btn.textContent = tag;
-        btn.addEventListener("click", () => openContext("tag", tag, tag));
+        btn.textContent = displayTag(tag);
+        btn.addEventListener("click", () => openContext("tag", tag, displayTag(tag)));
         tagBubblesEl.appendChild(btn);
       });
     }
@@ -1819,6 +2043,7 @@
     document.addEventListener("keydown", (e) => {
       if (e.key === "Escape") {
         closeDetail();
+        closeEditModal();
         setModalVisible(contextBackdrop, false);
         setModalVisible(forYouBackdrop, false);
         setModalVisible(statusBackdrop, false);

@@ -92,6 +92,10 @@
             <div class="detail-value" id="recsDetailTime"></div>
           </div>
         </div>
+        <div class="manage-actions">
+          <button class="btn btn-secondary" id="recsEditBtn" type="button">Edit</button>
+          <button class="btn btn-danger" id="recsDeleteBtn" type="button">Delete</button>
+        </div>
       </div>
     </div>
 
@@ -137,6 +141,52 @@
         </div>
       </div>
     </div>
+
+    <div class="modal-backdrop" id="recsEditBackdrop" aria-hidden="true">
+      <div class="modal" role="dialog" aria-modal="true" aria-labelledby="recsEditTitle">
+        <div class="modal-head">
+          <div>
+            <h3 class="modal-title" id="recsEditTitle">Edit memory</h3>
+            <p class="modal-sub" id="recsEditSub"></p>
+          </div>
+          <button class="modal-close" id="recsEditClose" type="button" aria-label="Close">&#10005;</button>
+        </div>
+        <div class="edit-modal-form">
+          <div class="edit-grid">
+            <div class="edit-field">
+              <label class="status-label" for="recsEditType">Memory type</label>
+              <select id="recsEditType" class="edit-select">
+                <option value="note">Note</option>
+                <option value="recommendation">Recommendation</option>
+                <option value="reminder">Reminder</option>
+                <option value="passive">Passive</option>
+              </select>
+            </div>
+            <div class="edit-field">
+              <label class="status-label" for="recsEditDueTime">Due time</label>
+              <input id="recsEditDueTime" class="edit-input" type="datetime-local" />
+            </div>
+            <div class="edit-field full">
+              <label class="status-label" for="recsEditPerson">Person</label>
+              <input id="recsEditPerson" class="edit-input" type="text" placeholder="Add or correct a name" />
+            </div>
+            <div class="edit-field full">
+              <label class="status-label" for="recsEditTags">Tags</label>
+              <input id="recsEditTags" class="edit-input" type="text" placeholder="Friends, School, Health" />
+            </div>
+            <div class="edit-field full">
+              <label class="status-label" for="recsEditEntities">Entities</label>
+              <input id="recsEditEntities" class="edit-input" type="text" placeholder="Physics Class, Group Chat" />
+            </div>
+          </div>
+          <div class="field-help">Use commas between tags or entities. Leave due time blank if it should be empty.</div>
+          <div class="status-actions">
+            <button class="btn btn-secondary" id="recsEditCancel" type="button">Cancel</button>
+            <button class="btn btn-primary" id="recsEditSave" type="button">Save changes</button>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 
   <script src="/static/reverie-list-page.js"></script>
@@ -165,6 +215,8 @@
         personId: "recsDetailPerson",
         timeId: "recsDetailTime",
         imageId: "recsDetailImage",
+        editBtnId: "recsEditBtn",
+        deleteBtnId: "recsDeleteBtn",
       },
       context: {
         backdropId: "recsContextBackdrop",
@@ -182,6 +234,19 @@
         subId: "recsStatusSub",
         selectId: "recsStatusSelect",
         noteId: "recsStatusNote",
+      },
+      edit: {
+        backdropId: "recsEditBackdrop",
+        closeId: "recsEditClose",
+        cancelId: "recsEditCancel",
+        saveId: "recsEditSave",
+        titleId: "recsEditTitle",
+        subId: "recsEditSub",
+        typeId: "recsEditType",
+        dueTimeId: "recsEditDueTime",
+        personId: "recsEditPerson",
+        tagsId: "recsEditTags",
+        entitiesId: "recsEditEntities",
       },
       splitNotes(notes) {
         const recs = notes

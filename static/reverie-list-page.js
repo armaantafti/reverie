@@ -4,6 +4,35 @@
     return tags.map((tag) => String(tag).trim()).filter(Boolean);
   }
 
+  function normaliseEntities(values) {
+    if (!Array.isArray(values)) return [];
+    return values.map((value) => String(value).trim()).filter(Boolean);
+  }
+
+  function toDisplayCase(value) {
+    const text = String(value || "").trim().replace(/[_-]+/g, " ");
+    if (!text) return "";
+    return text
+      .toLowerCase()
+      .replace(/\b([a-z])/g, (match) => match.toUpperCase());
+  }
+
+  function displayNoteType(value) {
+    return toDisplayCase(value);
+  }
+
+  function displayPerson(value) {
+    return toDisplayCase(value);
+  }
+
+  function displayTag(value) {
+    return toDisplayCase(value);
+  }
+
+  function displayEntity(value) {
+    return toDisplayCase(value);
+  }
+
   function formatWhen(value) {
     if (!value) return "";
     const date = new Date(value);
@@ -18,6 +47,33 @@
     return String(value);
   }
 
+  function toInputDateTimeValue(value) {
+    if (!value) return "";
+    const date = new Date(value);
+    if (isNaN(date.getTime())) return "";
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const day = String(date.getDate()).padStart(2, "0");
+    const hour = String(date.getHours()).padStart(2, "0");
+    const minute = String(date.getMinutes()).padStart(2, "0");
+    return `${year}-${month}-${day}T${hour}:${minute}`;
+  }
+
+  function fromInputDateTimeValue(value) {
+    const text = String(value || "").trim();
+    if (!text) return null;
+    const date = new Date(text);
+    if (isNaN(date.getTime())) throw new Error("Due time is invalid.");
+    return date.toISOString();
+  }
+
+  function splitCommaList(value) {
+    return String(value || "")
+      .split(",")
+      .map((item) => item.trim())
+      .filter(Boolean);
+  }
+
   function chipClass(index) {
     return index % 3 === 0 ? "chip" : index % 3 === 1 ? "chip soft" : "chip muted";
   }
@@ -28,11 +84,6 @@
     el.className = `chip clickable-chip ${cls || ""} ${extra || ""}`.trim();
     el.textContent = text;
     return el;
-  }
-
-  function normaliseEntities(values) {
-    if (!Array.isArray(values)) return [];
-    return values.map((value) => String(value).trim()).filter(Boolean);
   }
 
   function appendImagePreview(parent, note) {
@@ -56,10 +107,12 @@
       return;
     }
     list.forEach((value, index) => {
-      const btn = makeChip(value, chipClass(index), "clickable-chip");
+      const rawValue = String(value).trim();
+      const label = kind === "entity" ? displayEntity(rawValue) : displayTag(rawValue);
+      const btn = makeChip(label, chipClass(index), "clickable-chip");
       btn.addEventListener("click", (e) => {
         e.stopPropagation();
-        openContext(kind, value, value);
+        openContext(kind, rawValue, label);
       });
       container.appendChild(btn);
     });
@@ -129,6 +182,8 @@
     const detailPerson = document.getElementById(config.detail.personId);
     const detailTime = document.getElementById(config.detail.timeId);
     const detailImage = document.getElementById(config.detail.imageId);
+    const detailEditBtn = document.getElementById(config.detail.editBtnId);
+    const detailDeleteBtn = document.getElementById(config.detail.deleteBtnId);
 
     const contextBackdrop = document.getElementById(config.context.backdropId);
     const contextClose = document.getElementById(config.context.closeId);
@@ -145,7 +200,21 @@
     const statusSelect = document.getElementById(config.status.selectId);
     const statusNote = document.getElementById(config.status.noteId);
 
+    const editBackdrop = document.getElementById(config.edit.backdropId);
+    const editClose = document.getElementById(config.edit.closeId);
+    const editCancel = document.getElementById(config.edit.cancelId);
+    const editSave = document.getElementById(config.edit.saveId);
+    const editTitle = document.getElementById(config.edit.titleId);
+    const editSub = document.getElementById(config.edit.subId);
+    const editType = document.getElementById(config.edit.typeId);
+    const editDueTime = document.getElementById(config.edit.dueTimeId);
+    const editPerson = document.getElementById(config.edit.personId);
+    const editTags = document.getElementById(config.edit.tagsId);
+    const editEntities = document.getElementById(config.edit.entitiesId);
+
     let activeStatusNote = null;
+    let activeDetailNote = null;
+    let activeEditNote = null;
 
     function resetEmptyState() {
       primaryEmpty.querySelector(".note-title").textContent = config.primary.emptyText;
@@ -161,18 +230,24 @@
       secondaryList.appendChild(secondaryEmpty);
     }
 
+    function closeDetail() {
+      setModalVisible(detailBackdrop, false);
+      activeDetailNote = null;
+    }
+
     function openDetail(note) {
+      activeDetailNote = note || null;
       detailTitle.textContent = note?.title || "(no title)";
       const bits = [];
-      if (note?.note_type) bits.push(note.note_type);
-      if (note?.memory_type === "image") bits.push("image");
-      if (note?.person_name) bits.push(note.person_name);
+      if (note?.note_type) bits.push(displayNoteType(note.note_type));
+      if (note?.memory_type === "image") bits.push("Image");
+      if (note?.person_name) bits.push(displayPerson(note.person_name));
       if (note?.due_time) bits.push(formatWhen(note.due_time));
       detailSub.textContent = bits.join(" · ");
       detailSummary.textContent = note?.summary || "";
       detailRaw.textContent = note?.extracted_text || note?.raw_text || "";
-      detailPerson.textContent = note?.person_name || "—";
-      detailTime.textContent = note?.due_time ? formatWhen(note.due_time) : "—";
+      detailPerson.textContent = note?.person_name ? displayPerson(note.person_name) : "-";
+      detailTime.textContent = note?.due_time ? formatWhen(note.due_time) : "-";
       fillChipContainer(detailTags, note?.tags, "tag", openContext);
       fillChipContainer(detailEntities, note?.entities, "entity", openContext);
       if (detailImage) {
@@ -184,15 +259,29 @@
           detailImage.style.display = "none";
         }
       }
-
       setModalVisible(detailBackdrop, true);
     }
 
-    function closeDetail() {
-      setModalVisible(detailBackdrop, false);
+    function closeEditModal() {
+      setModalVisible(editBackdrop, false);
+      activeEditNote = null;
     }
 
-    function renderContextList(notes) {
+    function openEditModal(note) {
+      activeEditNote = note || activeDetailNote || null;
+      if (!activeEditNote) return;
+      editTitle.textContent = "Edit memory";
+      editSub.textContent = activeEditNote?.title || "(no title)";
+      editType.value = String(activeEditNote?.note_type || "note").toLowerCase();
+      editDueTime.value = toInputDateTimeValue(activeEditNote?.due_time);
+      editPerson.value = activeEditNote?.person_name || "";
+      editTags.value = normaliseTags(activeEditNote?.tags).join(", ");
+      editEntities.value = normaliseEntities(activeEditNote?.entities).join(", ");
+      setModalVisible(editBackdrop, true);
+      setTimeout(() => editPerson.focus(), 0);
+    }
+
+    async function renderContextList(notes) {
       contextList.innerHTML = "";
       if (!notes || !notes.length) {
         const empty = document.createElement("div");
@@ -217,18 +306,19 @@
         if (note?.note_type) {
           const chip = document.createElement("span");
           chip.className = "chip good";
-          chip.textContent = note.note_type;
+          chip.textContent = displayNoteType(note.note_type);
           meta.appendChild(chip);
         }
 
         if (note?.person_name) {
+          const rawPerson = String(note.person_name).trim();
           const chip = document.createElement("button");
           chip.type = "button";
           chip.className = "chip soft clickable-chip";
-          chip.textContent = note.person_name;
+          chip.textContent = displayPerson(rawPerson);
           chip.addEventListener("click", (e) => {
             e.stopPropagation();
-            openContext("person", note.person_name, note.person_name);
+            openContext("person", rawPerson, displayPerson(rawPerson));
           });
           meta.appendChild(chip);
         }
@@ -241,25 +331,27 @@
         }
 
         normaliseTags(note?.tags).slice(0, 4).forEach((tag, index) => {
+          const rawTag = String(tag).trim();
           const chip = document.createElement("button");
           chip.type = "button";
           chip.className = `chip clickable-chip ${index % 2 ? "muted" : ""}`.trim();
-          chip.textContent = tag;
+          chip.textContent = displayTag(rawTag);
           chip.addEventListener("click", (e) => {
             e.stopPropagation();
-            openContext("tag", tag, tag);
+            openContext("tag", rawTag, displayTag(rawTag));
           });
           meta.appendChild(chip);
         });
 
         normaliseEntities(note?.entities).slice(0, 2).forEach((entity, index) => {
+          const rawEntity = String(entity).trim();
           const chip = document.createElement("button");
           chip.type = "button";
           chip.className = `chip clickable-chip ${index % 2 ? "soft" : "muted"}`.trim();
-          chip.textContent = entity;
+          chip.textContent = displayEntity(rawEntity);
           chip.addEventListener("click", (e) => {
             e.stopPropagation();
-            openContext("entity", entity, entity);
+            openContext("entity", rawEntity, displayEntity(rawEntity));
           });
           meta.appendChild(chip);
         });
@@ -362,6 +454,79 @@
       await loadItems();
     }
 
+    async function saveEdit() {
+      if (!activeEditNote) return;
+      if (!(await ensureSession())) {
+        alert("Please sign in first.");
+        return;
+      }
+
+      const payload = {
+        note_id: activeEditNote.id,
+        note_type: editType.value,
+        due_time: fromInputDateTimeValue(editDueTime.value),
+        person_name: editPerson.value.trim(),
+        tags: splitCommaList(editTags.value),
+        entities: splitCommaList(editEntities.value),
+      };
+
+      const resp = await fetch("/notes/update", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+        credentials: "same-origin",
+      });
+      if (resp.status === 401) {
+        invalidateSession();
+        closeEditModal();
+        closeDetail();
+        setSignedOutState();
+        throw new Error("Please sign in first.");
+      }
+
+      const data = await resp.json().catch(() => ({}));
+      if (!resp.ok) {
+        throw new Error(data.detail || ("HTTP " + resp.status));
+      }
+
+      closeEditModal();
+      closeDetail();
+      await loadItems();
+    }
+
+    async function deleteActiveNote() {
+      const note = activeDetailNote || activeEditNote;
+      if (!note) return;
+      if (!window.confirm("Remove this memory entirely?")) return;
+      if (!(await ensureSession())) {
+        alert("Please sign in first.");
+        return;
+      }
+
+      const resp = await fetch("/notes/delete", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ note_id: note.id }),
+        credentials: "same-origin",
+      });
+      if (resp.status === 401) {
+        invalidateSession();
+        closeEditModal();
+        closeDetail();
+        setSignedOutState();
+        throw new Error("Please sign in first.");
+      }
+
+      const data = await resp.json().catch(() => ({}));
+      if (!resp.ok) {
+        throw new Error(data.detail || ("HTTP " + resp.status));
+      }
+
+      closeEditModal();
+      closeDetail();
+      await loadItems();
+    }
+
     function renderCard(note) {
       const card = document.createElement("div");
       card.className = "note-card";
@@ -414,11 +579,20 @@
       const chips = document.createElement("div");
       chips.className = "chips";
       const meta = [];
-      if (note?.person_name) meta.push({ text: note.person_name, cls: "chip soft", kind: "person", value: note.person_name });
+      if (note?.person_name) {
+        const rawPerson = String(note.person_name).trim();
+        meta.push({ text: displayPerson(rawPerson), cls: "chip soft", kind: "person", value: rawPerson });
+      }
       if (note?.due_time) meta.push({ text: formatWhen(note.due_time), cls: "chip muted" });
-      if (note?.note_type) meta.push({ text: note.note_type, cls: "chip good" });
-      normaliseTags(note?.tags).slice(0, 4).forEach((tag) => meta.push({ text: tag, cls: "chip", kind: "tag", value: tag }));
-      normaliseEntities(note?.entities).slice(0, 2).forEach((entity, index) => meta.push({ text: entity, cls: index % 2 ? "chip soft" : "chip muted", kind: "entity", value: entity }));
+      if (note?.note_type) meta.push({ text: displayNoteType(note.note_type), cls: "chip good" });
+      normaliseTags(note?.tags).slice(0, 4).forEach((tag) => {
+        const rawTag = String(tag).trim();
+        meta.push({ text: displayTag(rawTag), cls: "chip", kind: "tag", value: rawTag });
+      });
+      normaliseEntities(note?.entities).slice(0, 2).forEach((entity, index) => {
+        const rawEntity = String(entity).trim();
+        meta.push({ text: displayEntity(rawEntity), cls: index % 2 ? "chip soft" : "chip muted", kind: "entity", value: rawEntity });
+      });
 
       meta.slice(0, 6).forEach((item) => {
         const el = item.kind ? document.createElement("button") : document.createElement("span");
@@ -481,6 +655,15 @@
     detailBackdrop.addEventListener("click", (e) => {
       if (e.target === detailBackdrop) closeDetail();
     });
+    detailEditBtn.addEventListener("click", () => openEditModal(activeDetailNote));
+    detailDeleteBtn.addEventListener("click", async () => {
+      try {
+        await deleteActiveNote();
+      } catch (err) {
+        alert(err?.message || "Could not remove this memory.");
+        console.error(err);
+      }
+    });
 
     contextClose.addEventListener("click", () => setModalVisible(contextBackdrop, false));
     contextBackdrop.addEventListener("click", (e) => {
@@ -501,9 +684,24 @@
       if (e.target === statusBackdrop) closeStatusModal();
     });
 
+    editClose.addEventListener("click", closeEditModal);
+    editCancel.addEventListener("click", closeEditModal);
+    editSave.addEventListener("click", async () => {
+      try {
+        await saveEdit();
+      } catch (err) {
+        alert(err?.message || "Could not update this memory.");
+        console.error(err);
+      }
+    });
+    editBackdrop.addEventListener("click", (e) => {
+      if (e.target === editBackdrop) closeEditModal();
+    });
+
     document.addEventListener("keydown", (e) => {
       if (e.key === "Escape") {
         closeDetail();
+        closeEditModal();
         setModalVisible(contextBackdrop, false);
         setModalVisible(statusBackdrop, false);
       }

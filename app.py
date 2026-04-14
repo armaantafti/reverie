@@ -1,3 +1,4 @@
+from datetime import datetime
 from typing import Optional, Any
 
 from fastapi import FastAPI, Query, Request, HTTPException, BackgroundTasks, UploadFile, File
@@ -44,6 +45,7 @@ def get_user_notes(user_id: str):
 
 
 VALID_NOTE_STATUSES = {"pending", "completed", "skipped"}
+VALID_NOTE_TYPES = {"note", "recommendation", "reminder", "passive"}
 
 
 class NoteStatusIn(BaseModel):
@@ -53,6 +55,19 @@ class NoteStatusIn(BaseModel):
     status_note: Optional[str] = None
 
 
+class NoteUpdateIn(BaseModel):
+    note_id: str
+    person_name: Optional[str] = None
+    tags: Optional[list[str]] = None
+    entities: Optional[list[str]] = None
+    note_type: Optional[str] = None
+    due_time: Optional[str] = None
+
+
+class NoteDeleteIn(BaseModel):
+    note_id: str
+
+
 def _error_detail(exc: Exception) -> str:
     message = str(exc).strip()
     if message:
@@ -60,6 +75,38 @@ def _error_detail(exc: Exception) -> str:
     if getattr(exc, "args", None):
         return str(exc.args[0])
     return "Request failed"
+
+
+def _clean_text(value: Any) -> Optional[str]:
+    text = str(value or "").strip()
+    return text or None
+
+
+def _clean_list(values: Any) -> list[str]:
+    if not isinstance(values, list):
+        return []
+    cleaned: list[str] = []
+    seen: set[str] = set()
+    for value in values:
+        text = str(value or "").strip()
+        if not text:
+            continue
+        key = text.lower()
+        if key in seen:
+            continue
+        seen.add(key)
+        cleaned.append(text)
+    return cleaned
+
+
+def _clean_due_time(value: Any) -> Optional[str]:
+    text = str(value or "").strip()
+    if not text:
+        return None
+    try:
+        return datetime.fromisoformat(text.replace("Z", "+00:00")).isoformat()
+    except ValueError:
+        raise HTTPException(status_code=400, detail="due_time must be a valid datetime")
 
 
 def _cookie_secure(request: Request) -> bool:
@@ -379,6 +426,81 @@ def smart_search(payload: SmartSearchIn, request: Request):
             "summary": summary,
             "notes": filtered,
         }
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=_error_detail(e)) from e
+
+
+@app.post("/notes/update")
+def update_note(payload: NoteUpdateIn, request: Request):
+    note_id = (payload.note_id or "").strip()
+    user_id = _get_authenticated_user_id(request)
+
+    if not note_id:
+        raise HTTPException(status_code=400, detail="note_id is required")
+
+    note_type = _clean_text(payload.note_type)
+    if note_type is not None:
+        note_type = note_type.lower()
+        if note_type not in VALID_NOTE_TYPES:
+            raise HTTPException(status_code=400, detail="note_type must be note, recommendation, reminder, or passive")
+
+    updates = {
+        "person_name": _clean_text(payload.person_name),
+        "tags": _clean_list(payload.tags),
+        "entities": _clean_list(payload.entities),
+        "due_time": _clean_due_time(payload.due_time),
+    }
+    if note_type is not None:
+        updates["note_type"] = note_type
+
+    try:
+        result = (
+            supabase_admin.table("notes")
+            .update(updates)
+            .eq("id", note_id)
+            .eq("user_id", user_id)
+            .execute()
+        )
+        rows = result.data or []
+        if not rows:
+            raise HTTPException(status_code=404, detail="note not found")
+        return rows[0]
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=_error_detail(e)) from e
+
+
+@app.post("/notes/delete")
+def delete_note(payload: NoteDeleteIn, request: Request):
+    note_id = (payload.note_id or "").strip()
+    user_id = _get_authenticated_user_id(request)
+
+    if not note_id:
+        raise HTTPException(status_code=400, detail="note_id is required")
+
+    try:
+        existing = (
+            supabase_admin.table("notes")
+            .select("id")
+            .eq("id", note_id)
+            .eq("user_id", user_id)
+            .limit(1)
+            .execute()
+        )
+        if not (existing.data or []):
+            raise HTTPException(status_code=404, detail="note not found")
+
+        (
+            supabase_admin.table("notes")
+            .delete()
+            .eq("id", note_id)
+            .eq("user_id", user_id)
+            .execute()
+        )
+        return {"ok": True, "note_id": note_id}
     except HTTPException:
         raise
     except Exception as e:

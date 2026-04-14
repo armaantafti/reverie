@@ -339,6 +339,61 @@ button,input,textarea,select{font:inherit}
   flex-wrap:wrap;
   margin-top:2px;
 }
+.manage-actions{
+  display:flex;
+  justify-content:flex-end;
+  gap:10px;
+  flex-wrap:wrap;
+  margin-top:18px;
+}
+.btn-danger{
+  color:#ffe4e6;
+  background:rgba(244,63,94,.12);
+  border:1px solid rgba(244,63,94,.22);
+}
+.btn-danger:hover,
+.btn-danger:focus-visible{
+  background:rgba(244,63,94,.18);
+  border-color:rgba(251,113,133,.34);
+}
+.edit-modal-form{
+  display:grid;
+  gap:14px;
+  margin-top:18px;
+}
+.edit-grid{
+  display:grid;
+  grid-template-columns:repeat(2, minmax(0, 1fr));
+  gap:12px;
+}
+.edit-field{
+  display:grid;
+  gap:8px;
+}
+.edit-field.full{
+  grid-column:1 / -1;
+}
+.edit-input,
+.edit-select{
+  width:100%;
+  height:52px;
+  border:none;
+  outline:none;
+  color:var(--text);
+  background:rgba(6,11,20,.58);
+  border:1px solid rgba(148,163,184,.12);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.02);
+  border-radius:16px;
+  padding:0 16px;
+}
+.edit-input::placeholder{
+  color:#7d8fae;
+}
+.field-help{
+  color:var(--faint);
+  font-size:.8rem;
+  line-height:1.45;
+}
 .chips{
   display:flex;
   flex-wrap:wrap;
@@ -513,4 +568,5 @@ button,input,textarea,select{font:inherit}
   .topbar-inner{padding:12px}
   .brand-name{letter-spacing:.16em}
   .panel,.modal{border-radius:24px}
+  .edit-grid{grid-template-columns:1fr}
 }
