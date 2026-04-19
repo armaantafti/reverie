@@ -1544,7 +1544,7 @@
       if (note?.memory_type === "image") bits.push("Image");
       if (note?.person_name) bits.push(displayPerson(note.person_name));
       if (note?.due_time) bits.push(formatWhen(note.due_time));
-      detailSub.textContent = bits.join(" · ");
+      detailSub.textContent = bits.join(" Â· ");
       detailSummary.textContent = note?.summary || "";
       detailRaw.textContent = note?.extracted_text || note?.raw_text || "";
       detailPerson.textContent = note?.person_name ? displayPerson(note.person_name) : "-";
