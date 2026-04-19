@@ -99,43 +99,18 @@ def _prepare_ocr_variants(image: Image.Image):
     base = ImageOps.grayscale(image)
     base = ImageOps.autocontrast(base)
     width, height = base.size
-    if width < 1400:
-        scale = 1400 / max(width, 1)
+    if width < 1200:
+        scale = 1200 / max(width, 1)
         base = base.resize((int(width * scale), int(height * scale)), Image.Resampling.LANCZOS)
     base = base.filter(ImageFilter.SHARPEN)
     variants.append(base)
 
-    # Slightly more aggressive variant for crisp screenshots
-    strong = ImageOps.grayscale(image)
-    strong = ImageOps.autocontrast(strong)
-    width, height = strong.size
-    if width < 1600:
-        scale = 1600 / max(width, 1)
-        strong = strong.resize((int(width * scale), int(height * scale)), Image.Resampling.LANCZOS)
-    strong = strong.filter(ImageFilter.SHARPEN)
-    strong = strong.filter(ImageFilter.EDGE_ENHANCE_MORE)
-    variants.append(strong)
-
-    # Thresholded variant for high-contrast screenshots
-    thresh = ImageOps.grayscale(image)
-    thresh = ImageOps.autocontrast(thresh)
-    width, height = thresh.size
-    if width < 1400:
-        scale = 1400 / max(width, 1)
-        thresh = thresh.resize((int(width * scale), int(height * scale)), Image.Resampling.LANCZOS)
-    thresh = thresh.point(lambda p: 255 if p > 170 else 0)
-    variants.append(thresh)
-
-    # Inverted variant for dark mode screenshots
-    inverted = ImageOps.grayscale(image)
-    inverted = ImageOps.autocontrast(inverted)
-    width, height = inverted.size
-    if width < 1400:
-        scale = 1400 / max(width, 1)
-        inverted = inverted.resize((int(width * scale), int(height * scale)), Image.Resampling.LANCZOS)
-    inverted = ImageOps.invert(inverted)
-    inverted = inverted.filter(ImageFilter.SHARPEN)
-    variants.append(inverted)
+    # Only add an inverted fallback for darker screenshots.
+    # This keeps OCR fast for normal screenshots while still helping dark mode.
+    if _estimate_brightness(base) < 135:
+        inverted = ImageOps.invert(base)
+        inverted = inverted.filter(ImageFilter.SHARPEN)
+        variants.append(inverted)
 
     return variants
 
@@ -144,26 +119,32 @@ def _run_ocr(image_bytes: bytes) -> str:
     image = Image.open(BytesIO(image_bytes))
     image = ImageOps.exif_transpose(image)
 
-    # If the screenshot is dark, try an inverted version too.
-    # This is kept inside the OCR preprocessing only, so nothing else in the app changes.
     variants = _prepare_ocr_variants(image)
+    best = ""
 
-    configs = [
-        "--psm 6",
-        "--psm 11",
-        "--psm 3",
-    ]
-
-    results = []
+    # Fast path: a single practical config for screenshot text blocks.
     for variant in variants:
-        for config in configs:
-            try:
-                text = pytesseract.image_to_string(variant, config=config) or ""
-                results.append(text)
-            except Exception:
-                continue
+        try:
+            text = pytesseract.image_to_string(variant, config="--oem 1 --psm 6", timeout=8) or ""
+        except Exception:
+            text = ""
+        if len(text.strip()) > len(best.strip()):
+            best = text
+        if len(best.strip()) >= 20:
+            return best
 
-    best = max(results, key=lambda x: len((x or "").strip()), default="")
+    # Lightweight fallback only if the fast path was weak.
+    if len(best.strip()) < 20:
+        for variant in variants:
+            try:
+                text = pytesseract.image_to_string(variant, config="--oem 1 --psm 11", timeout=8) or ""
+            except Exception:
+                text = ""
+            if len(text.strip()) > len(best.strip()):
+                best = text
+            if len(best.strip()) >= 20:
+                break
+
     return best or ""
 
 
@@ -196,7 +177,8 @@ def process_uploaded_image_note(note_id: str, user_id: str, image_url: str, imag
         extracted = _run_ocr(image_bytes)
         cleaned = clean_ocr_text(extracted)
         update = build_image_note_update(cleaned, image_url)
-    except Exception:
+    except Exception as exc:
+        print(f"image pipeline failed for {note_id}: {exc}")
         update = build_image_note_update("", image_url)
 
     try:
@@ -207,5 +189,5 @@ def process_uploaded_image_note(note_id: str, user_id: str, image_url: str, imag
             .eq("user_id", user_id)
             .execute()
         )
-    except Exception:
-        pass
+    except Exception as exc:
+        print(f"image note update failed for {note_id}: {exc}")
