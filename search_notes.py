@@ -158,6 +158,8 @@ def rank_for_you(notes: Iterable[Dict[str, Any]], limit: Optional[int] = 6) -> L
 
         if status == "completed":
             continue
+        if note_type == "passive":
+            continue
 
         item = dict(note)
         item["score"] = score_for_you(note, now=now)
@@ -190,6 +192,8 @@ def context_notes(notes: Iterable[Dict[str, Any]], kind: str, value: str) -> Lis
             matches = value_l == str(note.get("person_name") or "").strip().lower()
         elif kind == "entity":
             matches = value_l in {str(e).strip().lower() for e in (note.get("entities") or [])}
+        elif kind == "type":
+            matches = value_l == str(note.get("note_type") or "").strip().lower()
         else:
             continue
         if not matches:

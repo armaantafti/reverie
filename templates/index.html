@@ -1012,6 +1012,7 @@
 
   <script>
     const ALL_TAGS = ["travel","entertainment","food","study","school","fitness","health","friends","family","work","finance","personal","tasks","ideas","goals","communication","documents","events"];
+    const TOPIC_BUTTONS = [...ALL_TAGS, "passive"];
 
     function normaliseTags(tags) {
       if (!Array.isArray(tags)) return [];
@@ -1584,7 +1585,9 @@
         ? "Everything filed under this name"
         : kind === "entity"
           ? "Everything filed under this entity"
-          : "Everything filed under this tag";
+          : kind === "type"
+            ? "Everything filed under this memory type"
+            : "Everything filed under this tag";
       contextList.innerHTML = "";
       setModalVisible(contextBackdrop, true);
       try {
@@ -1962,12 +1965,13 @@
 
     function buildTagShelf() {
       tagBubblesEl.innerHTML = "";
-      ALL_TAGS.forEach(tag => {
+      TOPIC_BUTTONS.forEach(tag => {
         const btn = document.createElement("button");
         btn.type = "button";
         btn.className = "chip topic-chip clickable-chip";
         btn.textContent = displayTag(tag);
-        btn.addEventListener("click", () => openContext("tag", tag, displayTag(tag)));
+        const kind = tag === "passive" ? "type" : "tag";
+        btn.addEventListener("click", () => openContext(kind, tag, displayTag(tag)));
         tagBubblesEl.appendChild(btn);
       });
     }
