@@ -1,5 +1,6 @@
 import os
 import re
+import shutil
 import uuid
 from datetime import datetime
 from io import BytesIO
@@ -18,8 +19,12 @@ MAX_IMAGE_UPLOADS_PER_REQUEST = 10
 MAX_IMAGE_MEMORIES_PER_USER = 20
 TESSERACT_CMD = (os.getenv("TESSERACT_CMD") or "").strip()
 
+if not TESSERACT_CMD:
+    TESSERACT_CMD = shutil.which("tesseract") or ""
 if TESSERACT_CMD:
     pytesseract.pytesseract.tesseract_cmd = TESSERACT_CMD
+else:
+    print("OCR warning: tesseract executable was not found on PATH. Install tesseract-ocr or set TESSERACT_CMD.")
 
 
 def _sanitize_filename(name: str) -> str:
@@ -116,6 +121,9 @@ def _prepare_ocr_variants(image: Image.Image):
 
 
 def _run_ocr(image_bytes: bytes) -> str:
+    if not TESSERACT_CMD:
+        raise RuntimeError("tesseract executable is missing")
+
     image = Image.open(BytesIO(image_bytes))
     image = ImageOps.exif_transpose(image)
 
@@ -126,7 +134,8 @@ def _run_ocr(image_bytes: bytes) -> str:
     for variant in variants:
         try:
             text = pytesseract.image_to_string(variant, config="--oem 1 --psm 6", timeout=8) or ""
-        except Exception:
+        except Exception as exc:
+            print(f"OCR variant failed with --psm 6: {exc}")
             text = ""
         if len(text.strip()) > len(best.strip()):
             best = text
@@ -138,7 +147,8 @@ def _run_ocr(image_bytes: bytes) -> str:
         for variant in variants:
             try:
                 text = pytesseract.image_to_string(variant, config="--oem 1 --psm 11", timeout=8) or ""
-            except Exception:
+            except Exception as exc:
+                print(f"OCR variant failed with --psm 11: {exc}")
                 text = ""
             if len(text.strip()) > len(best.strip()):
                 best = text
