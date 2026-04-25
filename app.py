@@ -3,7 +3,7 @@ from typing import Optional, Any
 
 from fastapi import FastAPI, Query, Request, HTTPException, BackgroundTasks, UploadFile, File
 from fastapi.encoders import jsonable_encoder
-from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
@@ -31,6 +31,15 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 
 # Templates
 templates = Jinja2Templates(directory="templates")
+
+
+@app.get("/service-worker.js", include_in_schema=False)
+async def service_worker():
+    return FileResponse(
+        "static/service-worker.js",
+        media_type="application/javascript",
+        headers={"Cache-Control": "no-cache"},
+    )
 
 
 def get_user_notes(user_id: str):

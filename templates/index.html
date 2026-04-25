@@ -4,7 +4,12 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta name="color-scheme" content="dark" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
   <title>Reverie</title>
+  <link rel="manifest" href="/static/manifest.json" />
+  <link rel="icon" href="/static/icon-192.png" />
+  <link rel="apple-touch-icon" href="/static/icon-192.png" />
   <style>
     :root{
       --bg0:#08111e;
@@ -2055,6 +2060,14 @@
     });
 
     (async function boot() {
+      if ("serviceWorker" in navigator) {
+        window.addEventListener("load", () => {
+          navigator.serviceWorker.register("/service-worker.js").catch((err) => {
+            console.warn("Service worker registration failed", err);
+          });
+        });
+      }
+
       setAuthMode("login");
       if (await ensureSession(true)) {
         setAuthedState(true);
