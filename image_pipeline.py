@@ -2,6 +2,7 @@ import os
 import re
 import shutil
 import uuid
+import base64
 from datetime import datetime
 from io import BytesIO
 from typing import Dict, Optional
@@ -18,6 +19,8 @@ IMAGE_BUCKET = os.getenv("SUPABASE_IMAGE_BUCKET", "memory-images").strip() or "m
 MAX_IMAGE_UPLOADS_PER_REQUEST = 10
 MAX_IMAGE_MEMORIES_PER_USER = 20
 TESSERACT_CMD = (os.getenv("TESSERACT_CMD") or "").strip()
+OPENAI_API_KEY = (os.getenv("OPENAI_API_KEY") or "").strip()
+OPENAI_VISION_MODEL = (os.getenv("OPENAI_VISION_MODEL") or "gpt-4o-mini").strip()
 
 if not TESSERACT_CMD:
     TESSERACT_CMD = shutil.which("tesseract") or ""
@@ -104,11 +107,13 @@ def _prepare_ocr_variants(image: Image.Image):
     base = ImageOps.grayscale(image)
     base = ImageOps.autocontrast(base)
     width, height = base.size
-    if width < 1200:
-        scale = 1200 / max(width, 1)
+    if width < 1800:
+        scale = 1800 / max(width, 1)
         base = base.resize((int(width * scale), int(height * scale)), Image.Resampling.LANCZOS)
     base = base.filter(ImageFilter.SHARPEN)
     variants.append(base)
+
+    variants.append(base.point(lambda p: 255 if p > 165 else 0))
 
     # Only add an inverted fallback for darker screenshots.
     # This keeps OCR fast for normal screenshots while still helping dark mode.
@@ -122,7 +127,8 @@ def _prepare_ocr_variants(image: Image.Image):
 
 def _run_ocr(image_bytes: bytes) -> str:
     if not TESSERACT_CMD:
-        raise RuntimeError("tesseract executable is missing")
+        print("OCR warning: skipping Tesseract because the executable is missing")
+        return ""
 
     image = Image.open(BytesIO(image_bytes))
     image = ImageOps.exif_transpose(image)
@@ -130,32 +136,75 @@ def _run_ocr(image_bytes: bytes) -> str:
     variants = _prepare_ocr_variants(image)
     best = ""
 
-    # Fast path: a single practical config for screenshot text blocks.
-    for variant in variants:
-        try:
-            text = pytesseract.image_to_string(variant, config="--oem 1 --psm 6", timeout=8) or ""
-        except Exception as exc:
-            print(f"OCR variant failed with --psm 6: {exc}")
-            text = ""
-        if len(text.strip()) > len(best.strip()):
-            best = text
-        if len(best.strip()) >= 20:
-            return best
-
-    # Lightweight fallback only if the fast path was weak.
-    if len(best.strip()) < 20:
+    configs = (
+        "--oem 1 --psm 6",
+        "--oem 1 --psm 4",
+        "--oem 1 --psm 11",
+        "--oem 1 --psm 12",
+    )
+    for config in configs:
         for variant in variants:
             try:
-                text = pytesseract.image_to_string(variant, config="--oem 1 --psm 11", timeout=8) or ""
+                text = pytesseract.image_to_string(variant, config=config, timeout=12) or ""
             except Exception as exc:
-                print(f"OCR variant failed with --psm 11: {exc}")
+                print(f"OCR variant failed with {config}: {exc}")
                 text = ""
             if len(text.strip()) > len(best.strip()):
                 best = text
-            if len(best.strip()) >= 20:
-                break
 
     return best or ""
+
+
+def _run_openai_vision_ocr(image_bytes: bytes, content_type: str = "image/png") -> str:
+    if not OPENAI_API_KEY:
+        return ""
+
+    mime = content_type if content_type.startswith("image/") else "image/png"
+    encoded = base64.b64encode(image_bytes).decode("ascii")
+    payload = {
+        "model": OPENAI_VISION_MODEL,
+        "messages": [
+            {
+                "role": "system",
+                "content": "You transcribe text from screenshots. Return only the visible text, preserving useful line breaks. Do not summarize.",
+            },
+            {
+                "role": "user",
+                "content": [
+                    {
+                        "type": "text",
+                        "text": "Transcribe all readable text in this screenshot. Include chat messages, dates, times, and names if visible.",
+                    },
+                    {
+                        "type": "image_url",
+                        "image_url": {
+                            "url": f"data:{mime};base64,{encoded}",
+                            "detail": "high",
+                        },
+                    },
+                ],
+            },
+        ],
+        "temperature": 0,
+        "max_tokens": 1000,
+    }
+    headers = {
+        "Authorization": f"Bearer {OPENAI_API_KEY}",
+        "Content-Type": "application/json",
+    }
+    try:
+        resp = requests.post(
+            "https://api.openai.com/v1/chat/completions",
+            headers=headers,
+            json=payload,
+            timeout=35,
+        )
+        resp.raise_for_status()
+        data = resp.json()
+        return str(data["choices"][0]["message"]["content"] or "").strip()
+    except Exception as exc:
+        print(f"OpenAI vision OCR failed: {exc}")
+        return ""
 
 
 def clean_ocr_text(text: str) -> str:
@@ -182,9 +231,13 @@ def clean_ocr_text(text: str) -> str:
     return merged
 
 
-def process_uploaded_image_note(note_id: str, user_id: str, image_url: str, image_bytes: bytes) -> None:
+def process_uploaded_image_note(note_id: str, user_id: str, image_url: str, image_bytes: bytes, content_type: str = "image/png") -> None:
     try:
         extracted = _run_ocr(image_bytes)
+        if len(clean_ocr_text(extracted)) < 20:
+            fallback = _run_openai_vision_ocr(image_bytes, content_type)
+            if len(clean_ocr_text(fallback)) > len(clean_ocr_text(extracted)):
+                extracted = fallback
         cleaned = clean_ocr_text(extracted)
         update = build_image_note_update(cleaned, image_url)
     except Exception as exc:

@@ -563,6 +563,7 @@ async def create_image_notes(
                 user_id,
                 image_url,
                 image_bytes,
+                content_type,
             )
             created.append(note)
         except HTTPException:
