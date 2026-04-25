@@ -622,6 +622,18 @@
       line-height:1.55;
       font-size:.92rem;
     }
+    .context-actions{
+      display:flex;
+      justify-content:flex-end;
+      gap:8px;
+      flex-wrap:wrap;
+      margin-top:12px;
+    }
+    .context-actions .btn{
+      min-height:38px;
+      padding:8px 13px;
+      font-size:.86rem;
+    }
     .context-empty{
       padding:14px;
       border-radius:18px;
@@ -1199,6 +1211,7 @@
     let activeStatusNote = null;
     let activeDetailNote = null;
     let activeEditNote = null;
+    let activeContextQuery = null;
     let sessionInfoPromise = null;
 
     function noteStatus(value) {
@@ -1334,6 +1347,9 @@
       if ((searchQueryEl.value || "").trim() || (searchRangeEl.value || "").trim()) {
         refreshes.push(runSearch());
       }
+      if (activeContextQuery && contextBackdrop.getAttribute("aria-hidden") === "false") {
+        refreshes.push(loadContextNotes(activeContextQuery.kind, activeContextQuery.value));
+      }
       if (forYouBackdrop.getAttribute("aria-hidden") === "false") {
         refreshes.push(openForYouModal());
       }
@@ -1395,8 +1411,7 @@
       await refreshAfterNoteMutation();
     }
 
-    async function deleteActiveNote() {
-      const note = activeDetailNote || activeEditNote;
+    async function deleteNote(note) {
       if (!note) return;
       if (!window.confirm("Remove this memory entirely?")) return;
       if (!(await ensureSession())) throw new Error("Please log in first.");
@@ -1404,8 +1419,12 @@
       if (!id) throw new Error("Could not identify this memory. Refresh and try again.");
       await apiPost("/notes/delete", { note_id: id });
       closeEditModal();
-      closeDetail();
+      if (activeDetailNote && noteId(activeDetailNote) === id) closeDetail();
       await refreshAfterNoteMutation();
+    }
+
+    async function deleteActiveNote() {
+      await deleteNote(activeDetailNote || activeEditNote);
     }
 
     function renderNoteCard(note, extraClass = "", options = {}) {
@@ -1490,70 +1509,7 @@
         return;
       }
       notes.forEach(note => {
-        const item = document.createElement("div");
-        item.className = "context-item";
-        const title = document.createElement("h4");
-        title.className = "context-item-title";
-        title.textContent = note?.title || "(no title)";
-        item.appendChild(title);
-
-        const meta = document.createElement("div");
-        meta.className = "context-item-meta";
-        if (note?.note_type) {
-          const chip = document.createElement("span");
-          chip.className = "chip good";
-          chip.textContent = displayNoteType(note.note_type);
-          meta.appendChild(chip);
-        }
-        if (note?.person_name) {
-          const chip = document.createElement("button");
-          chip.type = "button";
-          chip.className = "chip soft clickable-chip";
-          chip.textContent = displayPerson(note.person_name);
-          chip.addEventListener("click", (e) => {
-            e.stopPropagation();
-            openContext("person", note.person_name, displayPerson(note.person_name));
-          });
-          meta.appendChild(chip);
-        }
-        if (note?.due_time) {
-          const chip = document.createElement("span");
-          chip.className = "chip muted";
-          chip.textContent = formatWhen(note.due_time);
-          meta.appendChild(chip);
-        }
-        normaliseTags(note?.tags).slice(0, 4).forEach((tag, index) => {
-          const chip = document.createElement("button");
-          chip.type = "button";
-          chip.className = `chip clickable-chip ${index % 2 ? "muted" : ""}`.trim();
-          chip.textContent = displayTag(tag);
-          chip.addEventListener("click", (e) => {
-            e.stopPropagation();
-            openContext("tag", tag, displayTag(tag));
-          });
-          meta.appendChild(chip);
-        });
-        normaliseEntities(note?.entities).slice(0, 2).forEach((entity, index) => {
-          const chip = document.createElement("button");
-          chip.type = "button";
-          chip.className = `chip clickable-chip ${index % 2 ? "soft" : "muted"}`.trim();
-          chip.textContent = displayEntity(entity);
-          chip.addEventListener("click", (e) => {
-            e.stopPropagation();
-            openContext("entity", entity, displayEntity(entity));
-          });
-          meta.appendChild(chip);
-        });
-        item.appendChild(meta);
-        appendImagePreview(item, note);
-
-        if (note?.summary) {
-          const summary = document.createElement("p");
-          summary.className = "context-item-summary";
-          summary.textContent = note.summary;
-          item.appendChild(summary);
-        }
-        contextList.appendChild(item);
+        contextList.appendChild(renderContextItem(note, isActionableNote(note), true));
       });
     }
 
@@ -1598,9 +1554,9 @@
       }
     });
 
-    async function openContext(kind, value, label) {
-      if (!(await ensureSession())) return;
-      contextTitle.textContent = label || value || "Context";
+    async function loadContextNotes(kind, value) {
+      const currentLabel = activeContextQuery?.label || value || "Context";
+      contextTitle.textContent = currentLabel;
       contextSub.textContent = kind === "person"
         ? "Everything filed under this name"
         : kind === "entity"
@@ -1622,8 +1578,21 @@
         contextList.appendChild(empty);
       }
     }
-    contextClose.addEventListener("click", () => setModalVisible(contextBackdrop, false));
-    contextBackdrop.addEventListener("click", (e) => { if (e.target === contextBackdrop) setModalVisible(contextBackdrop, false); });
+
+    async function openContext(kind, value, label) {
+      if (!(await ensureSession())) return;
+      activeContextQuery = { kind, value, label };
+      contextTitle.textContent = label || value || "Context";
+      setModalVisible(contextBackdrop, true);
+      await loadContextNotes(kind, value);
+    }
+
+    function closeContext() {
+      setModalVisible(contextBackdrop, false);
+      activeContextQuery = null;
+    }
+    contextClose.addEventListener("click", closeContext);
+    contextBackdrop.addEventListener("click", (e) => { if (e.target === contextBackdrop) closeContext(); });
 
     function renderForYouModal(notes) {
       forYouModalList.innerHTML = "";
@@ -1639,7 +1608,7 @@
       });
     }
 
-    function renderContextItem(note, showStatusButton = false) {
+    function renderContextItem(note, showStatusButton = false, showManageActions = false) {
       const item = document.createElement("div");
       item.className = "context-item";
       const top = document.createElement("div");
@@ -1717,6 +1686,37 @@
         summary.className = "context-item-summary";
         summary.textContent = note.summary;
         item.appendChild(summary);
+      }
+      if (showManageActions) {
+        const actions = document.createElement("div");
+        actions.className = "context-actions";
+
+        const editBtn = document.createElement("button");
+        editBtn.type = "button";
+        editBtn.className = "btn btn-secondary";
+        editBtn.textContent = "Edit";
+        editBtn.addEventListener("click", (e) => {
+          e.stopPropagation();
+          openEditModal(note);
+        });
+        actions.appendChild(editBtn);
+
+        const deleteBtn = document.createElement("button");
+        deleteBtn.type = "button";
+        deleteBtn.className = "btn btn-danger";
+        deleteBtn.textContent = "Delete";
+        deleteBtn.addEventListener("click", async (e) => {
+          e.stopPropagation();
+          try {
+            await deleteNote(note);
+          } catch (err) {
+            console.error(err);
+            alert(err?.message || "Could not remove this memory.");
+          }
+        });
+        actions.appendChild(deleteBtn);
+
+        item.appendChild(actions);
       }
       return item;
     }
@@ -2068,7 +2068,7 @@
       if (e.key === "Escape") {
         closeDetail();
         closeEditModal();
-        setModalVisible(contextBackdrop, false);
+        closeContext();
         setModalVisible(forYouBackdrop, false);
         setModalVisible(statusBackdrop, false);
       }
