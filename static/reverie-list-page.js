@@ -124,8 +124,11 @@
     if (!force && sessionInfoPromise) return sessionInfoPromise;
     sessionInfoPromise = (async () => {
       try {
-        const resp = await fetch("/session", {
+        const url = new URL("/session", window.location.origin);
+        url.searchParams.set("_", String(Date.now()));
+        const resp = await fetch(url.toString(), {
           credentials: "same-origin",
+          cache: "no-store",
         });
         if (!resp.ok) return null;
         const data = await resp.json();
@@ -158,6 +161,10 @@
   function statusLabel(value) {
     const status = noteStatus(value);
     return status.charAt(0).toUpperCase() + status.slice(1);
+  }
+
+  function noteId(note) {
+    return String(note?.id || note?.note_id || "").trim();
   }
 
   function setModalVisible(backdrop, visible) {
@@ -383,9 +390,13 @@
       setModalVisible(contextBackdrop, true);
 
       try {
-        const params = new URLSearchParams({ kind, value });
-        const resp = await fetch(`/context?${params.toString()}`, {
+        const url = new URL("/context", window.location.origin);
+        url.searchParams.set("kind", kind);
+        url.searchParams.set("value", value);
+        url.searchParams.set("_", String(Date.now()));
+        const resp = await fetch(url.toString(), {
           credentials: "same-origin",
+          cache: "no-store",
         });
         if (resp.status === 401) {
           invalidateSession();
@@ -427,12 +438,14 @@
         alert("Please sign in first.");
         return;
       }
+      const id = noteId(activeStatusNote);
+      if (!id) throw new Error("Could not identify this memory. Refresh and try again.");
 
       const resp = await fetch("/notes/status", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          note_id: activeStatusNote.id,
+          note_id: id,
           status: statusSelect.value,
           status_note: statusNote.value.trim(),
         }),
@@ -462,13 +475,14 @@
       }
 
       const payload = {
-        note_id: activeEditNote.id,
+        note_id: noteId(activeEditNote),
         note_type: editType.value,
         due_time: fromInputDateTimeValue(editDueTime.value),
         person_name: editPerson.value.trim(),
         tags: splitCommaList(editTags.value),
         entities: splitCommaList(editEntities.value),
       };
+      if (!payload.note_id) throw new Error("Could not identify this memory. Refresh and try again.");
 
       const resp = await fetch("/notes/update", {
         method: "POST",
@@ -502,11 +516,13 @@
         alert("Please sign in first.");
         return;
       }
+      const id = noteId(note);
+      if (!id) throw new Error("Could not identify this memory. Refresh and try again.");
 
       const resp = await fetch("/notes/delete", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ note_id: note.id }),
+        body: JSON.stringify({ note_id: id }),
         credentials: "same-origin",
       });
       if (resp.status === 401) {
@@ -620,8 +636,11 @@
           return;
         }
 
-        const resp = await fetch("/notes", {
+        const url = new URL("/notes", window.location.origin);
+        url.searchParams.set("_", String(Date.now()));
+        const resp = await fetch(url.toString(), {
           credentials: "same-origin",
+          cache: "no-store",
         });
         if (resp.status === 401) {
           invalidateSession();

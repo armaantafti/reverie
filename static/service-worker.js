@@ -1,4 +1,4 @@
-const CACHE_NAME = "reverie-pwa-v2";
+const CACHE_NAME = "reverie-pwa-v3";
 const STATIC_ASSETS = [
   "/",
   "/tasks",
@@ -30,6 +30,7 @@ self.addEventListener("activate", (event) => {
 self.addEventListener("fetch", (event) => {
   const request = event.request;
   if (request.method !== "GET") return;
+  const url = new URL(request.url);
 
   if (request.mode === "navigate") {
     event.respondWith(
@@ -41,6 +42,10 @@ self.addEventListener("fetch", (event) => {
         })
         .catch(() => caches.match(request).then((cached) => cached || caches.match("/")))
     );
+    return;
+  }
+
+  if (url.origin !== self.location.origin || !url.pathname.startsWith("/static/")) {
     return;
   }
 

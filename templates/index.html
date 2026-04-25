@@ -1216,6 +1216,10 @@
       return status.charAt(0).toUpperCase() + status.slice(1);
     }
 
+    function noteId(note) {
+      return String(note?.id || note?.note_id || "").trim();
+    }
+
     function setAuthMode(nextMode) {
       authMode = nextMode === "signup" ? "signup" : "login";
       const isLogin = authMode === "login";
@@ -1244,8 +1248,11 @@
       if (!force && sessionInfoPromise) return sessionInfoPromise;
       sessionInfoPromise = (async () => {
         try {
-          const resp = await fetch("/session", {
+          const url = new URL("/session", window.location.origin);
+          url.searchParams.set("_", String(Date.now()));
+          const resp = await fetch(url.toString(), {
             credentials: "same-origin",
+            cache: "no-store",
           });
           if (!resp.ok) return null;
           const data = await resp.json();
@@ -1276,8 +1283,10 @@
           url.searchParams.set(key, String(value));
         }
       });
+      url.searchParams.set("_", String(Date.now()));
       const resp = await fetch(url.toString(), {
         credentials: "same-origin",
+        cache: "no-store",
       });
       if (resp.status === 401) invalidateSessionUi();
       if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
@@ -1334,8 +1343,10 @@
     async function saveStatusUpdate() {
       if (!activeStatusNote) return;
       if (!(await ensureSession())) throw new Error("Please log in first.");
+      const id = noteId(activeStatusNote);
+      if (!id) throw new Error("Could not identify this memory. Refresh and try again.");
       await apiPost("/notes/status", {
-        note_id: activeStatusNote.id,
+        note_id: id,
         status: statusSelect.value,
         status_note: statusNote.value.trim(),
       });
@@ -1369,8 +1380,10 @@
     async function saveNoteEdit() {
       if (!activeEditNote) return;
       if (!(await ensureSession())) throw new Error("Please log in first.");
+      const id = noteId(activeEditNote);
+      if (!id) throw new Error("Could not identify this memory. Refresh and try again.");
       await apiPost("/notes/update", {
-        note_id: activeEditNote.id,
+        note_id: id,
         note_type: editType.value,
         due_time: fromInputDateTimeValue(editDueTime.value),
         person_name: editPerson.value.trim(),
@@ -1387,7 +1400,9 @@
       if (!note) return;
       if (!window.confirm("Remove this memory entirely?")) return;
       if (!(await ensureSession())) throw new Error("Please log in first.");
-      await apiPost("/notes/delete", { note_id: note.id });
+      const id = noteId(note);
+      if (!id) throw new Error("Could not identify this memory. Refresh and try again.");
+      await apiPost("/notes/delete", { note_id: id });
       closeEditModal();
       closeDetail();
       await refreshAfterNoteMutation();
