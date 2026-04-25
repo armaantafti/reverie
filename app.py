@@ -292,6 +292,14 @@ async def recs_page(request: Request):
     )
 
 
+@app.get("/privacy", response_class=HTMLResponse)
+async def privacy_page(request: Request):
+    return templates.TemplateResponse(
+        "privacy.html",
+        {"request": request}
+    )
+
+
 class TextNoteIn(BaseModel):
     text: str
     user_id: Optional[str] = None
