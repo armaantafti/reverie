@@ -2,6 +2,7 @@ import re
 import uuid
 from datetime import datetime
 from typing import Any, Dict, Optional
+from zoneinfo import ZoneInfo
 
 from llm_extractor import extract_with_llm
 from supabase_client import supabase_admin
@@ -40,6 +41,10 @@ def summarise_text(text: str, max_sentences: int = 3) -> str:
 
 def generate_id() -> str:
     return str(uuid.uuid4())
+
+
+def _now_ist_iso() -> str:
+    return datetime.now(ZoneInfo("Asia/Kolkata")).isoformat()
 
 
 def _coerce_text(value: Any) -> str:
@@ -148,7 +153,7 @@ def build_text_note_payload(
     return {
         "id": note_id or generate_id(),
         "user_id": resolved_user_id,
-        "created_at": created_at or datetime.now().isoformat(),
+        "created_at": created_at or _now_ist_iso(),
         "person_name": normalized["person_name"],
         "title": normalized["title"],
         "summary": normalized["summary"],

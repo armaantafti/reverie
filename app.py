@@ -17,6 +17,7 @@ from image_pipeline import (
     create_image_note_placeholder,
     process_uploaded_image_note,
     upload_image_bytes,
+    validate_image_upload,
 )
 from search_notes import filter_notes, filter_by_keywords, rank_for_you, context_notes
 from sync_notes_to_gcal import sync_notes_to_calendar
@@ -329,8 +330,7 @@ def create_text_note(payload: TextNoteIn, request: Request):
 @app.post("/sync-calendar")
 def sync_calendar():
     try:
-        sync_notes_to_calendar()
-        return {"status": "ok"}
+        return sync_notes_to_calendar()
     except Exception as e:
         return {"status": "error", "detail": _error_detail(e)}
 
@@ -543,13 +543,13 @@ async def create_image_notes(
 
     prepared_uploads: list[tuple[str, str, bytes]] = []
     for upload in files:
-        content_type = (upload.content_type or "").lower()
-        if not content_type.startswith("image/"):
-            raise HTTPException(status_code=400, detail="only image uploads are supported")
+        file_name = upload.filename or "screenshot.png"
         image_bytes = await upload.read()
-        if not image_bytes:
-            raise HTTPException(status_code=400, detail="one of the uploaded images was empty")
-        prepared_uploads.append((upload.filename or "screenshot.png", content_type, image_bytes))
+        try:
+            content_type = validate_image_upload(file_name, upload.content_type or "", image_bytes)
+        except ValueError as e:
+            raise HTTPException(status_code=400, detail=str(e)) from e
+        prepared_uploads.append((file_name, content_type, image_bytes))
 
     created = []
     for file_name, content_type, image_bytes in prepared_uploads:

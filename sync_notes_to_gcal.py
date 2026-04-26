@@ -1,3 +1,9 @@
+CALENDAR_SYNC_DISABLED_MESSAGE = (
+    "Google Calendar sync is disabled in beta. "
+    "The app does not use local Google credential or token files."
+)
+
+
 def load_notes():
     return []
 
@@ -11,7 +17,11 @@ def create_event_for_note(service, note, calendar_id="primary"):
 
 
 def sync_notes_to_calendar():
-    print("Calendar sync is disabled for beta.")
+    print(CALENDAR_SYNC_DISABLED_MESSAGE)
+    return {
+        "status": "disabled",
+        "detail": CALENDAR_SYNC_DISABLED_MESSAGE,
+    }
 
 
 if __name__ == "__main__":

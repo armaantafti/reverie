@@ -7,9 +7,10 @@ from datetime import datetime
 from io import BytesIO
 from typing import Dict, Optional
 from urllib.parse import quote
+from zoneinfo import ZoneInfo
 
 import requests
-from PIL import Image, ImageOps, ImageFilter, ImageStat
+from PIL import Image, ImageOps, ImageFilter, ImageStat, UnidentifiedImageError
 import pytesseract
 
 from note_core import build_image_note_update
@@ -18,9 +19,17 @@ from supabase_client import SUPABASE_SERVICE_ROLE_KEY, SUPABASE_URL, supabase_ad
 IMAGE_BUCKET = os.getenv("SUPABASE_IMAGE_BUCKET", "memory-images").strip() or "memory-images"
 MAX_IMAGE_UPLOADS_PER_REQUEST = 10
 MAX_IMAGE_MEMORIES_PER_USER = 20
+MAX_IMAGE_FILE_SIZE_BYTES = int(os.getenv("MAX_IMAGE_FILE_SIZE_BYTES", str(8 * 1024 * 1024)))
+MAX_IMAGE_PIXELS = int(os.getenv("MAX_IMAGE_PIXELS", str(36_000_000)))
+MAX_IMAGE_WIDTH = int(os.getenv("MAX_IMAGE_WIDTH", "6000"))
+MAX_IMAGE_HEIGHT = int(os.getenv("MAX_IMAGE_HEIGHT", "6000"))
+ALLOWED_IMAGE_CONTENT_TYPES = {"image/jpeg", "image/png", "image/webp"}
+ALLOWED_IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".webp"}
 TESSERACT_CMD = (os.getenv("TESSERACT_CMD") or "").strip()
 OPENAI_API_KEY = (os.getenv("OPENAI_API_KEY") or "").strip()
 OPENAI_VISION_MODEL = (os.getenv("OPENAI_VISION_MODEL") or "gpt-4o-mini").strip()
+
+Image.MAX_IMAGE_PIXELS = MAX_IMAGE_PIXELS
 
 if not TESSERACT_CMD:
     TESSERACT_CMD = shutil.which("tesseract") or ""
@@ -34,6 +43,41 @@ def _sanitize_filename(name: str) -> str:
     cleaned = re.sub(r"[^a-zA-Z0-9._-]+", "-", (name or "image").strip())
     cleaned = cleaned.strip(".-") or "image"
     return cleaned[:80]
+
+
+def _now_ist_iso() -> str:
+    return datetime.now(ZoneInfo("Asia/Kolkata")).isoformat()
+
+
+def validate_image_upload(file_name: str, content_type: str, image_bytes: bytes) -> str:
+    normalized_type = (content_type or "").split(";", 1)[0].strip().lower()
+    extension = os.path.splitext(file_name or "")[1].lower()
+
+    if normalized_type not in ALLOWED_IMAGE_CONTENT_TYPES:
+        raise ValueError("only JPG, PNG, and WEBP images are supported")
+    if extension not in ALLOWED_IMAGE_EXTENSIONS:
+        raise ValueError("image file must end in .jpg, .jpeg, .png, or .webp")
+    if not image_bytes:
+        raise ValueError("one of the uploaded images was empty")
+    if len(image_bytes) > MAX_IMAGE_FILE_SIZE_BYTES:
+        max_mb = MAX_IMAGE_FILE_SIZE_BYTES // (1024 * 1024)
+        raise ValueError(f"image uploads must be {max_mb} MB or smaller")
+
+    try:
+        with Image.open(BytesIO(image_bytes)) as image:
+            image.verify()
+        with Image.open(BytesIO(image_bytes)) as image:
+            width, height = image.size
+            detected_type = Image.MIME.get(image.format or "", "")
+    except (Image.DecompressionBombError, UnidentifiedImageError, OSError) as exc:
+        raise ValueError("uploaded file is not a valid supported image") from exc
+
+    if width > MAX_IMAGE_WIDTH or height > MAX_IMAGE_HEIGHT:
+        raise ValueError(f"image dimensions must be at most {MAX_IMAGE_WIDTH}x{MAX_IMAGE_HEIGHT}")
+    if detected_type not in ALLOWED_IMAGE_CONTENT_TYPES:
+        raise ValueError("uploaded file is not a valid JPG, PNG, or WEBP image")
+
+    return detected_type
 
 
 def count_image_memories(user_id: str) -> int:
@@ -72,7 +116,7 @@ def create_image_note_placeholder(user_id: str, image_url: str, file_name: str) 
     note = {
         "id": str(uuid.uuid4()),
         "user_id": user_id,
-        "created_at": datetime.now().isoformat(),
+        "created_at": _now_ist_iso(),
         "person_name": None,
         "title": title or "Screenshot memory",
         "summary": "Screenshot uploaded. OCR is processing in the background.",

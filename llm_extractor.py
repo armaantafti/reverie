@@ -3,11 +3,13 @@ import os
 from dataclasses import dataclass
 from typing import Any, Dict, Optional
 from datetime import datetime
+from zoneinfo import ZoneInfo
 
 import requests
 
 
 CONFIG_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "llm_config.json")
+APP_TIMEZONE = ZoneInfo("Asia/Kolkata")
 
 
 @dataclass
@@ -74,9 +76,9 @@ SYSTEM_PROMPT = (
 
 
 def build_user_prompt(text: str) -> str:
-    now = datetime.now()
+    now = datetime.now(APP_TIMEZONE)
     today_str = now.strftime("%Y-%m-%d")
-    now_str = now.strftime("%Y-%m-%dT%H:%M:%S")
+    now_str = now.isoformat(timespec="seconds")
     prefix = (
         f"Today is {today_str} and the current local datetime is {now_str} "
         f"in timezone Asia/Kolkata. Use this as the reference when interpreting words like "

@@ -1,9 +1,12 @@
-.git
 __pycache__/
 *.py[cod]
+.Python
 .env
 .env.*
+!.env.example
 *.log
+.uvicorn-*.log
 google_calendar_credentials.json
 google_calendar_token.json
 supabase_image_memories.sql
+.DS_Store
