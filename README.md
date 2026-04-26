@@ -39,8 +39,8 @@ Open `http://127.0.0.1:8000/`.
 ## Required Environment Variables
 
 - `SUPABASE_URL`: Supabase project URL.
-- `SUPABASE_ANON_KEY` or `SUPABASE_KEY`: Public anon key used for auth calls.
-- `SUPABASE_SERVICE_ROLE_KEY`: Server-only key used by the backend. Never expose this in frontend code, Android projects, or browser JavaScript.
+- `SUPABASE_ANON_KEY` or `SUPABASE_KEY`: Public anon JWT key used for auth calls. Use the anon key that starts with `eyJ...`, not a newer `sb_publishable_...` key.
+- `SUPABASE_SERVICE_ROLE_KEY`: Server-only JWT key used by the backend. This should also start with `eyJ...`. Never expose this in frontend code, Android projects, or browser JavaScript.
 - `OPENAI_API_KEY`: Optional. Enables LLM extraction and vision OCR fallback.
 - `OPENAI_VISION_MODEL`: Optional. Defaults to `gpt-4o-mini`.
 - `SUPABASE_IMAGE_BUCKET`: Optional. Defaults to `memory-images`.
