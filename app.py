@@ -20,7 +20,6 @@ from image_pipeline import (
     validate_image_upload,
 )
 from search_notes import filter_notes, filter_by_keywords, rank_for_you, context_notes
-from sync_notes_to_gcal import sync_notes_to_calendar
 from llm_search import summarise_search, extract_search_signals
 
 app = FastAPI(title="Reverie API")
@@ -60,7 +59,6 @@ VALID_NOTE_TYPES = {"note", "recommendation", "reminder", "passive"}
 
 class NoteStatusIn(BaseModel):
     note_id: str
-    user_id: Optional[str] = None
     status: str
     status_note: Optional[str] = None
 
@@ -303,7 +301,6 @@ async def privacy_page(request: Request):
 
 class TextNoteIn(BaseModel):
     text: str
-    user_id: Optional[str] = None
 
 
 @app.post("/notes/text")
@@ -325,14 +322,6 @@ def create_text_note(payload: TextNoteIn, request: Request):
         raise HTTPException(status_code=500, detail=_error_detail(e)) from e
     except Exception as e:
         raise HTTPException(status_code=500, detail=_error_detail(e)) from e
-
-
-@app.post("/sync-calendar")
-def sync_calendar():
-    try:
-        return sync_notes_to_calendar()
-    except Exception as e:
-        return {"status": "error", "detail": _error_detail(e)}
 
 
 @app.post("/notes/status")
@@ -371,7 +360,6 @@ def update_note_status(payload: NoteStatusIn, request: Request):
 @app.get("/notes")
 def list_notes(
     request: Request,
-    user_id: Optional[str] = Query(None, description="Supabase user id"),
     query: Optional[str] = Query(None, description="Search text in title/summary/person/tags"),
     days: Optional[int] = Query(None, description="Limit to last N days"),
 ):
@@ -383,7 +371,6 @@ def list_notes(
 @app.get("/for-you")
 def for_you(
     request: Request,
-    user_id: Optional[str] = Query(None, description="Supabase user id"),
     limit: Optional[int] = Query(6, ge=1, le=20),
 ):
     notes = get_user_notes(_get_authenticated_user_id(request))
@@ -392,7 +379,7 @@ def for_you(
 
 
 @app.get("/for-you/all")
-def for_you_all(request: Request, user_id: Optional[str] = Query(None, description="Supabase user id")):
+def for_you_all(request: Request):
     notes = get_user_notes(_get_authenticated_user_id(request))
     ranked = rank_for_you(notes, limit=None)
     return {"notes": ranked, "count": len(ranked)}
@@ -401,7 +388,6 @@ def for_you_all(request: Request, user_id: Optional[str] = Query(None, descripti
 @app.get("/context")
 def context_view(
     request: Request,
-    user_id: Optional[str] = Query(None, description="Supabase user id"),
     kind: str = Query(...),
     value: str = Query(...),
 ):
@@ -412,7 +398,6 @@ def context_view(
 
 class SmartSearchIn(BaseModel):
     query: str
-    user_id: Optional[str] = None
     days: Optional[int] = None
 
 

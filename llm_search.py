@@ -147,10 +147,6 @@ def extract_search_signals(query: str) -> Dict[str, object]:
         }
 
 
-def extract_keywords(query: str) -> list[str]:
-    return list(extract_search_signals(query).get("keywords") or [])
-
-
 def summarise_search(query: str, notes: List[Dict]) -> str:
     cfg = LLMConfig.load()
 
