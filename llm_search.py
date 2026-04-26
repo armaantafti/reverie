@@ -3,27 +3,7 @@ import re
 from typing import Any, Dict, List, Optional
 
 from llm_extractor import LLMConfig, _call_llm_raw
-
-PREDEFINED_TAGS = [
-    "travel",
-    "entertainment",
-    "food",
-    "study",
-    "school",
-    "fitness",
-    "health",
-    "friends",
-    "family",
-    "work",
-    "finance",
-    "personal",
-    "tasks",
-    "ideas",
-    "goals",
-    "communication",
-    "documents",
-    "events",
-]
+from tag_config import PREDEFINED_TAGS
 
 KEYWORD_SYSTEM_PROMPT = (
     "You help the Reverie app understand search queries. "

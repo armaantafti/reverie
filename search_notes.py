@@ -1,33 +1,9 @@
 from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, Iterable, List, Optional
+
+from tag_config import PREDEFINED_TAG_SET, TAG_WEIGHTS
+
 IST = timezone(timedelta(hours=5, minutes=30))
-
-TAGS_KNOWN = {
-    "travel", "entertainment", "food", "study", "school", "fitness", "health", "friends",
-    "family", "work", "finance", "personal", "tasks", "ideas", "goals", "communication",
-    "documents", "events",
-}
-
-TAG_WEIGHTS = {
-    "tasks": 1.00,
-    "goals": 0.94,
-    "communication": 0.88,
-    "events": 0.82,
-    "family": 0.78,
-    "friends": 0.76,
-    "work": 0.74,
-    "school": 0.73,
-    "study": 0.72,
-    "personal": 0.64,
-    "finance": 0.66,
-    "health": 0.62,
-    "fitness": 0.60,
-    "travel": 0.56,
-    "documents": 0.54,
-    "ideas": 0.52,
-    "food": 0.46,
-    "entertainment": 0.40,
-}
 
 def _parse_datetime(value: Any) -> Optional[datetime]:
     if not value:
@@ -219,7 +195,7 @@ def filter_notes(notes, query=None, days=None):
     results = []
     q = (query or "").lower()
     type_like = q in {"reminder", "recommendation", "note", "passive"}
-    tag_like = q in TAGS_KNOWN
+    tag_like = q in PREDEFINED_TAG_SET
     for n in notes:
         if cutoff is not None:
             created = parse_date(n.get("created_at"))
@@ -275,7 +251,7 @@ def filter_by_keywords(notes, keywords=None, days=None):
                 if type_str == k:
                     keep = True
                     break
-            elif k in TAGS_KNOWN:
+            elif k in PREDEFINED_TAG_SET:
                 if k in note_tags:
                     keep = True
                     break

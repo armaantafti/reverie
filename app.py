@@ -21,6 +21,7 @@ from image_pipeline import (
 )
 from search_notes import filter_notes, filter_by_keywords, rank_for_you, context_notes
 from llm_search import summarise_search, extract_search_signals
+from tag_config import PREDEFINED_TAGS
 
 app = FastAPI(title="Reverie API")
 
@@ -51,6 +52,13 @@ def get_user_notes(user_id: str):
         .execute()
     )
     return result.data or []
+
+
+def _template_context(request: Request) -> dict[str, Any]:
+    return {
+        "request": request,
+        "predefined_tags": list(PREDEFINED_TAGS),
+    }
 
 
 VALID_NOTE_STATUSES = {"pending", "completed", "skipped"}
@@ -271,7 +279,7 @@ def logout(request: Request):
 async def index(request: Request):
     return templates.TemplateResponse(
         "index.html",
-        {"request": request}
+        _template_context(request)
     )
 
 
@@ -279,7 +287,7 @@ async def index(request: Request):
 async def tasks_page(request: Request):
     return templates.TemplateResponse(
         "tasks.html",
-        {"request": request}
+        _template_context(request)
     )
 
 
@@ -287,7 +295,7 @@ async def tasks_page(request: Request):
 async def recs_page(request: Request):
     return templates.TemplateResponse(
         "recommendations.html",
-        {"request": request}
+        _template_context(request)
     )
 
 
@@ -295,7 +303,7 @@ async def recs_page(request: Request):
 async def privacy_page(request: Request):
     return templates.TemplateResponse(
         "privacy.html",
-        {"request": request}
+        _template_context(request)
     )
 
 

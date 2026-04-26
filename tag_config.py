@@ -1,0 +1,43 @@
+PREDEFINED_TAGS = (
+    "travel",
+    "entertainment",
+    "food",
+    "study",
+    "school",
+    "fitness",
+    "health",
+    "friends",
+    "family",
+    "work",
+    "finance",
+    "personal",
+    "tasks",
+    "ideas",
+    "goals",
+    "communication",
+    "documents",
+    "events",
+)
+
+PREDEFINED_TAG_SET = set(PREDEFINED_TAGS)
+
+TAG_WEIGHTS = {
+    "tasks": 1.00,
+    "goals": 0.94,
+    "communication": 0.88,
+    "events": 0.82,
+    "family": 0.78,
+    "friends": 0.76,
+    "work": 0.74,
+    "school": 0.73,
+    "study": 0.72,
+    "personal": 0.64,
+    "finance": 0.66,
+    "health": 0.62,
+    "fitness": 0.60,
+    "travel": 0.56,
+    "documents": 0.54,
+    "ideas": 0.52,
+    "food": 0.46,
+    "entertainment": 0.40,
+}

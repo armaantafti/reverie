@@ -6,27 +6,7 @@ from zoneinfo import ZoneInfo
 
 from llm_extractor import extract_with_llm
 from supabase_client import supabase_admin
-
-PREDEFINED_TAGS = [
-    "travel",
-    "entertainment",
-    "food",
-    "study",
-    "school",
-    "fitness",
-    "health",
-    "friends",
-    "family",
-    "work",
-    "finance",
-    "personal",
-    "tasks",
-    "ideas",
-    "goals",
-    "communication",
-    "documents",
-    "events",
-]
+from tag_config import PREDEFINED_TAG_SET
 
 def summarise_text(text: str, max_sentences: int = 3) -> str:
     text = (text or "").strip()
@@ -60,13 +40,12 @@ def _coerce_list(value: Any) -> list[str]:
 
 
 def _clean_tags(tags: list[str]) -> list[str]:
-    allowed = {tag.lower() for tag in PREDEFINED_TAGS}
     cleaned: list[str] = []
     seen: set[str] = set()
 
     for tag in tags:
         tag_norm = tag.strip().lower()
-        if tag_norm in allowed and tag_norm not in seen:
+        if tag_norm in PREDEFINED_TAG_SET and tag_norm not in seen:
             cleaned.append(tag_norm)
             seen.add(tag_norm)
 
