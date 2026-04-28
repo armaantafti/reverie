@@ -126,6 +126,7 @@
       <section class="panel tags-panel">
         <div class="panel-head">
           <div class="section-kicker">Topics</div>
+          <button class="btn btn-ghost" id="manageEntitiesBtn" type="button">Manage Entities</button>
         </div>
         <div class="tag-bubbles" id="tagBubbles"></div>
       </section>
@@ -276,6 +277,40 @@
           <button class="btn btn-secondary" id="editCancel" type="button">Cancel</button>
           <button class="btn btn-primary" id="editSave" type="button">Save changes</button>
         </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-backdrop" id="manageEntitiesBackdrop" aria-hidden="true">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="manageEntitiesTitle">
+      <div class="modal-head">
+        <div>
+          <h3 class="modal-title" id="manageEntitiesTitle">Manage Entities</h3>
+          <p class="modal-sub" id="manageEntitiesSub">Merge, rename, create, or remove names, entities, and topics.</p>
+        </div>
+        <button class="modal-close" id="manageEntitiesClose" type="button" aria-label="Close">×</button>
+      </div>
+      <div class="manage-entities-layout">
+        <div class="manage-entities-search">
+          <input id="manageEntitiesSearch" class="edit-input" type="text" placeholder="Search names, entities, or topics" />
+        </div>
+        <div class="manage-entities-list" id="manageEntitiesList"></div>
+        <div class="manage-entities-empty hidden" id="manageEntitiesEmpty">Nothing matched this search.</div>
+        <div class="manage-entities-toolbar">
+          <select id="manageEntitiesKind" class="edit-select">
+            <option value="person">Name</option>
+            <option value="entity">Entity</option>
+            <option value="tag">Topic</option>
+          </select>
+          <input id="manageEntitiesValue" class="edit-input" type="text" placeholder="Target or new value" />
+        </div>
+        <div class="manage-entities-actions">
+          <button class="btn btn-secondary" id="manageEntitiesMerge" type="button">Merge</button>
+          <button class="btn btn-secondary" id="manageEntitiesRename" type="button">Rename</button>
+          <button class="btn btn-primary" id="manageEntitiesCreate" type="button">Create New</button>
+          <button class="btn btn-danger" id="manageEntitiesDelete" type="button">Delete</button>
+        </div>
+        <div class="status-line" id="manageEntitiesStatus" aria-live="polite"></div>
       </div>
     </div>
   </div>

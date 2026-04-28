@@ -9,7 +9,15 @@ from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
 
 from supabase_client import supabase_admin, supabase_auth
-from note_core import process_text_note
+from note_core import (
+    process_text_note,
+    canonicalize_note_metadata,
+    list_entity_manager_items,
+    merge_entity_manager_items,
+    rename_entity_manager_item,
+    create_entity_manager_item,
+    delete_entity_manager_items,
+)
 from image_pipeline import (
     MAX_IMAGE_MEMORIES_PER_USER,
     MAX_IMAGE_UPLOADS_PER_REQUEST,
@@ -82,6 +90,28 @@ class NoteUpdateIn(BaseModel):
 
 class NoteDeleteIn(BaseModel):
     note_id: str
+
+
+class EntityManagerMergeIn(BaseModel):
+    kind: str
+    values: list[str]
+    target_value: str
+
+
+class EntityManagerRenameIn(BaseModel):
+    kind: str
+    value: str
+    new_value: str
+
+
+class EntityManagerCreateIn(BaseModel):
+    kind: str
+    value: str
+
+
+class EntityManagerDeleteIn(BaseModel):
+    kind: str
+    values: list[str]
 
 
 def _error_detail(exc: Exception) -> str:
@@ -404,6 +434,64 @@ def context_view(
     return {"kind": kind, "value": value, "notes": results, "count": len(results)}
 
 
+@app.get("/entities/manage")
+def entity_manager_list(request: Request):
+    user_id = _get_authenticated_user_id(request)
+    try:
+        items = list_entity_manager_items(user_id)
+        return {"items": items, "count": len(items)}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=_error_detail(e)) from e
+
+
+@app.post("/entities/manage/merge")
+def entity_manager_merge(payload: EntityManagerMergeIn, request: Request):
+    user_id = _get_authenticated_user_id(request)
+    try:
+        item = merge_entity_manager_items(user_id, payload.kind, payload.values, payload.target_value)
+        return {"ok": True, "item": item}
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=_error_detail(e)) from e
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=_error_detail(e)) from e
+
+
+@app.post("/entities/manage/rename")
+def entity_manager_rename(payload: EntityManagerRenameIn, request: Request):
+    user_id = _get_authenticated_user_id(request)
+    try:
+        item = rename_entity_manager_item(user_id, payload.kind, payload.value, payload.new_value)
+        return {"ok": True, "item": item}
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=_error_detail(e)) from e
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=_error_detail(e)) from e
+
+
+@app.post("/entities/manage/create")
+def entity_manager_create(payload: EntityManagerCreateIn, request: Request):
+    user_id = _get_authenticated_user_id(request)
+    try:
+        item = create_entity_manager_item(user_id, payload.kind, payload.value)
+        return {"ok": True, "item": item}
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=_error_detail(e)) from e
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=_error_detail(e)) from e
+
+
+@app.post("/entities/manage/delete")
+def entity_manager_delete(payload: EntityManagerDeleteIn, request: Request):
+    user_id = _get_authenticated_user_id(request)
+    try:
+        result = delete_entity_manager_items(user_id, payload.kind, payload.values)
+        return {"ok": True, **result}
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=_error_detail(e)) from e
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=_error_detail(e)) from e
+
+
 class SmartSearchIn(BaseModel):
     query: str
     days: Optional[int] = None
@@ -462,6 +550,15 @@ def update_note(payload: NoteUpdateIn, request: Request):
         "entities": _clean_list(payload.entities),
         "due_time": _clean_due_time(payload.due_time),
     }
+    canonicalized = canonicalize_note_metadata(
+        user_id,
+        person_name=updates["person_name"],
+        tags=updates["tags"],
+        entities=updates["entities"],
+    )
+    updates["person_name"] = canonicalized["person_name"]
+    updates["tags"] = canonicalized["tags"]
+    updates["entities"] = canonicalized["entities"]
     if note_type is not None:
         updates["note_type"] = note_type
 

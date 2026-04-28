@@ -53,6 +53,7 @@ function fillChipContainer(container, values, kind) {
     const forYouEmptyEl = document.getElementById("forYouEmpty");
     const forYouMoreBtn = document.getElementById("forYouMoreBtn");
     const tagBubblesEl = document.getElementById("tagBubbles");
+    const manageEntitiesBtn = document.getElementById("manageEntitiesBtn");
 
     const detailBackdrop = document.getElementById("detailBackdrop");
     const detailClose = document.getElementById("detailClose");
@@ -96,6 +97,18 @@ function fillChipContainer(container, values, kind) {
     const editPerson = document.getElementById("editPerson");
     const editTags = document.getElementById("editTags");
     const editEntities = document.getElementById("editEntities");
+    const manageEntitiesBackdrop = document.getElementById("manageEntitiesBackdrop");
+    const manageEntitiesClose = document.getElementById("manageEntitiesClose");
+    const manageEntitiesSearch = document.getElementById("manageEntitiesSearch");
+    const manageEntitiesList = document.getElementById("manageEntitiesList");
+    const manageEntitiesEmpty = document.getElementById("manageEntitiesEmpty");
+    const manageEntitiesKind = document.getElementById("manageEntitiesKind");
+    const manageEntitiesValue = document.getElementById("manageEntitiesValue");
+    const manageEntitiesMerge = document.getElementById("manageEntitiesMerge");
+    const manageEntitiesRename = document.getElementById("manageEntitiesRename");
+    const manageEntitiesCreate = document.getElementById("manageEntitiesCreate");
+    const manageEntitiesDelete = document.getElementById("manageEntitiesDelete");
+    const manageEntitiesStatus = document.getElementById("manageEntitiesStatus");
 
     let authMode = "login";
     let activeStatusNote = null;
@@ -103,6 +116,16 @@ function fillChipContainer(container, values, kind) {
     let activeEditNote = null;
     let activeContextQuery = null;
     let sessionInfoPromise = null;
+    let manageEntityItems = [];
+    let manageEntitySelection = new Set();
+
+    function manageItemKey(kind, value) {
+      return `${String(kind || "").trim().toLowerCase()}:${String(value || "").trim().toLowerCase()}`;
+    }
+
+    function kindLabel(kind) {
+      return kind === "person" ? "Name" : kind === "entity" ? "Entity" : "Topic";
+    }
 
 function setAuthMode(nextMode) {
       authMode = nextMode === "signup" ? "signup" : "login";
@@ -234,6 +257,138 @@ function setAuthedState(isAuthed) {
       });
       closeStatusModal();
       await refreshAfterStatusChange();
+    }
+
+    function closeManageEntitiesModal() {
+      setModalVisible(manageEntitiesBackdrop, false);
+      manageEntitiesStatus.textContent = "";
+    }
+
+    function selectedManageItems() {
+      return manageEntityItems.filter((item) => manageEntitySelection.has(manageItemKey(item.kind, item.value)));
+    }
+
+    function selectedManageKind() {
+      const kinds = [...new Set(selectedManageItems().map((item) => item.kind))];
+      if (!kinds.length) return null;
+      return kinds.length === 1 ? kinds[0] : null;
+    }
+
+    function renderManageEntitiesList() {
+      const query = String(manageEntitiesSearch.value || "").trim().toLowerCase();
+      const filtered = manageEntityItems.filter((item) => {
+        if (!query) return true;
+        const haystack = [item.value, ...(Array.isArray(item.aliases) ? item.aliases : []), item.kind]
+          .join(" ")
+          .toLowerCase();
+        return haystack.includes(query);
+      });
+
+      manageEntitiesList.innerHTML = "";
+      manageEntitiesEmpty.classList.toggle("hidden", filtered.length > 0);
+
+      filtered.forEach((item) => {
+        const key = manageItemKey(item.kind, item.value);
+        const row = document.createElement("label");
+        row.className = "manage-entities-item";
+
+        const checkbox = document.createElement("input");
+        checkbox.type = "checkbox";
+        checkbox.checked = manageEntitySelection.has(key);
+        checkbox.addEventListener("change", () => {
+          if (checkbox.checked) manageEntitySelection.add(key);
+          else manageEntitySelection.delete(key);
+          const kind = selectedManageKind();
+          if (kind) manageEntitiesKind.value = kind;
+        });
+        row.appendChild(checkbox);
+
+        const copy = document.createElement("div");
+        copy.className = "manage-entities-copy";
+
+        const title = document.createElement("div");
+        title.className = "manage-entities-title";
+        const name = document.createElement("span");
+        name.className = "manage-entities-name";
+        name.textContent = item.kind === "person" ? displayPerson(item.value) : item.kind === "entity" ? displayEntity(item.value) : displayTag(item.value);
+        title.appendChild(name);
+
+        const badge = document.createElement("span");
+        badge.className = "chip muted";
+        badge.textContent = kindLabel(item.kind);
+        title.appendChild(badge);
+
+        if (Number(item.count || 0) > 0) {
+          const countChip = document.createElement("span");
+          countChip.className = "chip soft";
+          countChip.textContent = `${item.count} saved`;
+          title.appendChild(countChip);
+        }
+        copy.appendChild(title);
+
+        const meta = document.createElement("div");
+        meta.className = "manage-entities-meta";
+        const aliases = Array.isArray(item.aliases) ? item.aliases : [];
+        meta.textContent = aliases.length
+          ? `Aliases: ${aliases.map((value) => item.kind === "person" ? displayPerson(value) : item.kind === "entity" ? displayEntity(value) : displayTag(value)).join(", ")}`
+          : "No aliases yet.";
+        copy.appendChild(meta);
+
+        row.appendChild(copy);
+        manageEntitiesList.appendChild(row);
+      });
+    }
+
+    async function loadManageEntities() {
+      const data = await apiGet("/entities/manage");
+      manageEntityItems = Array.isArray(data?.items) ? data.items : [];
+      renderManageEntitiesList();
+      if (!manageEntityItems.length) {
+        manageEntitiesStatus.textContent = "Nothing filed yet.";
+      }
+    }
+
+    async function refreshAfterManageEntitiesChange() {
+      closeDetail();
+      closeEditModal();
+      await Promise.all([loadManageEntities(), loadForYou(), runSearch()]);
+      if (activeContextQuery && contextBackdrop.getAttribute("aria-hidden") === "false") {
+        await loadContextNotes(activeContextQuery.kind, activeContextQuery.value);
+      }
+      if (forYouBackdrop.getAttribute("aria-hidden") === "false") {
+        await openForYouModal();
+      }
+    }
+
+    async function withManageEntitiesAction(action, successMessage) {
+      manageEntitiesStatus.textContent = "Saving…";
+      try {
+        await action();
+        manageEntitySelection = new Set();
+        manageEntitiesValue.value = "";
+        await refreshAfterManageEntitiesChange();
+        manageEntitiesStatus.textContent = successMessage;
+      } catch (err) {
+        console.error(err);
+        manageEntitiesStatus.textContent = err?.message || "Could not update entities.";
+      }
+    }
+
+    async function openManageEntitiesModal() {
+      if (!(await ensureSession())) return;
+      setModalVisible(manageEntitiesBackdrop, true);
+      manageEntitiesStatus.textContent = "Loading…";
+      manageEntitiesSearch.value = "";
+      manageEntitiesValue.value = "";
+      manageEntitySelection = new Set();
+      try {
+        await loadManageEntities();
+        manageEntitiesStatus.textContent = "";
+      } catch (err) {
+        console.error(err);
+        manageEntitiesStatus.textContent = err?.message || "Could not load entities.";
+      }
+      setTimeout(() => manageEntitiesSearch.focus(), 0);
     }
 
     function closeEditModal() {
@@ -459,6 +614,87 @@ function setAuthedState(isAuthed) {
     }
     contextClose.addEventListener("click", closeContext);
     contextBackdrop.addEventListener("click", (e) => { if (e.target === contextBackdrop) closeContext(); });
+    manageEntitiesBtn.addEventListener("click", openManageEntitiesModal);
+    manageEntitiesClose.addEventListener("click", closeManageEntitiesModal);
+    manageEntitiesBackdrop.addEventListener("click", (e) => { if (e.target === manageEntitiesBackdrop) closeManageEntitiesModal(); });
+    manageEntitiesSearch.addEventListener("input", renderManageEntitiesList);
+    manageEntitiesMerge.addEventListener("click", async () => {
+      const items = selectedManageItems();
+      const kind = selectedManageKind();
+      const target = String(manageEntitiesValue.value || "").trim();
+      if (!items.length) {
+        manageEntitiesStatus.textContent = "Select at least one entry to merge.";
+        return;
+      }
+      if (!kind) {
+        manageEntitiesStatus.textContent = "Merge works within one type at a time.";
+        return;
+      }
+      if (!target) {
+        manageEntitiesStatus.textContent = "Enter the canonical value to merge into.";
+        return;
+      }
+      await withManageEntitiesAction(
+        () => apiPost("/entities/manage/merge", {
+          kind,
+          values: items.map((item) => item.value),
+          target_value: target,
+        }),
+        `Merged into ${kind === "person" ? displayPerson(target) : kind === "entity" ? displayEntity(target) : displayTag(target)}.`
+      );
+    });
+    manageEntitiesRename.addEventListener("click", async () => {
+      const items = selectedManageItems();
+      const target = String(manageEntitiesValue.value || "").trim();
+      if (items.length !== 1) {
+        manageEntitiesStatus.textContent = "Select exactly one entry to rename.";
+        return;
+      }
+      if (!target) {
+        manageEntitiesStatus.textContent = "Enter the new value.";
+        return;
+      }
+      await withManageEntitiesAction(
+        () => apiPost("/entities/manage/rename", {
+          kind: items[0].kind,
+          value: items[0].value,
+          new_value: target,
+        }),
+        "Renamed."
+      );
+    });
+    manageEntitiesCreate.addEventListener("click", async () => {
+      const value = String(manageEntitiesValue.value || "").trim();
+      const kind = String(manageEntitiesKind.value || "").trim().toLowerCase();
+      if (!value) {
+        manageEntitiesStatus.textContent = "Enter a value to create.";
+        return;
+      }
+      await withManageEntitiesAction(
+        () => apiPost("/entities/manage/create", { kind, value }),
+        "Created."
+      );
+    });
+    manageEntitiesDelete.addEventListener("click", async () => {
+      const items = selectedManageItems();
+      const kind = selectedManageKind();
+      if (!items.length) {
+        manageEntitiesStatus.textContent = "Select at least one entry to delete.";
+        return;
+      }
+      if (!kind) {
+        manageEntitiesStatus.textContent = "Delete works within one type at a time.";
+        return;
+      }
+      if (!window.confirm("Remove these entries from saved memories and alias mappings?")) return;
+      await withManageEntitiesAction(
+        () => apiPost("/entities/manage/delete", {
+          kind,
+          values: items.map((item) => item.value),
+        }),
+        "Deleted."
+      );
+    });
 
     function renderForYouModal(notes) {
       forYouModalList.innerHTML = "";
@@ -935,6 +1171,7 @@ function setAuthedState(isAuthed) {
         closeDetail();
         closeEditModal();
         closeContext();
+        closeManageEntitiesModal();
         setModalVisible(forYouBackdrop, false);
         setModalVisible(statusBackdrop, false);
       }

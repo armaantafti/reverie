@@ -731,6 +731,78 @@
       font-size:.8rem;
       line-height:1.45;
     }
+    .manage-entities-layout{
+      display:grid;
+      gap:14px;
+      margin-top:18px;
+    }
+    .manage-entities-search{
+      display:grid;
+    }
+    .manage-entities-list{
+      display:grid;
+      gap:10px;
+      max-height:46vh;
+      overflow:auto;
+      padding-right:4px;
+    }
+    .manage-entities-item{
+      display:flex;
+      align-items:flex-start;
+      gap:12px;
+      padding:14px;
+      border-radius:18px;
+      background:rgba(148,163,184,.05);
+      border:1px solid rgba(148,163,184,.10);
+    }
+    .manage-entities-item input[type="checkbox"]{
+      width:18px;
+      height:18px;
+      margin-top:2px;
+      accent-color:#7ad7ff;
+      flex:0 0 auto;
+    }
+    .manage-entities-copy{
+      min-width:0;
+      display:grid;
+      gap:7px;
+    }
+    .manage-entities-title{
+      display:flex;
+      align-items:center;
+      gap:8px;
+      flex-wrap:wrap;
+    }
+    .manage-entities-name{
+      font-size:.96rem;
+      font-weight:720;
+      letter-spacing:-.01em;
+      overflow-wrap:anywhere;
+    }
+    .manage-entities-meta{
+      color:var(--muted);
+      font-size:.88rem;
+      line-height:1.5;
+      overflow-wrap:anywhere;
+    }
+    .manage-entities-toolbar{
+      display:grid;
+      grid-template-columns:180px minmax(0, 1fr);
+      gap:12px;
+    }
+    .manage-entities-actions{
+      display:flex;
+      flex-wrap:wrap;
+      gap:10px;
+      justify-content:flex-end;
+    }
+    .manage-entities-empty{
+      padding:14px;
+      border-radius:18px;
+      color:var(--muted);
+      background:rgba(148,163,184,.04);
+      border:1px dashed rgba(148,163,184,.15);
+    }
     @media (max-width: 980px){
       .layout,.auth-grid{grid-template-columns:1fr}
     }
@@ -743,4 +815,7 @@
       .panel,.modal{border-radius:24px}
       .hero-title{font-size:2rem}
       .edit-grid{grid-template-columns:1fr}
+      .manage-entities-toolbar{grid-template-columns:1fr}
+      .manage-entities-actions{justify-content:stretch}
+      .manage-entities-actions .btn{width:100%}
     }

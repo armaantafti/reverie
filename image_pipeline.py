@@ -283,10 +283,10 @@ def process_uploaded_image_note(note_id: str, user_id: str, image_url: str, imag
             if len(clean_ocr_text(fallback)) > len(clean_ocr_text(extracted)):
                 extracted = fallback
         cleaned = clean_ocr_text(extracted)
-        update = build_image_note_update(cleaned, image_url)
+        update = build_image_note_update(cleaned, image_url, user_id)
     except Exception as exc:
         print(f"image pipeline failed for {note_id}: {exc}")
-        update = build_image_note_update("", image_url)
+        update = build_image_note_update("", image_url, user_id)
 
     try:
         (
