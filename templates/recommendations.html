@@ -10,7 +10,7 @@
   <link rel="manifest" href="/static/manifest.json" />
   <link rel="icon" href="/static/icon-192.png" />
   <link rel="apple-touch-icon" href="/static/icon-192.png" />
-  <link rel="stylesheet" href="/static/reverie-list-page.css?v=5" />
+  <link rel="stylesheet" href="/static/reverie-list-page.css?v=6" />
 </head>
 <body>
   <div class="shell">
@@ -73,8 +73,9 @@
             <div class="detail-value" id="recsDetailSummary"></div>
           </div>
           <div class="detail-block">
-            <span class="detail-label">Image</span>
+            <span class="detail-label">Attachment</span>
             <img class="detail-image" id="recsDetailImage" alt="Memory image preview" style="display:none;" />
+            <div class="asset-actions" id="recsDetailAssetActions"></div>
           </div>
           <div class="detail-block">
             <span class="detail-label">Text</span>
@@ -194,8 +195,8 @@
     </div>
   </div>
 
-  <script src="/static/reverie-shared.js?v=5"></script>
-  <script src="/static/reverie-list-page.js?v=5"></script>
+  <script src="/static/reverie-shared.js?v=6"></script>
+  <script src="/static/reverie-list-page.js?v=6"></script>
   <script>
     if ("serviceWorker" in navigator) {
       window.addEventListener("load", () => {
@@ -229,6 +230,7 @@
         personId: "recsDetailPerson",
         timeId: "recsDetailTime",
         imageId: "recsDetailImage",
+        assetActionsId: "recsDetailAssetActions",
         editBtnId: "recsEditBtn",
         deleteBtnId: "recsDeleteBtn",
       },

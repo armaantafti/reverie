@@ -10,7 +10,7 @@
   <link rel="manifest" href="/static/manifest.json" />
   <link rel="icon" href="/static/icon-192.png" />
   <link rel="apple-touch-icon" href="/static/icon-192.png" />
-  <link rel="stylesheet" href="/static/reverie-home.css?v=5" />
+  <link rel="stylesheet" href="/static/reverie-home.css?v=6" />
 </head>
 <body>
   <div class="shell">
@@ -80,8 +80,8 @@
             <textarea id="noteText" placeholder="Write a memory, reminder, or idea..."></textarea>
             <div class="actions">
               <button class="btn btn-primary" id="saveBtn" type="button">Save</button>
-              <button class="btn btn-secondary" id="uploadBtn" type="button">Upload Screenshot</button>
-              <input id="imageInput" type="file" accept="image/*" multiple class="hidden" />
+              <button class="btn btn-secondary" id="uploadBtn" type="button">Upload</button>
+              <input id="uploadInput" type="file" accept="image/*,.pdf,.doc,.docx,.txt,.md,.rtf,.odt" multiple class="hidden" />
             </div>
             <div class="status-line" id="saveStatus" aria-live="polite"></div>
           </article>
@@ -148,8 +148,9 @@
           <div class="detail-value" id="detailSummary"></div>
         </div>
         <div class="detail-block">
-          <span class="detail-label">Image</span>
+          <span class="detail-label">Attachment</span>
           <img class="detail-image" id="detailImage" alt="Memory image preview" style="display:none;" />
+          <div class="asset-actions" id="detailAssetActions"></div>
         </div>
         <div class="detail-block">
           <span class="detail-label">Text</span>
@@ -318,7 +319,7 @@
   <script>
     window.REVERIE_TAGS = {{ predefined_tags | tojson }};
   </script>
-  <script src="/static/reverie-shared.js?v=5"></script>
-  <script src="/static/reverie-home.js?v=5"></script>
+  <script src="/static/reverie-shared.js?v=6"></script>
+  <script src="/static/reverie-home.js?v=6"></script>
 </body>
 </html>

@@ -1,5 +1,5 @@
 (function () {
-  const { normaliseTags, normaliseEntities, toDisplayCase, displayNoteType, displayPerson, displayTag, displayEntity, formatWhen, toInputDateTimeValue, fromInputDateTimeValue, splitCommaList, chipClass, makeChip, appendImagePreview, noteStatus, isActionableNote, statusLabel, noteId, setModalVisible } = window.ReverieShared;
+  const { normaliseTags, normaliseEntities, toDisplayCase, displayNoteType, displayPerson, displayTag, displayEntity, formatWhen, toInputDateTimeValue, fromInputDateTimeValue, splitCommaList, chipClass, makeChip, appendImagePreview, fillAssetActions, noteStatus, isActionableNote, statusLabel, noteId, setModalVisible } = window.ReverieShared;
 
 function fillChipContainer(container, values, kind, openContext) {
     container.innerHTML = "";
@@ -70,6 +70,7 @@ function initReverieListPage(config) {
     const detailPerson = document.getElementById(config.detail.personId);
     const detailTime = document.getElementById(config.detail.timeId);
     const detailImage = document.getElementById(config.detail.imageId);
+    const detailAssetActions = document.getElementById(config.detail.assetActionsId);
     const detailEditBtn = document.getElementById(config.detail.editBtnId);
     const detailDeleteBtn = document.getElementById(config.detail.deleteBtnId);
 
@@ -129,6 +130,7 @@ function initReverieListPage(config) {
       const bits = [];
       if (note?.note_type) bits.push(displayNoteType(note.note_type));
       if (note?.memory_type === "image") bits.push("Image");
+      if (note?.memory_type === "document") bits.push("Document");
       if (note?.person_name) bits.push(displayPerson(note.person_name));
       if (note?.due_time) bits.push(formatWhen(note.due_time));
       detailSub.textContent = bits.join(" · ");
@@ -139,7 +141,7 @@ function initReverieListPage(config) {
       fillChipContainer(detailTags, note?.tags, "tag", openContext);
       fillChipContainer(detailEntities, note?.entities, "entity", openContext);
       if (detailImage) {
-        if (note?.image_url) {
+        if (note?.image_url && note?.memory_type === "image") {
           detailImage.src = note.image_url;
           detailImage.style.display = "block";
         } else {
@@ -147,6 +149,7 @@ function initReverieListPage(config) {
           detailImage.style.display = "none";
         }
       }
+      fillAssetActions(detailAssetActions, note);
       setModalVisible(detailBackdrop, true);
     }
 
@@ -476,6 +479,8 @@ function initReverieListPage(config) {
       const chips = document.createElement("div");
       chips.className = "chips";
       const meta = [];
+      if (note?.memory_type === "document") meta.push({ text: "Document", cls: "chip muted" });
+      if (note?.memory_type === "image") meta.push({ text: "Image", cls: "chip muted" });
       if (note?.person_name) {
         const rawPerson = String(note.person_name).trim();
         meta.push({ text: displayPerson(rawPerson), cls: "chip soft", kind: "person", value: rawPerson });

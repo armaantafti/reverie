@@ -70,11 +70,51 @@ window.ReverieShared = (() => {
     return el;
   }
 
+  function _assetUrl(note) {
+    return String(note?.image_url || "").trim();
+  }
+
+  function _appendAssetLink(container, label, url, download) {
+    const link = document.createElement("a");
+    link.href = url;
+    link.target = "_blank";
+    link.rel = "noopener noreferrer";
+    if (download) link.download = "";
+    link.className = `asset-link ${download ? "asset-link-secondary" : ""}`.trim();
+    link.textContent = label;
+    link.addEventListener("click", (e) => e.stopPropagation());
+    container.appendChild(link);
+  }
+
+  function fillAssetActions(container, note) {
+    if (!container) return;
+    container.innerHTML = "";
+    const url = _assetUrl(note);
+    if (!url) return;
+    _appendAssetLink(container, note?.memory_type === "document" ? "Open document" : "Open file", url, false);
+    _appendAssetLink(container, "Download copy", url, true);
+  }
+
   function appendImagePreview(parent, note) {
-    if (!note?.image_url) return;
+    const url = _assetUrl(note);
+    if (!url) return;
+    if (String(note?.memory_type || "").toLowerCase() === "document") {
+      const preview = document.createElement("div");
+      preview.className = "document-preview";
+      const title = document.createElement("div");
+      title.className = "document-preview-title";
+      title.textContent = "Document attached";
+      preview.appendChild(title);
+      const actions = document.createElement("div");
+      actions.className = "asset-actions";
+      fillAssetActions(actions, note);
+      preview.appendChild(actions);
+      parent.appendChild(preview);
+      return;
+    }
     const img = document.createElement("img");
     img.className = "note-image-preview";
-    img.src = note.image_url;
+    img.src = url;
     img.alt = note?.title || "Image memory";
     img.loading = "lazy";
     parent.appendChild(img);
@@ -119,6 +159,7 @@ window.ReverieShared = (() => {
     chipClass,
     makeChip,
     appendImagePreview,
+    fillAssetActions,
     noteStatus,
     isActionableNote,
     statusLabel,

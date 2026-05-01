@@ -19,13 +19,13 @@ from note_core import (
     delete_entity_manager_items,
 )
 from image_pipeline import (
-    MAX_IMAGE_MEMORIES_PER_USER,
-    MAX_IMAGE_UPLOADS_PER_REQUEST,
-    count_image_memories,
-    create_image_note_placeholder,
-    process_uploaded_image_note,
-    upload_image_bytes,
-    validate_image_upload,
+    MAX_FILE_MEMORIES_PER_USER,
+    MAX_FILE_UPLOADS_PER_REQUEST,
+    count_uploaded_memories,
+    create_uploaded_note_placeholder,
+    process_uploaded_note,
+    upload_file_bytes,
+    validate_uploaded_file,
 )
 from search_notes import filter_notes, filter_by_keywords, rank_for_you, context_notes
 from llm_search import summarise_search, extract_search_signals
@@ -614,8 +614,9 @@ def delete_note(payload: NoteDeleteIn, request: Request):
         raise HTTPException(status_code=500, detail=_error_detail(e)) from e
 
 
+@app.post("/notes/uploads")
 @app.post("/notes/images")
-async def create_image_notes(
+async def create_uploaded_notes(
     request: Request,
     background_tasks: BackgroundTasks,
     files: list[UploadFile] = File(...),
@@ -623,45 +624,48 @@ async def create_image_notes(
     user_id = _get_authenticated_user_id(request)
 
     if not files:
-        raise HTTPException(status_code=400, detail="at least one image is required")
-    if len(files) > MAX_IMAGE_UPLOADS_PER_REQUEST:
-        raise HTTPException(status_code=400, detail=f"upload at most {MAX_IMAGE_UPLOADS_PER_REQUEST} images at once")
+        raise HTTPException(status_code=400, detail="at least one file is required")
+    if len(files) > MAX_FILE_UPLOADS_PER_REQUEST:
+        raise HTTPException(status_code=400, detail=f"upload at most {MAX_FILE_UPLOADS_PER_REQUEST} files at once")
 
-    existing_total = count_image_memories(user_id)
-    if existing_total + len(files) > MAX_IMAGE_MEMORIES_PER_USER:
-        raise HTTPException(status_code=400, detail=f"image memory limit is {MAX_IMAGE_MEMORIES_PER_USER} per user")
+    existing_total = count_uploaded_memories(user_id)
+    if existing_total + len(files) > MAX_FILE_MEMORIES_PER_USER:
+        raise HTTPException(status_code=400, detail=f"uploaded memory limit is {MAX_FILE_MEMORIES_PER_USER} per user")
 
-    prepared_uploads: list[tuple[str, str, bytes]] = []
+    prepared_uploads: list[tuple[str, str, str, bytes]] = []
     for upload in files:
-        file_name = upload.filename or "screenshot.png"
-        image_bytes = await upload.read()
+        file_name = upload.filename or "upload.bin"
+        file_bytes = await upload.read()
         try:
-            content_type = validate_image_upload(file_name, upload.content_type or "", image_bytes)
+            memory_type, content_type = validate_uploaded_file(file_name, upload.content_type or "", file_bytes)
         except ValueError as e:
             raise HTTPException(status_code=400, detail=str(e)) from e
-        prepared_uploads.append((file_name, content_type, image_bytes))
+        prepared_uploads.append((file_name, memory_type, content_type, file_bytes))
 
     created = []
-    for file_name, content_type, image_bytes in prepared_uploads:
+    for file_name, memory_type, content_type, file_bytes in prepared_uploads:
         try:
-            image_url = upload_image_bytes(
+            file_url = upload_file_bytes(
                 user_id=user_id,
                 file_name=file_name,
-                image_bytes=image_bytes,
+                file_bytes=file_bytes,
                 content_type=content_type,
             )
-            note = create_image_note_placeholder(
+            note = create_uploaded_note_placeholder(
                 user_id=user_id,
-                image_url=image_url,
+                file_url=file_url,
                 file_name=file_name,
+                memory_type=memory_type,
             )
             background_tasks.add_task(
-                process_uploaded_image_note,
+                process_uploaded_note,
                 note["id"],
                 user_id,
-                image_url,
-                image_bytes,
+                file_url,
+                file_name,
+                file_bytes,
                 content_type,
+                memory_type,
             )
             created.append(note)
         except HTTPException:
@@ -672,5 +676,5 @@ async def create_image_notes(
     return {
         "notes": created,
         "count": len(created),
-        "message": "Images uploaded. OCR is processing in the background.",
+        "message": "Files uploaded. Processing is running in the background.",
     }

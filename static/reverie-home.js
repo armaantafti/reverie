@@ -1,4 +1,4 @@
-    const { normaliseTags, normaliseEntities, toDisplayCase, displayNoteType, displayPerson, displayTag, displayEntity, formatWhen, toInputDateTimeValue, fromInputDateTimeValue, splitCommaList, chipClass, makeChip, appendImagePreview, noteStatus, isActionableNote, statusLabel, noteId, setModalVisible } = window.ReverieShared;
+    const { normaliseTags, normaliseEntities, toDisplayCase, displayNoteType, displayPerson, displayTag, displayEntity, formatWhen, toInputDateTimeValue, fromInputDateTimeValue, splitCommaList, chipClass, makeChip, appendImagePreview, fillAssetActions, noteStatus, isActionableNote, statusLabel, noteId, setModalVisible } = window.ReverieShared;
     const ALL_TAGS = Array.isArray(window.REVERIE_TAGS) ? window.REVERIE_TAGS : [];
     const TOPIC_BUTTONS = [...ALL_TAGS, "passive"];
 
@@ -39,7 +39,7 @@ function fillChipContainer(container, values, kind) {
 
     const saveBtn = document.getElementById("saveBtn");
     const uploadBtn = document.getElementById("uploadBtn");
-    const imageInput = document.getElementById("imageInput");
+    const uploadInput = document.getElementById("uploadInput");
     const noteTextEl = document.getElementById("noteText");
     const saveStatusEl = document.getElementById("saveStatus");
     const searchQueryEl = document.getElementById("searchQuery");
@@ -62,6 +62,7 @@ function fillChipContainer(container, values, kind) {
     const detailSummary = document.getElementById("detailSummary");
     const detailRaw = document.getElementById("detailRaw");
     const detailImage = document.getElementById("detailImage");
+    const detailAssetActions = document.getElementById("detailAssetActions");
     const detailTags = document.getElementById("detailTags");
     const detailEntities = document.getElementById("detailEntities");
     const detailPerson = document.getElementById("detailPerson");
@@ -497,6 +498,8 @@ function setAuthedState(isAuthed) {
       chips.className = "chips";
       const meta = [];
       if (note?.note_type) meta.push({ text: displayNoteType(note.note_type), cls: "chip good" });
+      if (note?.memory_type === "document") meta.push({ text: "Document", cls: "chip muted" });
+      if (note?.memory_type === "image") meta.push({ text: "Image", cls: "chip muted" });
       if (note?.person_name) meta.push({ text: displayPerson(note.person_name), cls: "chip soft", kind: "person", value: note.person_name });
       if (note?.due_time) meta.push({ text: formatWhen(note.due_time), cls: "chip muted" });
       normaliseTags(note?.tags).slice(0, 4).forEach(tag => meta.push({ text: displayTag(tag), cls: "chip", kind: "tag", value: tag }));
@@ -540,6 +543,7 @@ function setAuthedState(isAuthed) {
       const bits = [];
       if (note?.note_type) bits.push(displayNoteType(note.note_type));
       if (note?.memory_type === "image") bits.push("Image");
+      if (note?.memory_type === "document") bits.push("Document");
       if (note?.person_name) bits.push(displayPerson(note.person_name));
       if (note?.due_time) bits.push(formatWhen(note.due_time));
       detailSub.textContent = bits.join(" · ");
@@ -549,13 +553,14 @@ function setAuthedState(isAuthed) {
       detailTime.textContent = note?.due_time ? formatWhen(note.due_time) : "-";
       fillChipContainer(detailTags, note?.tags, "tag");
       fillChipContainer(detailEntities, note?.entities, "entity");
-      if (note?.image_url) {
+      if (note?.image_url && note?.memory_type === "image") {
         detailImage.src = note.image_url;
         detailImage.style.display = "block";
       } else {
         detailImage.removeAttribute("src");
         detailImage.style.display = "none";
       }
+      fillAssetActions(detailAssetActions, note);
       setModalVisible(detailBackdrop, true);
     }
 
@@ -932,21 +937,21 @@ function setAuthedState(isAuthed) {
       }
     }
 
-    async function uploadImages(files) {
+    async function uploadFiles(files) {
       if (!(await ensureSession())) {
         saveStatusEl.textContent = "Please log in first.";
         return;
       }
       if (!files.length) return;
       if (files.length > 10) {
-        saveStatusEl.textContent = "Upload at most 10 images at once.";
+        saveStatusEl.textContent = "Upload at most 10 files at once.";
         return;
       }
 
       const prev = uploadBtn.textContent;
       uploadBtn.disabled = true;
       uploadBtn.textContent = "Uploading…";
-      saveStatusEl.textContent = "Uploading screenshots…";
+      saveStatusEl.textContent = "Uploading files…";
       try {
         const prepared = [];
         for (const file of files) prepared.push(await compressImageFile(file));
@@ -954,7 +959,7 @@ function setAuthedState(isAuthed) {
         const form = new FormData();
         prepared.forEach((file) => form.append("files", file, file.name));
 
-        const resp = await fetch("/notes/images", {
+        const resp = await fetch("/notes/uploads", {
           method: "POST",
           body: form,
           credentials: "same-origin",
@@ -970,15 +975,15 @@ function setAuthedState(isAuthed) {
         }
 
         const data = await resp.json();
-        saveStatusEl.textContent = data?.message || "Images uploaded. OCR is processing in the background.";
+        saveStatusEl.textContent = data?.message || "Files uploaded. Processing is running in the background.";
         await Promise.all([loadForYou(), runSearch()]);
       } catch (err) {
         console.error(err);
-        saveStatusEl.textContent = err?.message || "Image upload failed.";
+        saveStatusEl.textContent = err?.message || "Upload failed.";
       } finally {
         uploadBtn.disabled = false;
         uploadBtn.textContent = prev;
-        imageInput.value = "";
+        uploadInput.value = "";
       }
     }
 
@@ -1012,11 +1017,11 @@ function setAuthedState(isAuthed) {
       }
     }
     saveBtn.addEventListener("click", saveNote);
-    uploadBtn.addEventListener("click", () => imageInput.click());
-    imageInput.addEventListener("change", async () => {
-      const files = Array.from(imageInput.files || []);
+    uploadBtn.addEventListener("click", () => uploadInput.click());
+    uploadInput.addEventListener("change", async () => {
+      const files = Array.from(uploadInput.files || []);
       if (!files.length) return;
-      await uploadImages(files);
+      await uploadFiles(files);
     });
 
     async function runSearch() {

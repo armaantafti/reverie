@@ -5,7 +5,7 @@ import uuid
 import base64
 from datetime import datetime
 from io import BytesIO
-from typing import Dict, Optional
+from typing import Dict, Optional, Tuple
 from urllib.parse import quote
 from zoneinfo import ZoneInfo
 
@@ -13,18 +13,32 @@ import requests
 from PIL import Image, ImageOps, ImageFilter, ImageStat, UnidentifiedImageError
 import pytesseract
 
-from note_core import build_image_note_update
+from note_core import build_document_note_update, build_image_note_update
 from supabase_client import SUPABASE_SERVICE_ROLE_KEY, SUPABASE_URL, supabase_admin
 
 IMAGE_BUCKET = os.getenv("SUPABASE_IMAGE_BUCKET", "memory-images").strip() or "memory-images"
-MAX_IMAGE_UPLOADS_PER_REQUEST = 10
-MAX_IMAGE_MEMORIES_PER_USER = 20
+MAX_FILE_UPLOADS_PER_REQUEST = 10
+MAX_FILE_MEMORIES_PER_USER = 20
+MAX_IMAGE_UPLOADS_PER_REQUEST = MAX_FILE_UPLOADS_PER_REQUEST
+MAX_IMAGE_MEMORIES_PER_USER = MAX_FILE_MEMORIES_PER_USER
 MAX_IMAGE_FILE_SIZE_BYTES = int(os.getenv("MAX_IMAGE_FILE_SIZE_BYTES", str(8 * 1024 * 1024)))
+MAX_DOCUMENT_FILE_SIZE_BYTES = int(os.getenv("MAX_DOCUMENT_FILE_SIZE_BYTES", str(12 * 1024 * 1024)))
 MAX_IMAGE_PIXELS = int(os.getenv("MAX_IMAGE_PIXELS", str(36_000_000)))
 MAX_IMAGE_WIDTH = int(os.getenv("MAX_IMAGE_WIDTH", "6000"))
 MAX_IMAGE_HEIGHT = int(os.getenv("MAX_IMAGE_HEIGHT", "6000"))
 ALLOWED_IMAGE_CONTENT_TYPES = {"image/jpeg", "image/png", "image/webp"}
 ALLOWED_IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".webp"}
+ALLOWED_DOCUMENT_CONTENT_TYPES = {
+    "application/pdf",
+    "application/msword",
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    "text/plain",
+    "text/markdown",
+    "application/rtf",
+    "text/rtf",
+    "application/vnd.oasis.opendocument.text",
+}
+ALLOWED_DOCUMENT_EXTENSIONS = {".pdf", ".doc", ".docx", ".txt", ".md", ".rtf", ".odt"}
 TESSERACT_CMD = (os.getenv("TESSERACT_CMD") or "").strip()
 OPENAI_API_KEY = (os.getenv("OPENAI_API_KEY") or "").strip()
 OPENAI_VISION_MODEL = (os.getenv("OPENAI_VISION_MODEL") or "gpt-4o-mini").strip()
@@ -80,7 +94,25 @@ def validate_image_upload(file_name: str, content_type: str, image_bytes: bytes)
     return detected_type
 
 
-def count_image_memories(user_id: str) -> int:
+def validate_uploaded_file(file_name: str, content_type: str, file_bytes: bytes) -> Tuple[str, str]:
+    normalized_type = (content_type or "").split(";", 1)[0].strip().lower()
+    extension = os.path.splitext(file_name or "")[1].lower()
+
+    if normalized_type in ALLOWED_IMAGE_CONTENT_TYPES or extension in ALLOWED_IMAGE_EXTENSIONS:
+        return "image", validate_image_upload(file_name, content_type, file_bytes)
+
+    if normalized_type not in ALLOWED_DOCUMENT_CONTENT_TYPES and extension not in ALLOWED_DOCUMENT_EXTENSIONS:
+        raise ValueError("supported uploads are images, PDF, Word documents, text files, and common document formats")
+    if not file_bytes:
+        raise ValueError("one of the uploaded files was empty")
+    if len(file_bytes) > MAX_DOCUMENT_FILE_SIZE_BYTES:
+        max_mb = MAX_DOCUMENT_FILE_SIZE_BYTES // (1024 * 1024)
+        raise ValueError(f"document uploads must be {max_mb} MB or smaller")
+
+    return "document", normalized_type or "application/octet-stream"
+
+
+def count_uploaded_memories(user_id: str) -> int:
     result = (
         supabase_admin.table("notes")
         .select("*")
@@ -90,12 +122,17 @@ def count_image_memories(user_id: str) -> int:
     rows = result.data or []
     total = 0
     for row in rows:
-        if str(row.get("memory_type") or "").strip().lower() == "image" or row.get("image_url"):
+        memory_type = str(row.get("memory_type") or "").strip().lower()
+        if memory_type in {"image", "document"} or row.get("image_url"):
             total += 1
     return total
 
 
-def upload_image_bytes(user_id: str, file_name: str, image_bytes: bytes, content_type: str) -> str:
+def count_image_memories(user_id: str) -> int:
+    return count_uploaded_memories(user_id)
+
+
+def upload_file_bytes(user_id: str, file_name: str, file_bytes: bytes, content_type: str) -> str:
     safe_name = _sanitize_filename(file_name)
     object_path = f"{user_id}/{uuid.uuid4().hex}-{safe_name}"
     upload_url = f"{SUPABASE_URL}/storage/v1/object/{IMAGE_BUCKET}/{quote(object_path, safe='/')}"
@@ -105,25 +142,30 @@ def upload_image_bytes(user_id: str, file_name: str, image_bytes: bytes, content
         "Content-Type": content_type or "application/octet-stream",
         "x-upsert": "false",
     }
-    resp = requests.post(upload_url, headers=headers, data=image_bytes, timeout=30)
+    resp = requests.post(upload_url, headers=headers, data=file_bytes, timeout=30)
     resp.raise_for_status()
     return f"{SUPABASE_URL}/storage/v1/object/public/{IMAGE_BUCKET}/{quote(object_path, safe='/')}"
 
 
-def create_image_note_placeholder(user_id: str, image_url: str, file_name: str) -> Dict[str, object]:
+def upload_image_bytes(user_id: str, file_name: str, image_bytes: bytes, content_type: str) -> str:
+    return upload_file_bytes(user_id, file_name, image_bytes, content_type)
+
+
+def create_uploaded_note_placeholder(user_id: str, file_url: str, file_name: str, memory_type: str) -> Dict[str, object]:
     base_name = os.path.splitext(file_name or "")[0].replace("-", " ").replace("_", " ").strip()
-    title = base_name[:60] if base_name else "Screenshot memory"
+    title = base_name[:60] if base_name else ("Screenshot memory" if memory_type == "image" else "Document memory")
+    summary = "Screenshot uploaded. OCR is processing in the background." if memory_type == "image" else "Document uploaded. Preview is processing in the background."
     note = {
         "id": str(uuid.uuid4()),
         "user_id": user_id,
         "created_at": _now_ist_iso(),
         "person_name": None,
-        "title": title or "Screenshot memory",
-        "summary": "Screenshot uploaded. OCR is processing in the background.",
+        "title": title or ("Screenshot memory" if memory_type == "image" else "Document memory"),
+        "summary": summary,
         "raw_text": "",
         "extracted_text": "",
-        "image_url": image_url,
-        "memory_type": "image",
+        "image_url": file_url,
+        "memory_type": memory_type,
         "note_type": "note",
         "tags": [],
         "entities": [],
@@ -134,6 +176,10 @@ def create_image_note_placeholder(user_id: str, image_url: str, file_name: str) 
     }
     supabase_admin.table("notes").insert(note).execute()
     return note
+
+
+def create_image_note_placeholder(user_id: str, image_url: str, file_name: str) -> Dict[str, object]:
+    return create_uploaded_note_placeholder(user_id, image_url, file_name, "image")
 
 
 def _estimate_brightness(image: Image.Image) -> float:
@@ -275,18 +321,111 @@ def clean_ocr_text(text: str) -> str:
     return merged
 
 
-def process_uploaded_image_note(note_id: str, user_id: str, image_url: str, image_bytes: bytes, content_type: str = "image/png") -> None:
+def clean_document_text(text: str) -> str:
+    raw = (text or "").replace("\r", "\n").replace("\u00a0", " ")
+    raw = re.sub(r"[ \t]+", " ", raw)
+
+    lines = []
+    seen = set()
+    for line in raw.split("\n"):
+        cleaned = re.sub(r"\s+", " ", line).strip()
+        if not cleaned:
+            continue
+        key = cleaned.lower()
+        if key in seen:
+            continue
+        seen.add(key)
+        lines.append(cleaned)
+
+    merged = "\n".join(lines)
+    merged = re.sub(r"\n{3,}", "\n\n", merged).strip()
+    return merged
+
+
+def _extract_pdf_preview_text(file_bytes: bytes) -> str:
     try:
-        extracted = _run_ocr(image_bytes)
-        if len(clean_ocr_text(extracted)) < 20:
-            fallback = _run_openai_vision_ocr(image_bytes, content_type)
-            if len(clean_ocr_text(fallback)) > len(clean_ocr_text(extracted)):
-                extracted = fallback
-        cleaned = clean_ocr_text(extracted)
-        update = build_image_note_update(cleaned, image_url, user_id)
+        from pypdf import PdfReader
+    except Exception:
+        return ""
+
+    try:
+        reader = PdfReader(BytesIO(file_bytes))
     except Exception as exc:
-        print(f"image pipeline failed for {note_id}: {exc}")
-        update = build_image_note_update("", image_url, user_id)
+        print(f"PDF preview extraction failed: {exc}")
+        return ""
+
+    chunks = []
+    for page in reader.pages[:2]:
+        try:
+            chunks.append(page.extract_text() or "")
+        except Exception as exc:
+            print(f"PDF page extraction failed: {exc}")
+    return "\n\n".join(chunks)
+
+
+def _extract_docx_preview_text(file_bytes: bytes) -> str:
+    try:
+        from docx import Document
+    except Exception:
+        return ""
+
+    try:
+        doc = Document(BytesIO(file_bytes))
+    except Exception as exc:
+        print(f"DOCX preview extraction failed: {exc}")
+        return ""
+
+    parts = []
+    for para in doc.paragraphs:
+        text = str(para.text or "").strip()
+        if text:
+            parts.append(text)
+        if sum(len(part) for part in parts) >= 6000:
+            break
+    return "\n\n".join(parts)
+
+
+def _extract_text_preview(file_name: str, content_type: str, file_bytes: bytes) -> str:
+    extension = os.path.splitext(file_name or "")[1].lower()
+    normalized_type = (content_type or "").split(";", 1)[0].strip().lower()
+
+    if extension == ".pdf" or normalized_type == "application/pdf":
+        return _extract_pdf_preview_text(file_bytes)
+    if extension == ".docx" or normalized_type == "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
+        return _extract_docx_preview_text(file_bytes)
+    if extension in {".txt", ".md"} or normalized_type in {"text/plain", "text/markdown"}:
+        try:
+            return file_bytes.decode("utf-8", errors="ignore")[:6000]
+        except Exception:
+            return ""
+    return ""
+
+
+def process_uploaded_note(
+    note_id: str,
+    user_id: str,
+    file_url: str,
+    file_name: str,
+    file_bytes: bytes,
+    content_type: str,
+    memory_type: str,
+) -> None:
+    try:
+        if memory_type == "image":
+            extracted = _run_ocr(file_bytes)
+            if len(clean_ocr_text(extracted)) < 20:
+                fallback = _run_openai_vision_ocr(file_bytes, content_type)
+                if len(clean_ocr_text(fallback)) > len(clean_ocr_text(extracted)):
+                    extracted = fallback
+            cleaned = clean_ocr_text(extracted)
+            update = build_image_note_update(cleaned, file_url, user_id)
+        else:
+            extracted = _extract_text_preview(file_name, content_type, file_bytes)
+            cleaned = clean_document_text(extracted)
+            update = build_document_note_update(cleaned, file_url, file_name, user_id)
+    except Exception as exc:
+        print(f"upload pipeline failed for {note_id}: {exc}")
+        update = build_image_note_update("", file_url, user_id) if memory_type == "image" else build_document_note_update("", file_url, file_name, user_id)
 
     try:
         (
@@ -297,4 +436,8 @@ def process_uploaded_image_note(note_id: str, user_id: str, image_url: str, imag
             .execute()
         )
     except Exception as exc:
-        print(f"image note update failed for {note_id}: {exc}")
+        print(f"uploaded note update failed for {note_id}: {exc}")
+
+
+def process_uploaded_image_note(note_id: str, user_id: str, image_url: str, image_bytes: bytes, content_type: str = "image/png") -> None:
+    process_uploaded_note(note_id, user_id, image_url, "screenshot.png", image_bytes, content_type, "image")

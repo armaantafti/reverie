@@ -608,6 +608,49 @@ def build_image_note_update(extracted_text: str, image_url: str, user_id: str) -
     }
 
 
+def build_document_note_update(preview_text: str, file_url: str, file_name: str, user_id: str) -> Dict[str, Any]:
+    text = (preview_text or "").strip()
+    file_link = (file_url or "").strip() or None
+    base_name = re.sub(r"\.[^.]+$", "", str(file_name or "").strip()).replace("-", " ").replace("_", " ").strip()
+    fallback_title = base_name[:60] if base_name else "Document memory"
+
+    if not text:
+        return {
+            "person_name": None,
+            "title": fallback_title,
+            "summary": "Document saved. Preview could not be read.",
+            "raw_text": "",
+            "extracted_text": "",
+            "image_url": file_link,
+            "memory_type": "document",
+            "note_type": "passive",
+            "tags": [],
+            "entities": [],
+            "due_time": None,
+        }
+
+    normalized = extract_note_fields(text)
+    canonicalized = canonicalize_note_metadata(
+        user_id,
+        person_name=normalized["person_name"],
+        tags=normalized["tags"],
+        entities=normalized["entities"],
+    )
+    return {
+        "person_name": canonicalized["person_name"],
+        "title": normalized["title"] or fallback_title,
+        "summary": normalized["summary"],
+        "raw_text": text,
+        "extracted_text": text,
+        "image_url": file_link,
+        "memory_type": "document",
+        "note_type": normalized["note_type"],
+        "tags": canonicalized["tags"],
+        "entities": canonicalized["entities"],
+        "due_time": normalized["due_time"],
+    }
+
+
 def process_text_note(
     text: str,
     platform: str = "web",
