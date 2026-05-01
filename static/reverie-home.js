@@ -67,6 +67,7 @@ function fillChipContainer(container, values, kind) {
     const detailEntities = document.getElementById("detailEntities");
     const detailPerson = document.getElementById("detailPerson");
     const detailTime = document.getElementById("detailTime");
+    const detailStatus = document.getElementById("detailStatus");
 
     const contextBackdrop = document.getElementById("contextBackdrop");
     const contextClose = document.getElementById("contextClose");
@@ -251,11 +252,20 @@ function setAuthedState(isAuthed) {
       if (!(await ensureSession())) throw new Error("Please log in first.");
       const id = noteId(activeStatusNote);
       if (!id) throw new Error("Could not identify this memory. Refresh and try again.");
+      const nextStatus = statusSelect.value;
+      const nextStatusNote = statusNote.value.trim();
       await apiPost("/notes/status", {
         note_id: id,
-        status: statusSelect.value,
-        status_note: statusNote.value.trim(),
+        status: nextStatus,
+        status_note: nextStatusNote,
       });
+      activeStatusNote.status = nextStatus;
+      activeStatusNote.status_note = nextStatusNote;
+      if (noteId(activeDetailNote) === id) {
+        activeDetailNote.status = nextStatus;
+        activeDetailNote.status_note = nextStatusNote;
+        openDetail(activeDetailNote);
+      }
       closeStatusModal();
       await refreshAfterStatusChange();
     }
@@ -551,6 +561,21 @@ function setAuthedState(isAuthed) {
       detailRaw.textContent = note?.extracted_text || note?.raw_text || "";
       detailPerson.textContent = note?.person_name ? displayPerson(note.person_name) : "-";
       detailTime.textContent = note?.due_time ? formatWhen(note.due_time) : "-";
+      detailStatus.innerHTML = "";
+      if (isActionableNote(note)) {
+        const statusBtn = document.createElement("button");
+        statusBtn.type = "button";
+        statusBtn.className = "status-btn";
+        statusBtn.textContent = statusLabel(note?.status);
+        statusBtn.setAttribute("aria-label", `Change status for ${note?.title || "this note"}`);
+        statusBtn.addEventListener("click", (e) => {
+          e.stopPropagation();
+          openStatusModal(note);
+        });
+        detailStatus.appendChild(statusBtn);
+      } else {
+        detailStatus.textContent = "-";
+      }
       fillChipContainer(detailTags, note?.tags, "tag");
       fillChipContainer(detailEntities, note?.entities, "entity");
       if (note?.image_url && note?.memory_type === "image") {
@@ -1069,7 +1094,7 @@ function setAuthedState(isAuthed) {
             smartSummaryEl.appendChild(summaryCard);
             smartSummaryEl.style.display = "grid";
           }
-          notes.forEach(note => searchResultsEl.appendChild(renderNoteCard(note)));
+          notes.forEach(note => searchResultsEl.appendChild(renderNoteCard(note, "search", { showStatusButton: true })));
         } else {
           const data = await apiGet("/notes", {
             query: q || undefined,
@@ -1077,7 +1102,7 @@ function setAuthedState(isAuthed) {
           });
           const notes = Array.isArray(data) ? data : [];
           searchStatusEl.textContent = notes.length ? "" : "No matches.";
-          notes.forEach(note => searchResultsEl.appendChild(renderNoteCard(note)));
+          notes.forEach(note => searchResultsEl.appendChild(renderNoteCard(note, "search", { showStatusButton: true })));
         }
       } catch (err) {
         console.error(err);
