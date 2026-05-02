@@ -321,6 +321,22 @@ async def tasks_page(request: Request):
     )
 
 
+@app.get("/search", response_class=HTMLResponse)
+async def search_page(request: Request):
+    return templates.TemplateResponse(
+        "search.html",
+        _template_context(request)
+    )
+
+
+@app.get("/entities", response_class=HTMLResponse)
+async def entities_page(request: Request):
+    return templates.TemplateResponse(
+        "entities.html",
+        _template_context(request)
+    )
+
+
 @app.get("/recommendations", response_class=HTMLResponse)
 async def recs_page(request: Request):
     return templates.TemplateResponse(
@@ -495,6 +511,32 @@ def entity_manager_delete(payload: EntityManagerDeleteIn, request: Request):
 class SmartSearchIn(BaseModel):
     query: str
     days: Optional[int] = None
+
+
+class ContextSummaryIn(BaseModel):
+    kind: str
+    value: str
+
+
+@app.post("/context-summary")
+def context_summary(payload: ContextSummaryIn, request: Request):
+    try:
+        kind = (payload.kind or "").strip()
+        value = (payload.value or "").strip()
+        if not kind or not value:
+            raise HTTPException(status_code=400, detail="kind and value are required")
+        notes = get_user_notes(_get_authenticated_user_id(request))
+        results = context_notes(notes, kind=kind, value=value)
+        label = f"{kind}: {value}"
+        try:
+            summary = summarise_search(f"Summarise everything filed under {label}", results)
+        except Exception:
+            summary = "Smart summary could not be generated for this group."
+        return {"kind": kind, "value": value, "summary": summary, "notes": results, "count": len(results)}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=_error_detail(e)) from e
 
 
 @app.post("/smart-search")

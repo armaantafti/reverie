@@ -10,7 +10,7 @@
   <link rel="manifest" href="/static/manifest.json" />
   <link rel="icon" href="/static/icon-192.png" />
   <link rel="apple-touch-icon" href="/static/icon-192.png" />
-  <link rel="stylesheet" href="/static/reverie-home.css?v=7" />
+  <link rel="stylesheet" href="/static/reverie-home.css?v=17" />
 </head>
 <body>
   <div class="shell">
@@ -26,6 +26,7 @@
 
         <nav class="nav" aria-label="Primary">
           <a class="active" href="/">Home</a>
+          <a href="/search">Search</a>
           <a href="/tasks">Tasks</a>
           <a href="/recommendations">Recommendations</a>
         </nav>
@@ -73,9 +74,13 @@
     <main class="main-layout hidden" id="appShell">
       <section class="layout">
         <div class="stack">
-          <article class="panel">
-            <div class="panel-head">
-              <div class="section-kicker">Capture</div>
+          <article class="panel capture-panel" id="capturePanel">
+            <div class="panel-head capture-head">
+              <div>
+                <div class="section-kicker">Capture</div>
+                <p class="panel-subtitle">Save a note, reminder, recommendation, screenshot, or document.</p>
+              </div>
+              <button class="modal-close capture-close" id="captureClose" type="button" aria-label="Close">&times;</button>
             </div>
             <textarea id="noteText" placeholder="Write a memory, reminder, or idea..."></textarea>
             <div class="actions">
@@ -86,7 +91,7 @@
             <div class="status-line" id="saveStatus" aria-live="polite"></div>
           </article>
 
-          <article class="panel">
+          <article class="panel recall-panel">
             <div class="panel-head">
               <div class="section-kicker">Recall</div>
             </div>
@@ -126,7 +131,7 @@
       <section class="panel tags-panel">
         <div class="panel-head">
           <div class="section-kicker">Topics</div>
-          <button class="btn btn-ghost" id="manageEntitiesBtn" type="button">Manage Entities</button>
+          <a class="btn btn-ghost" id="manageEntitiesBtn" href="/entities">Manage Entities</a>
         </div>
         <div class="tag-bubbles" id="tagBubbles"></div>
       </section>
@@ -147,15 +152,15 @@
           <span class="detail-label">Summary</span>
           <div class="detail-value" id="detailSummary"></div>
         </div>
-        <div class="detail-block">
-          <span class="detail-label">Attachment</span>
+        <details class="detail-block detail-disclosure">
+          <summary>Attachment</summary>
           <img class="detail-image" id="detailImage" alt="Memory image preview" style="display:none;" />
           <div class="asset-actions" id="detailAssetActions"></div>
-        </div>
-        <div class="detail-block">
-          <span class="detail-label">Text</span>
+        </details>
+        <details class="detail-block detail-disclosure">
+          <summary>Full text</summary>
           <div class="detail-value" id="detailRaw"></div>
-        </div>
+        </details>
         <div class="detail-block">
           <span class="detail-label">Tags</span>
           <div class="chips" id="detailTags"></div>
@@ -320,10 +325,55 @@
     </div>
   </div>
 
+  <div class="mobile-capture-backdrop" id="mobileCaptureBackdrop"></div>
+  <a class="mobile-fab" id="mobileCaptureFab" href="#capturePanel" aria-label="Capture memory">+</a>
+  <nav class="mobile-tabbar" aria-label="Mobile primary">
+    <a class="active" href="/" aria-label="Home">
+      <span class="tab-icon">&#8962;</span>
+      <span>Home</span>
+    </a>
+    <a href="/search" aria-label="Search">
+      <span class="tab-icon">&#8981;</span>
+      <span>Search</span>
+    </a>
+    <a href="/tasks" aria-label="Tasks">
+      <span class="tab-icon">&#10003;</span>
+      <span>Tasks</span>
+    </a>
+    <a href="#account" id="mobileAccountTab" aria-label="Account">
+      <span class="tab-icon">&#9881;</span>
+      <span>Account</span>
+    </a>
+  </nav>
+  <div class="modal-backdrop mobile-account-backdrop" id="mobileAccountBackdrop" aria-hidden="true">
+    <div class="modal mobile-account-sheet" role="dialog" aria-modal="true" aria-labelledby="mobileAccountTitle">
+      <div class="modal-head">
+        <div>
+          <h3 class="modal-title" id="mobileAccountTitle">Account</h3>
+          <p class="modal-sub">Manage your Reverie workspace</p>
+        </div>
+        <button class="modal-close" id="mobileAccountClose" type="button" aria-label="Close">x</button>
+      </div>
+      <div class="account-actions">
+        <a class="account-action" id="mobileManageEntities" href="/entities">
+          <span>Manage Entities</span>
+          <small>Merge, rename, and organize names or topics</small>
+        </a>
+        <a class="account-action" href="/privacy">
+          <span>Privacy</span>
+          <small>Review data and account information</small>
+        </a>
+        <button class="account-action danger" id="mobileLogoutBtn" type="button">
+          <span>Log out</span>
+          <small>End this session on this device</small>
+        </button>
+      </div>
+    </div>
+  </div>
   <script>
     window.REVERIE_TAGS = {{ predefined_tags | tojson }};
   </script>
-  <script src="/static/reverie-shared.js?v=7"></script>
-  <script src="/static/reverie-home.js?v=7"></script>
+  <script src="/static/reverie-shared.js?v=17"></script>
+  <script src="/static/reverie-home.js?v=17"></script>
 </body>
 </html>

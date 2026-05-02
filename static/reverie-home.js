@@ -111,6 +111,15 @@ function fillChipContainer(container, values, kind) {
     const manageEntitiesCreate = document.getElementById("manageEntitiesCreate");
     const manageEntitiesDelete = document.getElementById("manageEntitiesDelete");
     const manageEntitiesStatus = document.getElementById("manageEntitiesStatus");
+    const mobileCaptureFab = document.getElementById("mobileCaptureFab");
+    const capturePanel = document.getElementById("capturePanel");
+    const captureClose = document.getElementById("captureClose");
+    const mobileCaptureBackdrop = document.getElementById("mobileCaptureBackdrop");
+    const mobileAccountTab = document.getElementById("mobileAccountTab");
+    const mobileAccountBackdrop = document.getElementById("mobileAccountBackdrop");
+    const mobileAccountClose = document.getElementById("mobileAccountClose");
+    const mobileManageEntities = document.getElementById("mobileManageEntities");
+    const mobileLogoutBtn = document.getElementById("mobileLogoutBtn");
 
     let authMode = "login";
     let activeStatusNote = null;
@@ -644,7 +653,10 @@ function setAuthedState(isAuthed) {
     }
     contextClose.addEventListener("click", closeContext);
     contextBackdrop.addEventListener("click", (e) => { if (e.target === contextBackdrop) closeContext(); });
-    manageEntitiesBtn.addEventListener("click", openManageEntitiesModal);
+    manageEntitiesBtn.addEventListener("click", (event) => {
+      event.preventDefault();
+      window.location.href = "/entities";
+    });
     manageEntitiesClose.addEventListener("click", closeManageEntitiesModal);
     manageEntitiesBackdrop.addEventListener("click", (e) => { if (e.target === manageEntitiesBackdrop) closeManageEntitiesModal(); });
     manageEntitiesSearch.addEventListener("input", renderManageEntitiesList);
@@ -1001,6 +1013,7 @@ function setAuthedState(isAuthed) {
 
         const data = await resp.json();
         saveStatusEl.textContent = data?.message || "Files uploaded. Processing is running in the background.";
+        window.setTimeout(closeCaptureComposer, 700);
         await Promise.all([loadForYou(), runSearch()]);
       } catch (err) {
         console.error(err);
@@ -1032,6 +1045,7 @@ function setAuthedState(isAuthed) {
         });
         noteTextEl.value = "";
         saveStatusEl.textContent = "Saved.";
+        window.setTimeout(closeCaptureComposer, 550);
         await Promise.all([loadForYou(), runSearch()]);
       } catch (err) {
         console.error(err);
@@ -1186,15 +1200,92 @@ function setAuthedState(isAuthed) {
     signupTab.addEventListener("click", () => setAuthMode("signup"));
     authForm.addEventListener("submit", handleAuthSubmit);
     logoutBtn.addEventListener("click", async () => {
+      await performLogout();
+    });
+
+    function openCaptureComposer() {
+      if (!capturePanel) return;
+      document.body.classList.add("capture-sheet-open");
+      window.setTimeout(() => {
+        noteTextEl?.focus({ preventScroll: true });
+        noteTextEl?.scrollIntoView({ behavior: "smooth", block: "center" });
+      }, 260);
+    }
+
+    function closeCaptureComposer() {
+      document.body.classList.remove("capture-sheet-open");
+    }
+
+    function syncCaptureViewport() {
+      if (!window.visualViewport || !capturePanel) return;
+      const available = Math.max(320, window.visualViewport.height - 16);
+      capturePanel.style.height = `${available}px`;
+      capturePanel.style.top = `${Math.max(8, window.visualViewport.offsetTop + 8)}px`;
+    }
+
+    function openMobileAccountSheet() {
+      setModalVisible(mobileAccountBackdrop, true);
+    }
+
+    function closeMobileAccountSheet() {
+      setModalVisible(mobileAccountBackdrop, false);
+    }
+
+    async function performLogout() {
       try {
         await apiPost("/logout", {});
       } catch (_) {}
+      closeMobileAccountSheet();
       clearSession();
+    }
+
+    mobileCaptureFab?.addEventListener("click", (event) => {
+      event.preventDefault();
+      syncCaptureViewport();
+      openCaptureComposer();
     });
+
+    captureClose?.addEventListener("click", closeCaptureComposer);
+    mobileCaptureBackdrop?.addEventListener("click", closeCaptureComposer);
+
+    mobileAccountTab?.addEventListener("click", (event) => {
+      event.preventDefault();
+      openMobileAccountSheet();
+    });
+
+    mobileAccountClose?.addEventListener("click", closeMobileAccountSheet);
+    mobileAccountBackdrop?.addEventListener("click", (event) => {
+      if (event.target === mobileAccountBackdrop) closeMobileAccountSheet();
+    });
+
+    mobileManageEntities?.addEventListener("click", (event) => {
+      event.preventDefault();
+      closeMobileAccountSheet();
+      window.location.href = "/entities";
+    });
+
+    mobileLogoutBtn?.addEventListener("click", performLogout);
+
+    document.querySelectorAll('a[href="#capturePanel"]').forEach((link) => {
+      link.addEventListener("click", (event) => {
+        event.preventDefault();
+        openCaptureComposer();
+      });
+    });
+
+    if (window.location.hash === "#capturePanel") {
+      window.setTimeout(openCaptureComposer, 420);
+    }
+    if (window.location.hash === "#account") {
+      window.setTimeout(openMobileAccountSheet, 420);
+    }
 
     detailBackdrop.addEventListener("click", (e) => {
       if (e.target === detailBackdrop) closeDetail();
     });
+
+    window.visualViewport?.addEventListener("resize", syncCaptureViewport);
+    window.visualViewport?.addEventListener("scroll", syncCaptureViewport);
 
     document.addEventListener("keydown", (e) => {
       if (e.key === "Escape") {
@@ -1202,6 +1293,8 @@ function setAuthedState(isAuthed) {
         closeEditModal();
         closeContext();
         closeManageEntitiesModal();
+        closeMobileAccountSheet();
+        closeCaptureComposer();
         setModalVisible(forYouBackdrop, false);
         setModalVisible(statusBackdrop, false);
       }

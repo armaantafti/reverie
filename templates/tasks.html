@@ -10,7 +10,7 @@
   <link rel="manifest" href="/static/manifest.json" />
   <link rel="icon" href="/static/icon-192.png" />
   <link rel="apple-touch-icon" href="/static/icon-192.png" />
-  <link rel="stylesheet" href="/static/reverie-list-page.css?v=6" />
+  <link rel="stylesheet" href="/static/reverie-list-page.css?v=17" />
 </head>
 <body>
   <div class="shell">
@@ -25,6 +25,7 @@
         </div>
         <nav class="nav" aria-label="Primary">
           <a href="/">Home</a>
+          <a href="/search">Search</a>
           <a class="active" href="/tasks">Tasks</a>
           <a href="/recommendations">Recommendations</a>
         </nav>
@@ -72,15 +73,15 @@
             <span class="detail-label">Summary</span>
             <div class="detail-value" id="taskDetailSummary"></div>
           </div>
-          <div class="detail-block">
-            <span class="detail-label">Attachment</span>
+          <details class="detail-block detail-disclosure">
+            <summary>Attachment</summary>
             <img class="detail-image" id="taskDetailImage" alt="Memory image preview" style="display:none;" />
             <div class="asset-actions" id="taskDetailAssetActions"></div>
-          </div>
-          <div class="detail-block">
-            <span class="detail-label">Text</span>
+          </details>
+          <details class="detail-block detail-disclosure">
+            <summary>Full text</summary>
             <div class="detail-value" id="taskDetailRaw"></div>
-          </div>
+          </details>
           <div class="detail-block">
             <span class="detail-label">Tags</span>
             <div class="chips" id="taskDetailTags"></div>
@@ -195,8 +196,8 @@
     </div>
   </div>
 
-  <script src="/static/reverie-shared.js?v=6"></script>
-  <script src="/static/reverie-list-page.js?v=6"></script>
+  <script src="/static/reverie-shared.js?v=17"></script>
+  <script src="/static/reverie-list-page.js?v=17"></script>
   <script>
     if ("serviceWorker" in navigator) {
       window.addEventListener("load", () => {
@@ -306,5 +307,24 @@
       },
     });
   </script>
+  <a class="mobile-fab" href="/#capturePanel" aria-label="Capture memory">+</a>
+  <nav class="mobile-tabbar" aria-label="Mobile primary">
+    <a href="/" aria-label="Home">
+      <span class="tab-icon">&#8962;</span>
+      <span>Home</span>
+    </a>
+    <a href="/search" aria-label="Search">
+      <span class="tab-icon">&#8981;</span>
+      <span>Search</span>
+    </a>
+    <a class="active" href="/tasks" aria-label="Tasks">
+      <span class="tab-icon">&#10003;</span>
+      <span>Tasks</span>
+    </a>
+    <a href="/entities" aria-label="Account">
+      <span class="tab-icon">&#9881;</span>
+      <span>Account</span>
+    </a>
+  </nav>
 </body>
 </html>

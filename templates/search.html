@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="color-scheme" content="dark" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <title>Reverie &ndash; Search</title>
+  <link rel="manifest" href="/static/manifest.json" />
+  <link rel="icon" href="/static/icon-192.png" />
+  <link rel="apple-touch-icon" href="/static/icon-192.png" />
+  <link rel="stylesheet" href="/static/reverie-list-page.css?v=17" />
+</head>
+<body>
+  <div class="shell">
+    <header class="topbar">
+      <div class="topbar-inner">
+        <div class="brand">
+          <div class="brand-mark"><img src="/static/logo_reverie.png" alt="Reverie" /></div>
+          <div class="brand-copy">
+            <h1 class="brand-name">Reverie</h1>
+            <p class="brand-line">Remember better.</p>
+          </div>
+        </div>
+        <nav class="nav" aria-label="Primary">
+          <a href="/">Home</a>
+          <a class="active" href="/search">Search</a>
+          <a href="/tasks">Tasks</a>
+          <a href="/recommendations">Recommendations</a>
+        </nav>
+        <div class="status"><span class="status-dot"></span> Ready</div>
+      </div>
+    </header>
+
+    <main class="page">
+      <section class="stack">
+        <article class="panel search-panel">
+          <div class="panel-head">
+            <div>
+              <div class="section-kicker">Search</div>
+              <p class="panel-subtitle">Find memories, reminders, screenshots, entities, and recommendations.</p>
+            </div>
+          </div>
+          <div class="search-grid">
+            <input id="searchPageQuery" class="search-input" type="text" placeholder="Search memories" autocomplete="off" />
+            <input id="searchPageRange" class="search-input" type="number" min="0" placeholder="Days" />
+            <button class="btn btn-primary" id="searchPageBtn" type="button">Search</button>
+          </div>
+          <label class="toggle-pill search-toggle">
+            <input type="checkbox" id="searchPageSmart" checked />
+            <span>Smart search</span>
+          </label>
+          <div class="search-status" id="searchPageStatus">Showing recent memories.</div>
+          <div class="smart-summary" id="searchPageSummary" style="display:none;"></div>
+        </article>
+
+        <article class="panel search-map-panel">
+          <div class="panel-head">
+            <div>
+              <div class="section-kicker">Memory Map</div>
+              <p class="panel-subtitle">Tap a tag, entity, or person to get a smart summary and matching memories.</p>
+            </div>
+          </div>
+          <div class="memory-map-groups" id="memoryMapGroups">
+            <div class="context-empty">Loading memory map...</div>
+          </div>
+        </article>
+
+        <article class="panel">
+          <div class="panel-head">
+            <div class="section-kicker">Results</div>
+          </div>
+          <div class="note-grid" id="searchResultsList">
+            <div class="note-card" id="searchResultsEmpty" style="cursor:default;">
+              <h4 class="note-title">No results yet</h4>
+            </div>
+          </div>
+        </article>
+
+        <article class="panel ghost-panel" aria-hidden="true">
+          <div class="note-grid" id="searchSecondaryList">
+            <div class="note-card" id="searchSecondaryEmpty" style="cursor:default;">
+              <h4 class="note-title">No secondary results</h4>
+            </div>
+          </div>
+        </article>
+      </section>
+    </main>
+
+    <div class="modal-backdrop" id="searchModal" aria-hidden="true">
+      <div class="modal" role="dialog" aria-modal="true" aria-labelledby="searchDetailTitle">
+        <div class="modal-head">
+          <div>
+            <h3 class="modal-title" id="searchDetailTitle"></h3>
+            <p class="modal-sub" id="searchDetailSub"></p>
+          </div>
+          <button class="modal-close" id="searchCloseBtn" type="button" aria-label="Close">&#10005;</button>
+        </div>
+        <div class="detail-grid">
+          <div class="detail-block">
+            <span class="detail-label">Summary</span>
+            <div class="detail-value" id="searchDetailSummary"></div>
+          </div>
+          <details class="detail-block detail-disclosure">
+            <summary>Attachment</summary>
+            <img class="detail-image" id="searchDetailImage" alt="Memory image preview" style="display:none;" />
+            <div class="asset-actions" id="searchDetailAssetActions"></div>
+          </details>
+          <details class="detail-block detail-disclosure">
+            <summary>Full text</summary>
+            <div class="detail-value" id="searchDetailRaw"></div>
+          </details>
+          <div class="detail-block">
+            <span class="detail-label">Tags</span>
+            <div class="chips" id="searchDetailTags"></div>
+          </div>
+          <div class="detail-block">
+            <span class="detail-label">Entities</span>
+            <div class="chips" id="searchDetailEntities"></div>
+          </div>
+          <div class="detail-block">
+            <span class="detail-label">Person</span>
+            <div class="detail-value" id="searchDetailPerson"></div>
+          </div>
+          <div class="detail-block">
+            <span class="detail-label">Time</span>
+            <div class="detail-value" id="searchDetailTime"></div>
+          </div>
+        </div>
+        <div class="manage-actions">
+          <button class="btn btn-secondary" id="searchEditBtn" type="button">Edit</button>
+          <button class="btn btn-danger" id="searchDeleteBtn" type="button">Delete</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal-backdrop" id="searchContextBackdrop" aria-hidden="true">
+      <div class="modal" role="dialog" aria-modal="true" aria-labelledby="searchContextTitle">
+        <div class="modal-head">
+          <div>
+            <h3 class="modal-title" id="searchContextTitle"></h3>
+            <p class="modal-sub" id="searchContextSub"></p>
+          </div>
+          <button class="modal-close" id="searchContextClose" type="button" aria-label="Close">&#10005;</button>
+        </div>
+        <div class="context-list" id="searchContextList"></div>
+      </div>
+    </div>
+
+    <div class="modal-backdrop" id="searchStatusBackdrop" aria-hidden="true">
+      <div class="modal" role="dialog" aria-modal="true" aria-labelledby="searchStatusTitle">
+        <div class="modal-head">
+          <div>
+            <h3 class="modal-title" id="searchStatusTitle">Update status</h3>
+            <p class="modal-sub" id="searchStatusSub"></p>
+          </div>
+          <button class="modal-close" id="searchStatusClose" type="button" aria-label="Close">&#10005;</button>
+        </div>
+        <div class="status-modal-form">
+          <div class="status-field">
+            <label class="status-label" for="searchStatusSelect">Status</label>
+            <select id="searchStatusSelect" class="status-select">
+              <option value="pending">Pending</option>
+              <option value="completed">Completed</option>
+              <option value="skipped">Skipped</option>
+            </select>
+          </div>
+          <div class="status-field">
+            <label class="status-label" for="searchStatusNote">Add a brief update (optional)</label>
+            <textarea id="searchStatusNote" class="status-note" placeholder="What changed?"></textarea>
+          </div>
+          <div class="status-actions">
+            <button class="btn btn-secondary" id="searchStatusCancel" type="button">Cancel</button>
+            <button class="btn btn-primary" id="searchStatusSave" type="button">Save</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal-backdrop" id="searchEditBackdrop" aria-hidden="true">
+      <div class="modal" role="dialog" aria-modal="true" aria-labelledby="searchEditTitle">
+        <div class="modal-head">
+          <div>
+            <h3 class="modal-title" id="searchEditTitle">Edit memory</h3>
+            <p class="modal-sub" id="searchEditSub"></p>
+          </div>
+          <button class="modal-close" id="searchEditClose" type="button" aria-label="Close">&#10005;</button>
+        </div>
+        <div class="edit-modal-form">
+          <div class="edit-grid">
+            <div class="edit-field">
+              <label class="status-label" for="searchEditType">Memory type</label>
+              <select id="searchEditType" class="edit-select">
+                <option value="note">Note</option>
+                <option value="recommendation">Recommendation</option>
+                <option value="reminder">Reminder</option>
+                <option value="passive">Passive</option>
+              </select>
+            </div>
+            <div class="edit-field">
+              <label class="status-label" for="searchEditDueTime">Due time</label>
+              <input id="searchEditDueTime" class="edit-input" type="datetime-local" />
+            </div>
+            <div class="edit-field full">
+              <label class="status-label" for="searchEditPerson">Person</label>
+              <input id="searchEditPerson" class="edit-input" type="text" placeholder="Add or correct a name" />
+            </div>
+            <div class="edit-field full">
+              <label class="status-label" for="searchEditTags">Tags</label>
+              <input id="searchEditTags" class="edit-input" type="text" placeholder="Friends, School, Health" />
+            </div>
+            <div class="edit-field full">
+              <label class="status-label" for="searchEditEntities">Entities</label>
+              <input id="searchEditEntities" class="edit-input" type="text" placeholder="Physics Class, Group Chat" />
+            </div>
+          </div>
+          <div class="field-help">Use commas between tags or entities. Leave due time blank if it should be empty.</div>
+          <div class="status-actions">
+            <button class="btn btn-secondary" id="searchEditCancel" type="button">Cancel</button>
+            <button class="btn btn-primary" id="searchEditSave" type="button">Save changes</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="/static/reverie-shared.js?v=17"></script>
+  <script src="/static/reverie-list-page.js?v=17"></script>
+  <script src="/static/reverie-search.js?v=17"></script>
+  <a class="mobile-fab" href="/#capturePanel" aria-label="Capture memory">+</a>
+  <nav class="mobile-tabbar" aria-label="Mobile primary">
+    <a href="/" aria-label="Home">
+      <span class="tab-icon">&#8962;</span>
+      <span>Home</span>
+    </a>
+    <a class="active" href="/search" aria-label="Search">
+      <span class="tab-icon">&#8981;</span>
+      <span>Search</span>
+    </a>
+    <a href="/tasks" aria-label="Tasks">
+      <span class="tab-icon">&#10003;</span>
+      <span>Tasks</span>
+    </a>
+    <a href="/entities" aria-label="Account">
+      <span class="tab-icon">&#9881;</span>
+      <span>Account</span>
+    </a>
+  </nav>
+</body>
+</html>

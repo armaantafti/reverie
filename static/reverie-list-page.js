@@ -514,6 +514,22 @@ function initReverieListPage(config) {
       return card;
     }
 
+    async function defaultFetchNotes() {
+      const url = new URL("/notes", window.location.origin);
+      url.searchParams.set("_", String(Date.now()));
+      const resp = await fetch(url.toString(), {
+        credentials: "same-origin",
+        cache: "no-store",
+      });
+      if (resp.status === 401) {
+        invalidateSession();
+        setSignedOutState();
+        return null;
+      }
+      if (!resp.ok) throw new Error("HTTP " + resp.status);
+      return resp.json();
+    }
+
     async function loadItems() {
       try {
         resetEmptyState();
@@ -522,19 +538,8 @@ function initReverieListPage(config) {
           return;
         }
 
-        const url = new URL("/notes", window.location.origin);
-        url.searchParams.set("_", String(Date.now()));
-        const resp = await fetch(url.toString(), {
-          credentials: "same-origin",
-          cache: "no-store",
-        });
-        if (resp.status === 401) {
-          invalidateSession();
-          setSignedOutState();
-          return;
-        }
-        if (!resp.ok) throw new Error("HTTP " + resp.status);
-        const notes = await resp.json();
+        const notes = config.fetchNotes ? await config.fetchNotes() : await defaultFetchNotes();
+        if (notes === null) return;
         const groups = config.splitNotes(Array.isArray(notes) ? notes : []);
 
         primaryList.innerHTML = "";
@@ -553,6 +558,11 @@ function initReverieListPage(config) {
         }
       } catch (err) {
         console.error(err);
+        if (config.errorText) {
+          primaryList.innerHTML = "";
+          primaryEmpty.querySelector(".note-title").textContent = config.errorText(err);
+          primaryList.appendChild(primaryEmpty);
+        }
       }
     }
 
@@ -610,6 +620,13 @@ function initReverieListPage(config) {
         setModalVisible(contextBackdrop, false);
         setModalVisible(statusBackdrop, false);
       }
+    });
+
+    const reloadButton = config.reloadButtonId ? document.getElementById(config.reloadButtonId) : null;
+    const searchInput = config.searchInputId ? document.getElementById(config.searchInputId) : null;
+    reloadButton?.addEventListener("click", loadItems);
+    searchInput?.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") loadItems();
     });
 
     loadItems();

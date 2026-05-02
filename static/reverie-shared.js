@@ -1,4 +1,8 @@
 window.ReverieShared = (() => {
+  const isStandalone = window.matchMedia?.("(display-mode: standalone)")?.matches
+    || window.navigator.standalone === true;
+  document.documentElement.classList.toggle("app-mode", Boolean(isStandalone));
+
   function normaliseTags(tags) {
     if (!Array.isArray(tags)) return [];
     return tags.map((tag) => String(tag).trim()).filter(Boolean);
