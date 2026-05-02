@@ -24,6 +24,7 @@ from image_pipeline import (
     count_uploaded_memories,
     create_uploaded_note_placeholder,
     process_uploaded_note,
+    delete_uploaded_file_url,
     upload_file_bytes,
     validate_uploaded_file,
 )
@@ -89,6 +90,10 @@ class NoteUpdateIn(BaseModel):
 
 
 class NoteDeleteIn(BaseModel):
+    note_id: str
+
+
+class NoteAssetRemoveIn(BaseModel):
     note_id: str
 
 
@@ -333,6 +338,14 @@ async def search_page(request: Request):
 async def entities_page(request: Request):
     return templates.TemplateResponse(
         "entities.html",
+        _template_context(request)
+    )
+
+
+@app.get("/uploads", response_class=HTMLResponse)
+async def uploads_page(request: Request):
+    return templates.TemplateResponse(
+        "uploads.html",
         _template_context(request)
     )
 
@@ -650,6 +663,68 @@ def delete_note(payload: NoteDeleteIn, request: Request):
             .execute()
         )
         return {"ok": True, "note_id": note_id}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=_error_detail(e)) from e
+
+
+@app.get("/uploads/manage")
+def list_uploaded_assets(request: Request):
+    user_id = _get_authenticated_user_id(request)
+    try:
+        rows = get_user_notes(user_id)
+        assets = [
+            row for row in rows
+            if str(row.get("image_url") or "").strip()
+            and str(row.get("memory_type") or "").strip().lower() in {"image", "document"}
+        ]
+        return {"items": assets, "count": len(assets)}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=_error_detail(e)) from e
+
+
+@app.post("/uploads/manage/remove")
+def remove_uploaded_asset(payload: NoteAssetRemoveIn, request: Request):
+    note_id = (payload.note_id or "").strip()
+    user_id = _get_authenticated_user_id(request)
+    if not note_id:
+        raise HTTPException(status_code=400, detail="note_id is required")
+
+    try:
+        existing = (
+            supabase_admin.table("notes")
+            .select("*")
+            .eq("id", note_id)
+            .eq("user_id", user_id)
+            .limit(1)
+            .execute()
+        )
+        rows = existing.data or []
+        if not rows:
+            raise HTTPException(status_code=404, detail="note not found")
+
+        note = rows[0]
+        file_url = str(note.get("image_url") or "").strip()
+        if file_url:
+            try:
+                delete_uploaded_file_url(file_url)
+            except Exception as exc:
+                print(f"Asset deletion warning for note {note_id}: {exc}")
+
+        updates = {
+            "image_url": None,
+            "memory_type": "text",
+        }
+        result = (
+            supabase_admin.table("notes")
+            .update(updates)
+            .eq("id", note_id)
+            .eq("user_id", user_id)
+            .execute()
+        )
+        updated = (result.data or [{}])[0]
+        return {"ok": True, "note": updated}
     except HTTPException:
         raise
     except Exception as e:

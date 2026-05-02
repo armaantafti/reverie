@@ -6,7 +6,7 @@ import base64
 from datetime import datetime
 from io import BytesIO
 from typing import Dict, Optional, Tuple
-from urllib.parse import quote
+from urllib.parse import quote, unquote, urlparse
 from zoneinfo import ZoneInfo
 
 import requests
@@ -149,6 +149,32 @@ def upload_file_bytes(user_id: str, file_name: str, file_bytes: bytes, content_t
 
 def upload_image_bytes(user_id: str, file_name: str, image_bytes: bytes, content_type: str) -> str:
     return upload_file_bytes(user_id, file_name, image_bytes, content_type)
+
+
+def delete_uploaded_file_url(file_url: str) -> bool:
+    url = str(file_url or "").strip()
+    if not url:
+        return False
+
+    parsed = urlparse(url)
+    marker = f"/storage/v1/object/public/{IMAGE_BUCKET}/"
+    if marker not in parsed.path:
+        return False
+
+    object_path = unquote(parsed.path.split(marker, 1)[1] or "").strip("/")
+    if not object_path:
+        return False
+
+    delete_url = f"{SUPABASE_URL}/storage/v1/object/{IMAGE_BUCKET}/{quote(object_path, safe='/')}"
+    headers = {
+        "Authorization": f"Bearer {SUPABASE_SERVICE_ROLE_KEY}",
+        "apikey": SUPABASE_SERVICE_ROLE_KEY,
+    }
+    resp = requests.delete(delete_url, headers=headers, timeout=20)
+    if resp.status_code in {200, 204, 404}:
+        return resp.status_code != 404
+    resp.raise_for_status()
+    return True
 
 
 def create_uploaded_note_placeholder(user_id: str, file_url: str, file_name: str, memory_type: str) -> Dict[str, object]:
