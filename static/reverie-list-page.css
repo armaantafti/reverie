@@ -79,6 +79,7 @@ button,input,textarea,select{font:inherit}
 }
 .brand{
   display:flex; align-items:center; gap:14px; min-width:0;
+  text-decoration:none;
 }
 .brand-mark{
   width:50px; height:50px; border-radius:16px;
@@ -174,6 +175,26 @@ button,input,textarea,select{font:inherit}
   justify-content:space-between;
   gap:12px;
   margin-bottom:16px;
+}
+.account-return{
+  flex:0 0 auto;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  min-height:40px;
+  padding:0 14px;
+  border-radius:999px;
+  color:#06111d;
+  text-decoration:none;
+  font-size:.84rem;
+  font-weight:820;
+  background:linear-gradient(135deg, var(--accent), #c0b4ff);
+  box-shadow:0 12px 28px rgba(122,215,255,.16);
+}
+.account-return:hover,
+.account-return:focus-visible{
+  outline:none;
+  transform:translateY(-1px);
 }
 .section-kicker{
   display:inline-flex;
@@ -922,6 +943,47 @@ button,input,textarea,select{font:inherit}
   background:rgba(148,163,184,.04);
   border:1px dashed rgba(148,163,184,.15);
 }
+.privacy-content{
+  display:grid;
+  gap:16px;
+  max-width:920px;
+  margin-inline:auto;
+  padding-bottom:30px;
+}
+.privacy-hero h2{
+  margin:8px 0 8px;
+  font-size:clamp(1.8rem, 4vw, 3.1rem);
+  line-height:1.04;
+  letter-spacing:-.03em;
+}
+.privacy-updated{
+  margin:0;
+  color:var(--faint);
+  font-size:.9rem;
+}
+.privacy-policy-card{
+  display:grid;
+  gap:8px;
+}
+.privacy-policy-card h3{
+  margin:22px 0 2px;
+  font-size:1.05rem;
+}
+.privacy-policy-card h3:first-child{
+  margin-top:0;
+}
+.privacy-policy-card p,
+.privacy-policy-card li{
+  color:var(--muted);
+  line-height:1.65;
+}
+.privacy-policy-card p{
+  margin:0 0 8px;
+}
+.privacy-policy-card ul{
+  margin:0 0 8px;
+  padding-left:20px;
+}
 @media (max-width: 840px){
   .shell{width:min(100% - 18px, 100%)}
   .topbar{border-radius:28px}
@@ -993,6 +1055,12 @@ button,input,textarea,select{font:inherit}
   }
   .panel-head{
     margin-bottom:12px;
+    align-items:flex-start;
+  }
+  .account-return{
+    min-height:36px;
+    padding:0 12px;
+    font-size:.78rem;
   }
   .panel-subtitle{
     font-size:.92rem;
@@ -1051,6 +1119,9 @@ button,input,textarea,select{font:inherit}
     display:none;
   }
   .entity-page{
+    padding-bottom:98px;
+  }
+  .privacy-content{
     padding-bottom:98px;
   }
   .search-input{

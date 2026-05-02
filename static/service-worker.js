@@ -1,8 +1,9 @@
-const CACHE_NAME = "reverie-pwa-v19";
+const CACHE_NAME = "reverie-pwa-v20";
 const STATIC_ASSETS = [
   "/",
   "/search",
   "/entities",
+  "/privacy",
   "/tasks",
   "/recommendations",
   "/static/manifest.json",
