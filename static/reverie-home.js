@@ -1027,6 +1027,14 @@ function setAuthedState(isAuthed) {
       }
     }
 
+    function isImageFile(file) {
+      return String(file?.type || "").toLowerCase().startsWith("image/");
+    }
+
+    function hasDocumentExtension(file) {
+      return /\.(pdf|doc|docx|txt|md|rtf|odt)$/i.test(String(file?.name || ""));
+    }
+
     async function saveNote() {
       if (!(await ensureSession())) {
         saveStatusEl.textContent = "Please log in first.";
@@ -1062,12 +1070,22 @@ function setAuthedState(isAuthed) {
     uploadInput.addEventListener("change", async () => {
       const files = Array.from(uploadInput.files || []);
       if (!files.length) return;
+      if (files.some((file) => !isImageFile(file))) {
+        saveStatusEl.textContent = "Use Upload Document for PDF, Word, or text files.";
+        uploadInput.value = "";
+        return;
+      }
       await uploadFiles(files);
     });
     documentUploadBtn?.addEventListener("click", () => documentUploadInput?.click());
     documentUploadInput?.addEventListener("change", async () => {
       const files = Array.from(documentUploadInput.files || []);
       if (!files.length) return;
+      if (files.some((file) => isImageFile(file) || !hasDocumentExtension(file))) {
+        saveStatusEl.textContent = "Use Upload Image for photos/screenshots, or choose a PDF, Word, or text file from My Files.";
+        documentUploadInput.value = "";
+        return;
+      }
       await uploadFiles(files);
     });
 
