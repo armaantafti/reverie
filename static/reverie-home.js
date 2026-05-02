@@ -40,8 +40,6 @@ function fillChipContainer(container, values, kind) {
     const saveBtn = document.getElementById("saveBtn");
     const uploadBtn = document.getElementById("uploadBtn");
     const uploadInput = document.getElementById("uploadInput");
-    const documentUploadBtn = document.getElementById("documentUploadBtn");
-    const documentUploadInput = document.getElementById("documentUploadInput");
     const noteTextEl = document.getElementById("noteText");
     const saveStatusEl = document.getElementById("saveStatus");
     const searchQueryEl = document.getElementById("searchQuery");
@@ -986,7 +984,6 @@ function setAuthedState(isAuthed) {
 
       const prev = uploadBtn.textContent;
       uploadBtn.disabled = true;
-      if (documentUploadBtn) documentUploadBtn.disabled = true;
       uploadBtn.textContent = "Uploading…";
       saveStatusEl.textContent = "Uploading files…";
       try {
@@ -1020,19 +1017,9 @@ function setAuthedState(isAuthed) {
         saveStatusEl.textContent = err?.message || "Upload failed.";
       } finally {
         uploadBtn.disabled = false;
-        if (documentUploadBtn) documentUploadBtn.disabled = false;
         uploadBtn.textContent = prev;
         uploadInput.value = "";
-        if (documentUploadInput) documentUploadInput.value = "";
       }
-    }
-
-    function isImageFile(file) {
-      return String(file?.type || "").toLowerCase().startsWith("image/");
-    }
-
-    function hasDocumentExtension(file) {
-      return /\.(pdf|doc|docx|txt|md|rtf|odt)$/i.test(String(file?.name || ""));
     }
 
     async function saveNote() {
@@ -1070,22 +1057,6 @@ function setAuthedState(isAuthed) {
     uploadInput.addEventListener("change", async () => {
       const files = Array.from(uploadInput.files || []);
       if (!files.length) return;
-      if (files.some((file) => !isImageFile(file))) {
-        saveStatusEl.textContent = "Use Upload Document for PDF, Word, or text files.";
-        uploadInput.value = "";
-        return;
-      }
-      await uploadFiles(files);
-    });
-    documentUploadBtn?.addEventListener("click", () => documentUploadInput?.click());
-    documentUploadInput?.addEventListener("change", async () => {
-      const files = Array.from(documentUploadInput.files || []);
-      if (!files.length) return;
-      if (files.some((file) => isImageFile(file) || !hasDocumentExtension(file))) {
-        saveStatusEl.textContent = "Use Upload Image for photos/screenshots, or choose a PDF, Word, or text file from My Files.";
-        documentUploadInput.value = "";
-        return;
-      }
       await uploadFiles(files);
     });
 
@@ -1231,11 +1202,8 @@ function setAuthedState(isAuthed) {
 
     function openCaptureComposer() {
       if (!capturePanel) return;
+      syncCaptureViewport();
       document.body.classList.add("capture-sheet-open");
-      window.setTimeout(() => {
-        noteTextEl?.focus({ preventScroll: true });
-        noteTextEl?.scrollIntoView({ behavior: "smooth", block: "center" });
-      }, 260);
     }
 
     function closeCaptureComposer() {
@@ -1244,9 +1212,9 @@ function setAuthedState(isAuthed) {
 
     function syncCaptureViewport() {
       if (!window.visualViewport || !capturePanel) return;
-      const available = Math.max(320, window.visualViewport.height - 16);
-      capturePanel.style.height = `${available}px`;
-      capturePanel.style.top = `${Math.max(8, window.visualViewport.offsetTop + 8)}px`;
+      const compactHeight = Math.max(300, Math.min(430, Math.round(window.visualViewport.height * 0.52)));
+      capturePanel.style.maxHeight = `${compactHeight}px`;
+      capturePanel.style.bottom = `${Math.max(10, window.innerHeight - window.visualViewport.height - window.visualViewport.offsetTop + 10)}px`;
     }
 
     function openMobileAccountSheet() {

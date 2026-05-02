@@ -10,7 +10,7 @@
   <link rel="manifest" href="/static/manifest.json" />
   <link rel="icon" href="/static/icon-192.png" />
   <link rel="apple-touch-icon" href="/static/icon-192.png" />
-  <link rel="stylesheet" href="/static/reverie-home.css?v=24" />
+  <link rel="stylesheet" href="/static/reverie-home.css?v=25" />
 </head>
 <body>
   <div class="shell">
@@ -85,10 +85,8 @@
             <textarea id="noteText" placeholder="Write a memory, reminder, or idea..."></textarea>
             <div class="actions">
               <button class="btn btn-primary" id="saveBtn" type="button">Save</button>
-              <button class="btn btn-secondary" id="uploadBtn" type="button">Upload Image</button>
-              <button class="btn btn-secondary" id="documentUploadBtn" type="button">Upload Document</button>
-              <input id="uploadInput" type="file" accept="image/*" multiple class="hidden" />
-              <input id="documentUploadInput" type="file" accept=".pdf,.doc,.docx,.txt,.md,.rtf,.odt,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain,text/markdown,application/rtf,text/rtf,application/vnd.oasis.opendocument.text" multiple class="hidden" />
+              <button class="btn btn-secondary" id="uploadBtn" type="button">Upload</button>
+              <input id="uploadInput" type="file" accept="image/*,.pdf,.doc,.docx,.txt,.md,.rtf,.odt,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain,text/markdown,application/rtf,text/rtf,application/vnd.oasis.opendocument.text" multiple class="hidden" />
             </div>
             <div class="status-line" id="saveStatus" aria-live="polite"></div>
           </article>
@@ -379,7 +377,7 @@
   <script>
     window.REVERIE_TAGS = {{ predefined_tags | tojson }};
   </script>
-  <script src="/static/reverie-shared.js?v=24"></script>
-  <script src="/static/reverie-home.js?v=24"></script>
+  <script src="/static/reverie-shared.js?v=25"></script>
+  <script src="/static/reverie-home.js?v=25"></script>
 </body>
 </html>
