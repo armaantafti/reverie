@@ -148,6 +148,54 @@ window.ReverieShared = (() => {
     backdrop.setAttribute("aria-hidden", visible ? "false" : "true");
   }
 
+  function isFastNavLink(link) {
+    if (!link || link.target || link.hasAttribute("download")) return false;
+    const href = link.getAttribute("href") || "";
+    if (!href || href.startsWith("#") || href.startsWith("mailto:") || href.startsWith("tel:")) return false;
+    try {
+      const url = new URL(link.href, window.location.href);
+      if (url.origin !== window.location.origin) return false;
+      return url.pathname !== window.location.pathname || url.search !== window.location.search;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  function prefetchPage(link) {
+    if (!isFastNavLink(link) || link.dataset.prefetched === "true") return;
+    link.dataset.prefetched = "true";
+    fetch(link.href, {
+      method: "GET",
+      credentials: "same-origin",
+      cache: "force-cache",
+      headers: { "X-Reverie-Prefetch": "1" },
+    }).catch(() => undefined);
+  }
+
+  function installFastNavigation() {
+    document.querySelectorAll("a[href]").forEach((link) => {
+      if (!isFastNavLink(link)) return;
+      link.addEventListener("pointerenter", () => prefetchPage(link), { passive: true });
+      link.addEventListener("touchstart", () => prefetchPage(link), { passive: true });
+      link.addEventListener("click", () => {
+        document.documentElement.classList.add("route-loading");
+      });
+    });
+    const likely = ["/", "/search", "/tasks", "/recommendations", "/entities", "/uploads"];
+    window.setTimeout(() => {
+      likely
+        .filter((path) => path !== window.location.pathname)
+        .slice(0, 4)
+        .forEach((path) => fetch(path, { credentials: "same-origin", cache: "force-cache" }).catch(() => undefined));
+    }, 900);
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", installFastNavigation, { once: true });
+  } else {
+    installFastNavigation();
+  }
+
   return {
     normaliseTags,
     normaliseEntities,
@@ -169,5 +217,6 @@ window.ReverieShared = (() => {
     statusLabel,
     noteId,
     setModalVisible,
+    installFastNavigation,
   };
 })();

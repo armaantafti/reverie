@@ -104,6 +104,41 @@ function initReverieListPage(config) {
     let activeStatusNote = null;
     let activeDetailNote = null;
     let activeEditNote = null;
+    let lastLoadAt = 0;
+    const CACHE_TTL_MS = 25000;
+    const cachePrefix = "reverie:list:";
+
+    function stableCacheUrl(url) {
+      const parsed = new URL(url, window.location.origin);
+      parsed.searchParams.delete("_");
+      return parsed.toString();
+    }
+
+    function readCachedJson(url) {
+      try {
+        const raw = sessionStorage.getItem(cachePrefix + stableCacheUrl(url));
+        if (!raw) return null;
+        const cached = JSON.parse(raw);
+        if (Date.now() - Number(cached.time || 0) > CACHE_TTL_MS) return null;
+        return cached.data;
+      } catch (_) {
+        return null;
+      }
+    }
+
+    function writeCachedJson(url, data) {
+      try {
+        sessionStorage.setItem(cachePrefix + stableCacheUrl(url), JSON.stringify({ time: Date.now(), data }));
+      } catch (_) {}
+    }
+
+    function clearListCache() {
+      try {
+        Object.keys(sessionStorage)
+          .filter((key) => key.startsWith(cachePrefix))
+          .forEach((key) => sessionStorage.removeItem(key));
+      } catch (_) {}
+    }
 
     function resetEmptyState() {
       primaryEmpty.querySelector(".note-title").textContent = config.primary.emptyText;
@@ -117,6 +152,18 @@ function initReverieListPage(config) {
       secondaryEmpty.querySelector(".note-title").textContent = config.signedOutText;
       primaryList.appendChild(primaryEmpty);
       secondaryList.appendChild(secondaryEmpty);
+    }
+
+    function showSkeletons() {
+      if (primaryList.querySelector(".note-card:not(.skeleton-card)")) return;
+      primaryList.innerHTML = "";
+      secondaryList.innerHTML = "";
+      for (let i = 0; i < 3; i += 1) {
+        const card = document.createElement("div");
+        card.className = "note-card skeleton-card";
+        card.innerHTML = '<div class="skeleton-line wide"></div><div class="skeleton-line"></div><div class="skeleton-chips"><span></span><span></span><span></span></div>';
+        primaryList.appendChild(card);
+      }
     }
 
     function closeDetail() {
@@ -346,6 +393,7 @@ function initReverieListPage(config) {
         throw new Error(data.detail || ("HTTP " + resp.status));
       }
 
+      clearListCache();
       closeStatusModal();
       await loadItems();
     }
@@ -386,6 +434,7 @@ function initReverieListPage(config) {
         throw new Error(data.detail || ("HTTP " + resp.status));
       }
 
+      clearListCache();
       closeEditModal();
       closeDetail();
       await loadItems();
@@ -421,6 +470,7 @@ function initReverieListPage(config) {
         throw new Error(data.detail || ("HTTP " + resp.status));
       }
 
+      clearListCache();
       closeEditModal();
       closeDetail();
       await loadItems();
@@ -512,8 +562,10 @@ function initReverieListPage(config) {
     }
 
     async function defaultFetchNotes() {
-      const url = new URL("/notes", window.location.origin);
+      const url = new URL(config.notesUrl || "/notes", window.location.origin);
       url.searchParams.set("_", String(Date.now()));
+      const cached = readCachedJson(url.toString());
+      if (cached) return cached;
       const resp = await fetch(url.toString(), {
         credentials: "same-origin",
         cache: "no-store",
@@ -524,10 +576,12 @@ function initReverieListPage(config) {
         return null;
       }
       if (!resp.ok) throw new Error("HTTP " + resp.status);
-      return resp.json();
+      const data = await resp.json();
+      writeCachedJson(url.toString(), data);
+      return data;
     }
 
-    async function loadItems() {
+    async function loadItems(options = {}) {
       try {
         resetEmptyState();
         if (!(await ensureSession())) {
@@ -535,8 +589,10 @@ function initReverieListPage(config) {
           return;
         }
 
+        if (!options.quiet) showSkeletons();
         const notes = config.fetchNotes ? await config.fetchNotes() : await defaultFetchNotes();
         if (notes === null) return;
+        lastLoadAt = Date.now();
         const groups = config.splitNotes(Array.isArray(notes) ? notes : []);
 
         primaryList.innerHTML = "";
@@ -621,17 +677,19 @@ function initReverieListPage(config) {
 
     const reloadButton = config.reloadButtonId ? document.getElementById(config.reloadButtonId) : null;
     const searchInput = config.searchInputId ? document.getElementById(config.searchInputId) : null;
-    reloadButton?.addEventListener("click", loadItems);
+    reloadButton?.addEventListener("click", () => loadItems());
     searchInput?.addEventListener("keydown", (e) => {
       if (e.key === "Enter") loadItems();
     });
 
     loadItems();
-    window.addEventListener("focus", loadItems);
-    document.addEventListener("visibilitychange", () => {
-      if (!document.hidden) loadItems();
+    window.addEventListener("focus", () => {
+      if (Date.now() - lastLoadAt > CACHE_TTL_MS) loadItems({ quiet: true });
     });
-    setInterval(loadItems, 30000);
+    document.addEventListener("visibilitychange", () => {
+      if (!document.hidden && Date.now() - lastLoadAt > CACHE_TTL_MS) loadItems({ quiet: true });
+    });
+    setInterval(() => loadItems({ quiet: true }), 60000);
   }
 
   window.initReverieListPage = initReverieListPage;

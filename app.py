@@ -429,9 +429,17 @@ def list_notes(
     request: Request,
     query: Optional[str] = Query(None, description="Search text in title/summary/person/tags"),
     days: Optional[int] = Query(None, description="Limit to last N days"),
+    types: Optional[str] = Query(None, description="Comma-separated note_type filter"),
+    limit: Optional[int] = Query(None, ge=1, le=200, description="Maximum notes to return"),
 ):
     notes = get_user_notes(_get_authenticated_user_id(request))
+    if types:
+        allowed = {item.strip().lower() for item in types.split(",") if item.strip()}
+        if allowed:
+            notes = [note for note in notes if str(note.get("note_type") or "").strip().lower() in allowed]
     results = filter_notes(notes, query=query, days=days)
+    if limit:
+        results = results[:limit]
     return results
 
 

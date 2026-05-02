@@ -10,7 +10,7 @@
   <link rel="manifest" href="/static/manifest.json" />
   <link rel="icon" href="/static/icon-192.png" />
   <link rel="apple-touch-icon" href="/static/icon-192.png" />
-  <link rel="stylesheet" href="/static/reverie-list-page.css?v=24" />
+  <link rel="stylesheet" href="/static/reverie-list-page.css?v=26" />
 </head>
 <body>
   <div class="shell">
@@ -196,8 +196,8 @@
     </div>
   </div>
 
-  <script src="/static/reverie-shared.js?v=24"></script>
-  <script src="/static/reverie-list-page.js?v=24"></script>
+  <script src="/static/reverie-shared.js?v=26"></script>
+  <script src="/static/reverie-list-page.js?v=26"></script>
   <script>
     if ("serviceWorker" in navigator) {
       window.addEventListener("load", () => {
@@ -219,6 +219,7 @@
         emptyText: "No past tasks",
       },
       signedOutText: "Sign in on Home to view tasks",
+      notesUrl: "/notes?types=note,reminder&limit=120",
       detail: {
         backdropId: "taskModal",
         closeId: "taskCloseBtn",

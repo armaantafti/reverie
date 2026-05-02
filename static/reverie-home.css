@@ -33,6 +33,23 @@
         linear-gradient(180deg, #08111e 0%, #0a1323 35%, #0c1728 100%);
       overflow-x:hidden;
     }
+    html.route-loading::before{
+      content:"";
+      position:fixed;
+      left:18px;
+      right:18px;
+      top:10px;
+      height:3px;
+      z-index:999;
+      border-radius:999px;
+      background:linear-gradient(90deg, var(--accent), var(--accent2));
+      box-shadow:0 0 24px rgba(122,215,255,.45);
+      animation:routePulse .85s ease-in-out infinite alternate;
+    }
+    @keyframes routePulse{
+      from{opacity:.45;transform:scaleX(.35);transform-origin:left}
+      to{opacity:1;transform:scaleX(1);transform-origin:left}
+    }
     body::before,
     body::after{
       content:"";

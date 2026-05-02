@@ -34,6 +34,23 @@ body{
     linear-gradient(180deg, #08111e 0%, #0a1323 35%, #0c1728 100%);
   overflow-x:hidden;
 }
+html.route-loading::before{
+  content:"";
+  position:fixed;
+  left:18px;
+  right:18px;
+  top:10px;
+  height:3px;
+  z-index:999;
+  border-radius:999px;
+  background:linear-gradient(90deg, var(--accent), var(--accent2));
+  box-shadow:0 0 24px rgba(122,215,255,.45);
+  animation:routePulse .85s ease-in-out infinite alternate;
+}
+@keyframes routePulse{
+  from{opacity:.45;transform:scaleX(.35);transform-origin:left}
+  to{opacity:1;transform:scaleX(1);transform-origin:left}
+}
 body::before,
 body::after{
   content:"";
@@ -782,6 +799,40 @@ button,input,textarea,select{font:inherit}
   display:grid;
   grid-template-columns:1fr;
   gap:12px;
+}
+.skeleton-card{
+  cursor:default;
+  pointer-events:none;
+}
+.skeleton-line,
+.skeleton-chips span{
+  display:block;
+  border-radius:999px;
+  background:linear-gradient(90deg, rgba(148,163,184,.08), rgba(122,215,255,.16), rgba(148,163,184,.08));
+  background-size:220% 100%;
+  animation:skeletonSweep 1.15s ease-in-out infinite;
+}
+.skeleton-line{
+  width:62%;
+  height:16px;
+  margin:4px 0 12px;
+}
+.skeleton-line.wide{
+  width:82%;
+  height:18px;
+}
+.skeleton-chips{
+  display:flex;
+  gap:8px;
+  margin-top:16px;
+}
+.skeleton-chips span{
+  width:74px;
+  height:28px;
+}
+@keyframes skeletonSweep{
+  0%{background-position:120% 0}
+  100%{background-position:-120% 0}
 }
 .modal-backdrop{
   position:fixed;
