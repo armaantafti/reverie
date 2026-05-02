@@ -1,4 +1,4 @@
-const CACHE_NAME = "reverie-pwa-v17";
+const CACHE_NAME = "reverie-pwa-v19";
 const STATIC_ASSETS = [
   "/",
   "/search",

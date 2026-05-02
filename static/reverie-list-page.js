@@ -248,7 +248,6 @@ function initReverieListPage(config) {
         });
 
         item.appendChild(meta);
-        appendImagePreview(item, note);
 
         if (note?.summary) {
           const summary = document.createElement("p");
@@ -473,8 +472,6 @@ function initReverieListPage(config) {
         summary.textContent = note.summary;
         card.appendChild(summary);
       }
-
-      appendImagePreview(card, note);
 
       const chips = document.createElement("div");
       chips.className = "chips";

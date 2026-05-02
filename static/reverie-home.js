@@ -511,8 +511,6 @@ function setAuthedState(isAuthed) {
         btn.appendChild(summary);
       }
 
-      appendImagePreview(btn, note);
-
       const chips = document.createElement("div");
       chips.className = "chips";
       const meta = [];
@@ -823,7 +821,6 @@ function setAuthedState(isAuthed) {
         meta.appendChild(chip);
       });
       item.appendChild(meta);
-      appendImagePreview(item, note);
 
       if (note?.summary) {
         const summary = document.createElement("p");

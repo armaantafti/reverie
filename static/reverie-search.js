@@ -7,6 +7,7 @@
   const mapEl = document.getElementById("memoryMapGroups");
 
   let contextNotesOverride = null;
+  let searchHasRun = false;
 
   function normaliseText(value) {
     return String(value || "").toLowerCase();
@@ -78,7 +79,18 @@
 
     summaryEl.style.display = "none";
     summaryEl.textContent = "";
-    statusEl.textContent = query ? "Searching memories..." : "Showing recent memories.";
+
+    if (!searchHasRun) {
+      statusEl.textContent = "Search or tap a tag, entity, or person to begin.";
+      return [];
+    }
+
+    if (!query) {
+      statusEl.textContent = "Enter a search term or tap a memory-map chip.";
+      return [];
+    }
+
+    statusEl.textContent = "Searching memories...";
 
     if (query && smartEl?.checked) {
       statusEl.textContent = "Running smart search...";
@@ -182,6 +194,14 @@
     },
   });
 
+  document.getElementById("searchPageBtn")?.addEventListener("click", () => {
+    searchHasRun = true;
+  }, true);
+
+  queryEl?.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") searchHasRun = true;
+  }, true);
+
   function chipLabel(item) {
     return window.ReverieShared.toDisplayCase(item?.value || "");
   }
@@ -260,6 +280,7 @@
       }
       queryEl.value = title;
       contextNotesOverride = { title, notes };
+      searchHasRun = true;
       document.getElementById("searchPageBtn")?.click();
       document.getElementById("searchResultsList")?.scrollIntoView({ behavior: "smooth", block: "start" });
     } catch (err) {

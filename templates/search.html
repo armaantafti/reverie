@@ -10,7 +10,7 @@
   <link rel="manifest" href="/static/manifest.json" />
   <link rel="icon" href="/static/icon-192.png" />
   <link rel="apple-touch-icon" href="/static/icon-192.png" />
-  <link rel="stylesheet" href="/static/reverie-list-page.css?v=17" />
+  <link rel="stylesheet" href="/static/reverie-list-page.css?v=19" />
 </head>
 <body>
   <div class="shell">
@@ -51,7 +51,7 @@
             <input type="checkbox" id="searchPageSmart" checked />
             <span>Smart search</span>
           </label>
-          <div class="search-status" id="searchPageStatus">Showing recent memories.</div>
+          <div class="search-status" id="searchPageStatus">Search or tap a tag, entity, or person to begin.</div>
           <div class="smart-summary" id="searchPageSummary" style="display:none;"></div>
         </article>
 
@@ -73,7 +73,7 @@
           </div>
           <div class="note-grid" id="searchResultsList">
             <div class="note-card" id="searchResultsEmpty" style="cursor:default;">
-              <h4 class="note-title">No results yet</h4>
+              <h4 class="note-title">Search or tap a memory-map chip</h4>
             </div>
           </div>
         </article>
@@ -225,9 +225,9 @@
     </div>
   </div>
 
-  <script src="/static/reverie-shared.js?v=17"></script>
-  <script src="/static/reverie-list-page.js?v=17"></script>
-  <script src="/static/reverie-search.js?v=17"></script>
+  <script src="/static/reverie-shared.js?v=19"></script>
+  <script src="/static/reverie-list-page.js?v=19"></script>
+  <script src="/static/reverie-search.js?v=19"></script>
   <a class="mobile-fab" href="/#capturePanel" aria-label="Capture memory">+</a>
   <nav class="mobile-tabbar" aria-label="Mobile primary">
     <a href="/" aria-label="Home">
