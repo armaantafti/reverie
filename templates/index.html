@@ -10,7 +10,7 @@
   <link rel="manifest" href="/static/manifest.json" />
   <link rel="icon" href="/static/icon-192.png" />
   <link rel="apple-touch-icon" href="/static/icon-192.png" />
-  <link rel="stylesheet" href="/static/reverie-home.css?v=21" />
+  <link rel="stylesheet" href="/static/reverie-home.css?v=22" />
 </head>
 <body>
   <div class="shell">
@@ -85,9 +85,9 @@
             <textarea id="noteText" placeholder="Write a memory, reminder, or idea..."></textarea>
             <div class="actions">
               <button class="btn btn-primary" id="saveBtn" type="button">Save</button>
-              <button class="btn btn-secondary" id="uploadBtn" type="button">Upload Image</button>
-              <button class="btn btn-secondary" id="documentUploadBtn" type="button">Upload Document</button>
-              <input id="uploadInput" type="file" accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp" multiple class="hidden" />
+              <button class="btn btn-secondary" id="uploadBtn" type="button">Photos / Screenshots</button>
+              <button class="btn btn-secondary" id="documentUploadBtn" type="button">Files / Documents</button>
+              <input id="uploadInput" type="file" accept="image/*" multiple class="hidden" />
               <input id="documentUploadInput" type="file" accept="application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain,text/markdown,application/rtf,text/rtf,application/vnd.oasis.opendocument.text,.pdf,.doc,.docx,.txt,.md,.rtf,.odt" multiple class="hidden" />
             </div>
             <div class="status-line" id="saveStatus" aria-live="polite"></div>
@@ -375,7 +375,7 @@
   <script>
     window.REVERIE_TAGS = {{ predefined_tags | tojson }};
   </script>
-  <script src="/static/reverie-shared.js?v=21"></script>
-  <script src="/static/reverie-home.js?v=21"></script>
+  <script src="/static/reverie-shared.js?v=22"></script>
+  <script src="/static/reverie-home.js?v=22"></script>
 </body>
 </html>
