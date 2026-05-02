@@ -40,6 +40,8 @@ function fillChipContainer(container, values, kind) {
     const saveBtn = document.getElementById("saveBtn");
     const uploadBtn = document.getElementById("uploadBtn");
     const uploadInput = document.getElementById("uploadInput");
+    const documentUploadBtn = document.getElementById("documentUploadBtn");
+    const documentUploadInput = document.getElementById("documentUploadInput");
     const noteTextEl = document.getElementById("noteText");
     const saveStatusEl = document.getElementById("saveStatus");
     const searchQueryEl = document.getElementById("searchQuery");
@@ -984,6 +986,7 @@ function setAuthedState(isAuthed) {
 
       const prev = uploadBtn.textContent;
       uploadBtn.disabled = true;
+      if (documentUploadBtn) documentUploadBtn.disabled = true;
       uploadBtn.textContent = "Uploading…";
       saveStatusEl.textContent = "Uploading files…";
       try {
@@ -1017,8 +1020,10 @@ function setAuthedState(isAuthed) {
         saveStatusEl.textContent = err?.message || "Upload failed.";
       } finally {
         uploadBtn.disabled = false;
+        if (documentUploadBtn) documentUploadBtn.disabled = false;
         uploadBtn.textContent = prev;
         uploadInput.value = "";
+        if (documentUploadInput) documentUploadInput.value = "";
       }
     }
 
@@ -1056,6 +1061,12 @@ function setAuthedState(isAuthed) {
     uploadBtn.addEventListener("click", () => uploadInput.click());
     uploadInput.addEventListener("change", async () => {
       const files = Array.from(uploadInput.files || []);
+      if (!files.length) return;
+      await uploadFiles(files);
+    });
+    documentUploadBtn?.addEventListener("click", () => documentUploadInput?.click());
+    documentUploadInput?.addEventListener("change", async () => {
+      const files = Array.from(documentUploadInput.files || []);
       if (!files.length) return;
       await uploadFiles(files);
     });
