@@ -1,5 +1,5 @@
-const CACHE_NAME = "reverie-pwa-v31";
-const PAGE_CACHE_NAME = "reverie-pages-v31";
+const CACHE_NAME = "reverie-pwa-v32";
+const PAGE_CACHE_NAME = "reverie-pages-v32";
 const STATIC_ASSETS = [
   "/",
   "/search",
@@ -43,6 +43,10 @@ self.addEventListener("fetch", (event) => {
   const request = event.request;
   if (request.method !== "GET") return;
   const url = new URL(request.url);
+  if (request.headers.get("X-Reverie-App-Shell") === "1") {
+    event.respondWith(fetch(request));
+    return;
+  }
 
   if (request.mode === "navigate") {
     event.respondWith(

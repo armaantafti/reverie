@@ -388,7 +388,7 @@ window.ReverieShared = (() => {
     try {
       const resp = await fetch(url.href, {
         credentials: "same-origin",
-        cache: "force-cache",
+        cache: "no-store",
         headers: { "X-Reverie-App-Shell": "1" },
       });
       if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
