@@ -606,12 +606,12 @@ function initReverieListPage(config) {
     async function loadItems(options = {}) {
       try {
         resetEmptyState();
+        if (!options.quiet) showSkeletons();
         if (!(await ensureSession())) {
           setSignedOutState();
           return;
         }
 
-        if (!options.quiet) showSkeletons();
         const notes = config.fetchNotes ? await config.fetchNotes() : await defaultFetchNotes();
         if (notes === null) return;
         lastLoadAt = Date.now();

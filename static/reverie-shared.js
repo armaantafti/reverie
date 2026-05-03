@@ -163,13 +163,16 @@ window.ReverieShared = (() => {
 
   function prefetchPage(link) {
     if (!isFastNavLink(link) || link.dataset.prefetched === "true") return;
+    if (!("requestIdleCallback" in window)) return;
     link.dataset.prefetched = "true";
-    fetch(link.href, {
-      method: "GET",
-      credentials: "same-origin",
-      cache: "force-cache",
-      headers: { "X-Reverie-Prefetch": "1" },
-    }).catch(() => undefined);
+    window.requestIdleCallback(() => {
+      fetch(link.href, {
+        method: "GET",
+        credentials: "same-origin",
+        cache: "force-cache",
+        headers: { "X-Reverie-Prefetch": "1" },
+      }).catch(() => undefined);
+    }, { timeout: 1600 });
   }
 
   function installFastNavigation() {
@@ -181,13 +184,13 @@ window.ReverieShared = (() => {
         document.documentElement.classList.add("route-loading");
       });
     });
-    const likely = ["/", "/search", "/tasks", "/recommendations", "/entities", "/uploads"];
-    window.setTimeout(() => {
-      likely
-        .filter((path) => path !== window.location.pathname)
-        .slice(0, 4)
-        .forEach((path) => fetch(path, { credentials: "same-origin", cache: "force-cache" }).catch(() => undefined));
-    }, 900);
+    if ("requestIdleCallback" in window) {
+      window.requestIdleCallback(() => {
+        ["/tasks", "/recommendations"]
+          .filter((path) => path !== window.location.pathname)
+          .forEach((path) => fetch(path, { credentials: "same-origin", cache: "force-cache" }).catch(() => undefined));
+      }, { timeout: 2500 });
+    }
   }
 
   if (document.readyState === "loading") {
