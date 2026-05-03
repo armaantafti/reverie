@@ -154,6 +154,9 @@ function setAuthedState(isAuthed) {
       appShell.classList.toggle("hidden", !isAuthed);
       logoutBtn.classList.toggle("hidden", !isAuthed);
       loginState.textContent = isAuthed ? "Signed in" : "Signed out";
+      if (isAuthed) {
+        localStorage.setItem("reverie_seen_authenticated", "1");
+      }
     }
 
     async function getSessionInfo(force = false) {
@@ -1187,6 +1190,7 @@ function setAuthedState(isAuthed) {
       invalidateSession();
       clearApiCache();
       localStorage.removeItem("reverie_email");
+      localStorage.removeItem("reverie_seen_authenticated");
       setAuthedState(false);
       authEmail.value = "";
       authPassword.value = "";
@@ -1212,6 +1216,7 @@ function setAuthedState(isAuthed) {
         await apiPost(path, { email, password });
 
         localStorage.setItem("reverie_email", email);
+        localStorage.setItem("reverie_seen_authenticated", "1");
         markSessionAuthenticated({ email });
         const authed = await ensureSession(true);
         if (!authed) {
@@ -1343,11 +1348,13 @@ function setAuthedState(isAuthed) {
       }
 
       setAuthMode("login");
-      const cachedSession = await getSessionInfo(false);
-      const hasLoginHint = Boolean(cachedSession?.authenticated || localStorage.getItem("reverie_email"));
+      const hasLoginHint = Boolean(localStorage.getItem("reverie_email") || localStorage.getItem("reverie_seen_authenticated"));
       if (hasLoginHint) {
         showCachedHomeShell();
-        ensureSession(true).then((isAuthed) => {
+        getSessionInfo(false).then((cachedSession) => {
+          if (cachedSession?.authenticated) return true;
+          return ensureSession(true);
+        }).then((isAuthed) => {
           if (isAuthed) {
             loadForYou();
           } else {
@@ -1355,6 +1362,12 @@ function setAuthedState(isAuthed) {
           }
         });
       } else {
+        const cachedSession = await getSessionInfo(false);
+        if (cachedSession?.authenticated) {
+          showCachedHomeShell();
+          loadForYou();
+          return;
+        }
         if (await ensureSession(true)) {
           showAppForUser();
         } else {
