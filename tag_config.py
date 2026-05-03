@@ -16,6 +16,7 @@ PREDEFINED_TAGS = (
     "goals",
     "communication",
     "documents",
+    "identity document",
     "events",
 )
 
@@ -37,6 +38,7 @@ TAG_WEIGHTS = {
     "fitness": 0.60,
     "travel": 0.56,
     "documents": 0.54,
+    "identity document": 0.72,
     "ideas": 0.52,
     "food": 0.46,
     "entertainment": 0.40,

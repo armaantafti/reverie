@@ -152,7 +152,7 @@ function setAuthMode(nextMode) {
 function setAuthedState(isAuthed) {
       authPanel.classList.toggle("hidden", isAuthed);
       appShell.classList.toggle("hidden", !isAuthed);
-      logoutBtn.classList.toggle("hidden", !isAuthed);
+      logoutBtn?.classList.toggle("hidden", !isAuthed);
       loginState.textContent = isAuthed ? "Signed in" : "Signed out";
       if (isAuthed) {
         localStorage.setItem("reverie_seen_authenticated", "1");
@@ -752,6 +752,7 @@ function setAuthedState(isAuthed) {
     }
 
     function showForYouSkeleton() {
+      forYouMoreBtn?.classList.add("hidden");
       if (forYouListEl.querySelector(".note-card:not(.skeleton-card)")) return;
       forYouListEl.innerHTML = "";
       for (let i = 0; i < 3; i += 1) {
@@ -765,6 +766,7 @@ function setAuthedState(isAuthed) {
     function renderForYouCards(notes) {
       forYouListEl.innerHTML = "";
       if (!notes.length) {
+        forYouMoreBtn?.classList.add("hidden");
         forYouEmptyEl.style.display = "";
         forYouListEl.appendChild(forYouEmptyEl);
         return;
@@ -774,6 +776,7 @@ function setAuthedState(isAuthed) {
         const card = renderNoteCard(note, "featured", { showStatusButton: true });
         forYouListEl.appendChild(card);
       });
+      forYouMoreBtn?.classList.remove("hidden");
     }
 
     function renderContextItem(note, showStatusButton = false, showManageActions = false) {
@@ -929,7 +932,7 @@ function setAuthedState(isAuthed) {
         forYouModalList.appendChild(empty);
       }
     }
-    forYouMoreBtn.addEventListener("click", openForYouModal);
+    forYouMoreBtn?.addEventListener("click", openForYouModal);
     forYouClose.addEventListener("click", () => setModalVisible(forYouBackdrop, false));
     forYouBackdrop.addEventListener("click", (e) => { if (e.target === forYouBackdrop) setModalVisible(forYouBackdrop, false); });
     statusClose.addEventListener("click", closeStatusModal);
@@ -1240,7 +1243,7 @@ function setAuthedState(isAuthed) {
     loginTab.addEventListener("click", () => setAuthMode("login"));
     signupTab.addEventListener("click", () => setAuthMode("signup"));
     authForm.addEventListener("submit", handleAuthSubmit);
-    logoutBtn.addEventListener("click", async () => {
+    logoutBtn?.addEventListener("click", async () => {
       await performLogout();
     });
 

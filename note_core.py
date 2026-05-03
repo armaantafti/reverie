@@ -75,6 +75,89 @@ def _clean_tags(tags: list[str]) -> list[str]:
     return cleaned
 
 
+IDENTITY_DOCUMENT_PATTERNS: tuple[tuple[str, tuple[str, ...]], ...] = (
+    ("aadhaar", (r"\baadhaar\b", r"\baadhar\b", r"unique identification authority")),
+    ("pan", (r"\bpan\b", r"permanent account number", r"income tax department")),
+    ("passport", (r"\bpassport\b", r"republic of india")),
+    ("birth certificate", (r"birth certificate", r"certificate of birth")),
+    ("driving license", (r"driving licen[cs]e", r"\bdl\s*(no|number)\b")),
+    ("voter id", (r"voter\s*id", r"election commission")),
+)
+
+IDENTITY_NAME_STOPWORDS = {
+    "government of india",
+    "income tax department",
+    "unique identification authority",
+    "republic of india",
+    "election commission",
+}
+
+
+def _detect_identity_document(text: str) -> Optional[str]:
+    haystack = _normalise_lookup_key(text)
+    if not haystack:
+        return None
+    for doc_type, patterns in IDENTITY_DOCUMENT_PATTERNS:
+        if any(re.search(pattern, haystack, flags=re.IGNORECASE) for pattern in patterns):
+            return doc_type
+    return None
+
+
+def _extract_identity_person_name(text: str) -> Optional[str]:
+    raw = text or ""
+    patterns = (
+        r"(?:name|full name|name of holder)\s*[:\-]?\s*([A-Za-z][A-Za-z .]{2,80})",
+        r"(?:father'?s name|mother'?s name)\s*[:\-]?\s*([A-Za-z][A-Za-z .]{2,80})",
+    )
+    for pattern in patterns:
+        match = re.search(pattern, raw, flags=re.IGNORECASE)
+        if not match:
+            continue
+        candidate = re.split(r"[\n\r|]", match.group(1), 1)[0].strip(" .:-")
+        key = _normalise_lookup_key(candidate)
+        if candidate and key not in IDENTITY_NAME_STOPWORDS:
+            return candidate.title()
+
+    for line in raw.splitlines():
+        candidate = re.sub(r"[^A-Za-z .]", " ", line).strip()
+        key = _normalise_lookup_key(candidate)
+        words = [word for word in candidate.split() if len(word) > 1]
+        if 2 <= len(words) <= 5 and key not in IDENTITY_NAME_STOPWORDS:
+            if not any(token in key for token in ("address", "date", "birth", "male", "female", "number")):
+                return " ".join(words).title()
+    return None
+
+
+def _display_identity_doc_type(doc_type: str) -> str:
+    if doc_type == "pan":
+        return "PAN"
+    return doc_type.title()
+
+
+def _apply_identity_document_metadata(fields: Dict[str, Any], transcript: str) -> Dict[str, Any]:
+    doc_type = _detect_identity_document(transcript)
+    if not doc_type:
+        return fields
+
+    updated = dict(fields)
+    person_name = _coerce_text(updated.get("person_name")) or _extract_identity_person_name(transcript)
+    if person_name:
+        updated["person_name"] = person_name
+
+    updated["note_type"] = "passive"
+    updated["tags"] = _clean_tags(_coerce_list(updated.get("tags")) + ["identity document"])[:3]
+    updated["entities"] = _dedupe_case_insensitive([doc_type] + _coerce_list(updated.get("entities")))[:5]
+
+    doc_label = _display_identity_doc_type(doc_type)
+    if person_name:
+        updated["title"] = f"{doc_label} for {person_name}"
+        updated["summary"] = updated.get("summary") or f"Identity document saved for {person_name}."
+    else:
+        updated["title"] = updated.get("title") or f"{doc_label} identity document"
+        updated["summary"] = updated.get("summary") or f"{doc_label} identity document saved."
+    return updated
+
+
 def _load_entity_alias_rows(user_id: str) -> list[dict[str, Any]]:
     resolved_user_id = (user_id or "").strip()
     if not resolved_user_id:
@@ -520,7 +603,8 @@ def extract_note_fields(transcript: str) -> Dict[str, Any]:
     except Exception:
         fields = _fallback_extract(text)
 
-    return _normalise_extracted_fields(fields, text)
+    normalized = _normalise_extracted_fields(fields, text)
+    return _apply_identity_document_metadata(normalized, text)
 
 
 def build_text_note_payload(

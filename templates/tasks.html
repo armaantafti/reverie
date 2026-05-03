@@ -10,14 +10,14 @@
   <link rel="manifest" href="/static/manifest.json" />
   <link rel="icon" href="/static/icon-192.png" />
   <link rel="apple-touch-icon" href="/static/icon-192.png" />
-  <link rel="stylesheet" href="/static/reverie-list-page.min.css?v=36" />
+  <link rel="stylesheet" href="/static/reverie-list-page.min.css?v=37" />
 </head>
 <body>
   <div class="shell">
     <header class="topbar">
       <div class="topbar-inner">
         <div class="brand">
-          <div class="brand-mark"><img src="/static/logo_reverie.webp?v=36" alt="Reverie" /></div>
+          <div class="brand-mark"><img src="/static/logo_reverie.webp?v=37" alt="Reverie" /></div>
           <div class="brand-copy">
             <h1 class="brand-name">Reverie</h1>
             <p class="brand-line">Remember better.</p>
@@ -49,6 +49,7 @@
         <article class="panel">
           <div class="panel-head">
             <div class="section-kicker">Earlier</div>
+            <button class="btn btn-ghost earlier-toggle" id="tasksEarlierToggle" type="button" aria-expanded="false">Load earlier</button>
           </div>
           <div class="note-grid" id="tasksPastList">
             <div class="note-card" id="tasksPastEmpty" style="cursor:default;display:none;">
@@ -196,8 +197,8 @@
     </div>
   </div>
 
-  <script src="/static/reverie-shared.min.js?v=36" defer></script>
-  <script src="/static/reverie-list-page.min.js?v=36" defer></script>
+  <script src="/static/reverie-shared.min.js?v=37" defer></script>
+  <script src="/static/reverie-list-page.min.js?v=37" defer></script>
   <script>
   function initTasksPage() {
     if ("serviceWorker" in navigator) {
@@ -218,6 +219,8 @@
         listId: "tasksPastList",
         emptyId: "tasksPastEmpty",
         emptyText: "No past tasks",
+        revealButtonId: "tasksEarlierToggle",
+        hiddenText: "Tap Load earlier to show completed or older tasks",
       },
       signedOutText: "Sign in on Home to view tasks",
       notesUrl: "/notes?types=note,reminder&limit=60",
@@ -332,7 +335,7 @@
     </div>
     <div class="status-line" id="quickCaptureStatus" aria-live="polite"></div>
   </section>
-  <script src="/static/reverie-capture.min.js?v=36" defer></script>
+  <script src="/static/reverie-capture.min.js?v=37" defer></script>
   <a class="mobile-fab" href="#quickCapturePanel" aria-label="Capture memory">+</a>
   <nav class="mobile-tabbar" aria-label="Mobile primary">
     <a href="/" aria-label="Home">
@@ -347,10 +350,40 @@
       <span class="tab-icon">&#10003;</span>
       <span>Tasks</span>
     </a>
-    <a href="/#account" aria-label="Account">
+    <a href="#account" aria-label="Account">
       <span class="tab-icon">&#9881;</span>
       <span>Account</span>
     </a>
   </nav>
+  <div class="modal-backdrop mobile-account-backdrop" id="mobileAccountBackdrop" aria-hidden="true">
+    <div class="modal mobile-account-sheet" role="dialog" aria-modal="true" aria-labelledby="mobileAccountTitle">
+      <div class="modal-head">
+        <div>
+          <h3 class="modal-title" id="mobileAccountTitle">Account</h3>
+          <p class="modal-sub">Manage your Reverie workspace</p>
+        </div>
+        <button class="modal-close" id="mobileAccountClose" type="button" aria-label="Close">x</button>
+      </div>
+      <div class="account-actions">
+        <a class="account-action" href="/entities">
+          <span>Manage Entities</span>
+          <small>Merge, rename, and organize names or topics</small>
+        </a>
+        <a class="account-action" href="/uploads">
+          <span>Manage Uploads</span>
+          <small>Remove image or document files while keeping memories</small>
+        </a>
+        <a class="account-action" href="/privacy">
+          <span>Privacy</span>
+          <small>Review data and account information</small>
+        </a>
+        <button class="account-action danger" id="mobileLogoutBtn" type="button">
+          <span>Log out</span>
+          <small>End this session on this device</small>
+        </button>
+      </div>
+    </div>
+  </div>
+  <script src="/static/reverie-account.min.js?v=37" defer></script>
 </body>
 </html>

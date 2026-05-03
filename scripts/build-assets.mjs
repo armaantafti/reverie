@@ -10,6 +10,7 @@ const files = [
   "static/reverie-entities.js",
   "static/reverie-uploads.js",
   "static/reverie-capture.js",
+  "static/reverie-account.js",
   "static/service-worker.js",
 ];
 

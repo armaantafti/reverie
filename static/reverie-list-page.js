@@ -28,6 +28,7 @@ function initReverieListPage(config) {
     const primaryEmpty = document.getElementById(config.primary.emptyId);
     const secondaryList = document.getElementById(config.secondary.listId);
     const secondaryEmpty = document.getElementById(config.secondary.emptyId);
+    const secondaryRevealButton = config.secondary.revealButtonId ? document.getElementById(config.secondary.revealButtonId) : null;
 
     const detailBackdrop = document.getElementById(config.detail.backdropId);
     const detailClose = document.getElementById(config.detail.closeId);
@@ -75,6 +76,7 @@ function initReverieListPage(config) {
     let activeDetailNote = null;
     let activeEditNote = null;
     let lastLoadAt = 0;
+    let secondaryVisible = !secondaryRevealButton;
     const CACHE_TTL_MS = 25000;
     const cachePrefix = "reverie:list:";
 
@@ -158,7 +160,24 @@ function initReverieListPage(config) {
       lastLoadAt = Date.now();
       const groups = config.splitNotes(Array.isArray(notes) ? notes : []);
       renderNotesProgressively(primaryList, primaryEmpty, groups.primary);
+      if (secondaryRevealButton && !secondaryVisible) {
+        secondaryList.innerHTML = "";
+        secondaryEmpty.style.display = "";
+        secondaryEmpty.querySelector(".note-title").textContent = groups.secondary.length
+          ? (config.secondary.hiddenText || "Tap to load earlier items")
+          : config.secondary.emptyText;
+        secondaryList.appendChild(secondaryEmpty);
+        secondaryRevealButton.disabled = !groups.secondary.length;
+        secondaryRevealButton.setAttribute("aria-expanded", "false");
+        secondaryRevealButton.textContent = groups.secondary.length ? `Load earlier (${groups.secondary.length})` : "No earlier";
+        return;
+      }
       renderNotesProgressively(secondaryList, secondaryEmpty, groups.secondary);
+      if (secondaryRevealButton) {
+        secondaryRevealButton.disabled = false;
+        secondaryRevealButton.setAttribute("aria-expanded", "true");
+        secondaryRevealButton.textContent = "Hide earlier";
+      }
     }
 
     function closeDetail() {
@@ -693,6 +712,10 @@ function initReverieListPage(config) {
     reloadButton?.addEventListener("click", () => loadItems());
     searchInput?.addEventListener("keydown", (e) => {
       if (e.key === "Enter") loadItems();
+    });
+    secondaryRevealButton?.addEventListener("click", () => {
+      secondaryVisible = !secondaryVisible;
+      loadItems({ quiet: true });
     });
 
     loadItems();
