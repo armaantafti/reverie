@@ -1338,6 +1338,19 @@ function setAuthedState(isAuthed) {
       }
     });
 
+    window.addEventListener("pageshow", (event) => {
+      if (!event.persisted) return;
+      ensureSession(true).then((isAuthed) => {
+        if (isAuthed) {
+          setAuthedState(true);
+          buildTagShelf();
+          loadForYou();
+        } else {
+          setAuthedState(false);
+        }
+      });
+    });
+
     (async function boot() {
       if ("serviceWorker" in navigator) {
         window.addEventListener("load", () => {

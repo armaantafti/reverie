@@ -1,5 +1,5 @@
-const CACHE_NAME = "reverie-pwa-v34";
-const PAGE_CACHE_NAME = "reverie-pages-v34";
+const CACHE_NAME = "reverie-pwa-v35";
+const PAGE_CACHE_NAME = "reverie-pages-v35";
 const STATIC_ASSETS = [
   "/",
   "/search",
@@ -51,15 +51,12 @@ self.addEventListener("fetch", (event) => {
   if (request.mode === "navigate") {
     event.respondWith(
       caches.open(PAGE_CACHE_NAME).then((cache) =>
-        cache.match(request).then((cached) => {
-          const network = fetch(request)
-            .then((response) => {
-              if (response.ok) cache.put(request, response.clone());
-              return response;
-            })
-            .catch(() => cached || caches.match("/") || Response.error());
-          return cached || network;
-        })
+        fetch(request)
+          .then((response) => {
+            if (response.ok) cache.put(request, response.clone());
+            return response;
+          })
+          .catch(() => cache.match(request).then((cached) => cached || caches.match("/") || Response.error()))
       )
     );
     return;
