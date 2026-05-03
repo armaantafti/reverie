@@ -1,6 +1,6 @@
 window.ReverieShared = (() => {
   const SESSION_CACHE_KEY = "reverie:session:v1";
-  const SESSION_TTL_MS = 60000;
+  const SESSION_TTL_MS = 600000;
   const API_CACHE_PREFIX = "reverie:api:";
 
   const isStandalone = window.matchMedia?.("(display-mode: standalone)")?.matches

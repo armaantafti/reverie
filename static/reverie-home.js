@@ -1172,6 +1172,17 @@ function setAuthedState(isAuthed) {
       runSearch();
     }
 
+    function showCachedHomeShell() {
+      setAuthedState(true);
+      buildTagShelf();
+      const cachedForYou = readApiCache("/for-you?limit=3", 120000);
+      if (cachedForYou?.notes) {
+        renderForYouCards(Array.isArray(cachedForYou.notes) ? cachedForYou.notes : []);
+      } else {
+        showForYouSkeleton();
+      }
+    }
+
     function clearSession() {
       invalidateSession();
       clearApiCache();
@@ -1333,24 +1344,21 @@ function setAuthedState(isAuthed) {
 
       setAuthMode("login");
       const cachedSession = await getSessionInfo(false);
-      if (cachedSession?.authenticated) {
-        setAuthedState(true);
-        buildTagShelf();
-        loadForYou();
-        runSearch();
+      const hasLoginHint = Boolean(cachedSession?.authenticated || localStorage.getItem("reverie_email"));
+      if (hasLoginHint) {
+        showCachedHomeShell();
+        ensureSession(true).then((isAuthed) => {
+          if (isAuthed) {
+            loadForYou();
+          } else {
+            setAuthedState(false);
+          }
+        });
       } else {
         if (await ensureSession(true)) {
-          setAuthedState(true);
-          buildTagShelf();
-          loadForYou();
-          runSearch();
+          showAppForUser();
         } else {
           setAuthedState(false);
         }
-      }
-      if (cachedSession?.authenticated) {
-        ensureSession(true).then((isAuthed) => {
-          if (!isAuthed) setAuthedState(false);
-        });
       }
     })();
