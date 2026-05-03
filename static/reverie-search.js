@@ -109,12 +109,11 @@
     }
 
     const url = new URL("/notes", window.location.origin);
+    url.searchParams.set("query", query);
+    if (cleanDays) url.searchParams.set("days", String(cleanDays));
     url.searchParams.set("_", String(Date.now()));
     const notes = await fetchJson(url.toString());
-    const terms = query.toLowerCase().split(/\s+/).filter(Boolean);
-    const filtered = (Array.isArray(notes) ? notes : [])
-      .filter((note) => matchesQuery(note, terms))
-      .filter((note) => matchesDays(note, cleanDays));
+    const filtered = Array.isArray(notes) ? notes : [];
 
     statusEl.textContent = `${filtered.length} ${filtered.length === 1 ? "match" : "matches"} found.`;
     return filtered;

@@ -83,6 +83,46 @@ def get_user_notes(user_id: str, note_types: Optional[list[str]] = None, limit: 
     return result.data or []
 
 
+CARD_NOTE_FIELDS = {
+    "id",
+    "title",
+    "summary",
+    "note_type",
+    "memory_type",
+    "person_name",
+    "tags",
+    "entities",
+    "due_time",
+    "status",
+    "status_note",
+    "created_at",
+    "updated_at",
+}
+
+
+def _card_note(note: dict[str, Any]) -> dict[str, Any]:
+    return {key: note.get(key) for key in CARD_NOTE_FIELDS if key in note}
+
+
+def _card_notes(notes: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    return [_card_note(note) for note in notes]
+
+
+def get_user_note_detail(user_id: str, note_id: str) -> dict[str, Any]:
+    result = (
+        supabase_admin.table("notes")
+        .select("*")
+        .eq("id", note_id)
+        .eq("user_id", user_id)
+        .limit(1)
+        .execute()
+    )
+    rows = result.data or []
+    if not rows:
+        raise HTTPException(status_code=404, detail="note not found")
+    return rows[0]
+
+
 def _parse_note_types(types: Optional[str]) -> list[str]:
     return [item.strip().lower() for item in (types or "").split(",") if item.strip()]
 
@@ -458,7 +498,15 @@ def list_notes(
 ):
     notes = get_user_notes(_get_authenticated_user_id(request), note_types=_parse_note_types(types), limit=limit)
     results = filter_notes(notes, query=query, days=days)
-    return results
+    return _card_notes(results)
+
+
+@app.get("/notes/{note_id}")
+def note_detail(note_id: str, request: Request):
+    clean_note_id = (note_id or "").strip()
+    if not clean_note_id:
+        raise HTTPException(status_code=400, detail="note_id is required")
+    return get_user_note_detail(_get_authenticated_user_id(request), clean_note_id)
 
 
 @app.get("/for-you")
@@ -468,14 +516,14 @@ def for_you(
 ):
     notes = get_user_notes(_get_authenticated_user_id(request))
     ranked = rank_for_you(notes, limit=limit)
-    return {"notes": ranked, "count": len(ranked)}
+    return {"notes": _card_notes(ranked), "count": len(ranked)}
 
 
 @app.get("/for-you/all")
 def for_you_all(request: Request):
     notes = get_user_notes(_get_authenticated_user_id(request))
     ranked = rank_for_you(notes, limit=None)
-    return {"notes": ranked, "count": len(ranked)}
+    return {"notes": _card_notes(ranked), "count": len(ranked)}
 
 
 @app.get("/context")
@@ -486,7 +534,7 @@ def context_view(
 ):
     notes = get_user_notes(_get_authenticated_user_id(request))
     results = context_notes(notes, kind=kind, value=value)
-    return {"kind": kind, "value": value, "notes": results, "count": len(results)}
+    return {"kind": kind, "value": value, "notes": _card_notes(results), "count": len(results)}
 
 
 @app.get("/entities/manage")
@@ -571,7 +619,7 @@ def context_summary(payload: ContextSummaryIn, request: Request):
             summary = summarise_search(f"Summarise everything filed under {label}", results)
         except Exception:
             summary = "Smart summary could not be generated for this group."
-        return {"kind": kind, "value": value, "summary": summary, "notes": results, "count": len(results)}
+        return {"kind": kind, "value": value, "summary": summary, "notes": _card_notes(results), "count": len(results)}
     except HTTPException:
         raise
     except Exception as e:
@@ -603,7 +651,7 @@ def smart_search(payload: SmartSearchIn, request: Request):
             summary = "Smart summarise failed."
         return {
             "summary": summary,
-            "notes": filtered,
+            "notes": _card_notes(filtered),
         }
     except HTTPException:
         raise

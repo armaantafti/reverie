@@ -6,6 +6,10 @@ window.ReverieShared = (() => {
   const isStandalone = window.matchMedia?.("(display-mode: standalone)")?.matches
     || window.navigator.standalone === true;
   document.documentElement.classList.toggle("app-mode", Boolean(isStandalone));
+  window.ReveriePageCleanup?.forEach?.((cleanup) => {
+    try { cleanup(); } catch (_) {}
+  });
+  window.ReveriePageCleanup = [];
 
   let sessionInfoPromise = null;
 
@@ -241,6 +245,22 @@ window.ReverieShared = (() => {
     return String(note?.id || note?.note_id || "").trim();
   }
 
+  async function fetchNoteDetail(note) {
+    const id = noteId(note);
+    if (!id) return note || null;
+    const cacheUrl = `/notes/${encodeURIComponent(id)}`;
+    const cached = readApiCache(cacheUrl, 120000);
+    if (cached) return { ...(note || {}), ...cached };
+    const resp = await fetch(cacheUrl, {
+      credentials: "same-origin",
+      cache: "no-store",
+    });
+    if (!resp.ok) throw new Error(resp.status === 404 ? "Note not found." : `HTTP ${resp.status}`);
+    const detail = await resp.json();
+    writeApiCache(cacheUrl, detail);
+    return { ...(note || {}), ...detail };
+  }
+
   function setModalVisible(backdrop, visible) {
     backdrop.style.display = visible ? "flex" : "none";
     backdrop.setAttribute("aria-hidden", visible ? "false" : "true");
@@ -328,10 +348,98 @@ window.ReverieShared = (() => {
     }
   }
 
+  function isAppShellRoute(url) {
+    if (url.origin !== window.location.origin) return false;
+    return ["/", "/search", "/tasks", "/recommendations"].includes(url.pathname);
+  }
+
+  function runDynamicScript(sourceScript) {
+    return new Promise((resolve, reject) => {
+      const script = document.createElement("script");
+      [...sourceScript.attributes].forEach((attr) => {
+        if (attr.name !== "defer") script.setAttribute(attr.name, attr.value);
+      });
+      if (sourceScript.src) {
+        script.onload = () => resolve();
+        script.onerror = () => reject(new Error(`Could not load ${sourceScript.src}`));
+        script.src = sourceScript.src;
+      } else {
+        script.textContent = sourceScript.textContent || "";
+        resolve();
+      }
+      document.body.appendChild(script);
+    });
+  }
+
+  function syncHeadAssets(nextDoc) {
+    document.title = nextDoc.title || document.title;
+    document.querySelectorAll('link[rel="stylesheet"]').forEach((link) => link.remove());
+    nextDoc.querySelectorAll('link[rel="stylesheet"]').forEach((link) => {
+      document.head.appendChild(link.cloneNode(true));
+    });
+  }
+
+  async function navigateAppShell(url, replace = false) {
+    document.documentElement.classList.add("route-loading");
+    window.ReveriePageCleanup?.forEach?.((cleanup) => {
+      try { cleanup(); } catch (_) {}
+    });
+    window.ReveriePageCleanup = [];
+    try {
+      const resp = await fetch(url.href, {
+        credentials: "same-origin",
+        cache: "force-cache",
+        headers: { "X-Reverie-App-Shell": "1" },
+      });
+      if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+      const html = await resp.text();
+      const nextDoc = new DOMParser().parseFromString(html, "text/html");
+      syncHeadAssets(nextDoc);
+      const scripts = [...nextDoc.body.querySelectorAll("script")];
+      scripts.forEach((script) => script.remove());
+      document.body.className = nextDoc.body.className;
+      document.body.innerHTML = nextDoc.body.innerHTML;
+      if (replace) window.history.replaceState({ reverieShell: true }, "", url.href);
+      else window.history.pushState({ reverieShell: true }, "", url.href);
+      for (const script of scripts) {
+        await runDynamicScript(script);
+      }
+      window.scrollTo({ top: 0, behavior: "instant" });
+    } catch (err) {
+      console.warn("App shell navigation fell back to full navigation", err);
+      window.location.href = url.href;
+    } finally {
+      document.documentElement.classList.remove("route-loading");
+    }
+  }
+
+  function installAppShellNavigation() {
+    if (window.__reverieAppShellInstalled) return;
+    window.__reverieAppShellInstalled = true;
+    document.addEventListener("click", (event) => {
+      const link = event.target?.closest?.("a[href]");
+      if (!link || link.target || link.hasAttribute("download")) return;
+      const href = link.getAttribute("href") || "";
+      if (!href || href.startsWith("#") || href.startsWith("mailto:") || href.startsWith("tel:")) return;
+      const url = new URL(link.href, window.location.href);
+      if (!isAppShellRoute(url)) return;
+      event.preventDefault();
+      navigateAppShell(url);
+    });
+    window.addEventListener("popstate", () => {
+      const url = new URL(window.location.href);
+      if (isAppShellRoute(url)) navigateAppShell(url, true);
+    });
+  }
+
   if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", installFastNavigation, { once: true });
+    document.addEventListener("DOMContentLoaded", () => {
+      installFastNavigation();
+      installAppShellNavigation();
+    }, { once: true });
   } else {
     installFastNavigation();
+    installAppShellNavigation();
   }
 
   return {
@@ -342,6 +450,7 @@ window.ReverieShared = (() => {
     ensureSession,
     markSessionAuthenticated,
     invalidateSession,
+    navigateAppShell,
     normaliseTags,
     normaliseEntities,
     toDisplayCase,
@@ -361,6 +470,7 @@ window.ReverieShared = (() => {
     isActionableNote,
     statusLabel,
     noteId,
+    fetchNoteDetail,
     setModalVisible,
     installFastNavigation,
   };

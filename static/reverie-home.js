@@ -1,4 +1,4 @@
-    const { normaliseTags, normaliseEntities, toDisplayCase, displayNoteType, displayPerson, displayTag, displayEntity, formatWhen, toInputDateTimeValue, fromInputDateTimeValue, splitCommaList, chipClass, makeChip, appendImagePreview, fillAssetActions, noteStatus, isActionableNote, statusLabel, noteId, setModalVisible, readApiCache, writeApiCache, clearApiCache, getSessionInfo: sharedGetSessionInfo, markSessionAuthenticated, invalidateSession } = window.ReverieShared;
+    const { normaliseTags, normaliseEntities, toDisplayCase, displayNoteType, displayPerson, displayTag, displayEntity, formatWhen, toInputDateTimeValue, fromInputDateTimeValue, splitCommaList, chipClass, makeChip, appendImagePreview, fillAssetActions, noteStatus, isActionableNote, statusLabel, noteId, fetchNoteDetail, setModalVisible, readApiCache, writeApiCache, clearApiCache, getSessionInfo: sharedGetSessionInfo, markSessionAuthenticated, invalidateSession } = window.ReverieShared;
     const ALL_TAGS = Array.isArray(window.REVERIE_TAGS) ? window.REVERIE_TAGS : [];
     const TOPIC_BUTTONS = [...ALL_TAGS, "passive"];
 
@@ -539,7 +539,7 @@ function setAuthedState(isAuthed) {
       });
     }
 
-    function openDetail(note) {
+    function fillDetail(note, loading = false) {
       activeDetailNote = note || null;
       detailTitle.textContent = note?.title || "(no title)";
       const bits = [];
@@ -550,7 +550,7 @@ function setAuthedState(isAuthed) {
       if (note?.due_time) bits.push(formatWhen(note.due_time));
       detailSub.textContent = bits.join(" · ");
       detailSummary.textContent = note?.summary || "";
-      detailRaw.textContent = note?.extracted_text || note?.raw_text || "";
+      detailRaw.textContent = loading ? "Loading details..." : (note?.extracted_text || note?.raw_text || "");
       detailPerson.textContent = note?.person_name ? displayPerson(note.person_name) : "-";
       detailTime.textContent = note?.due_time ? formatWhen(note.due_time) : "-";
       detailStatus.innerHTML = "";
@@ -574,7 +574,17 @@ function setAuthedState(isAuthed) {
       detailImage.dataset.src = note?.image_url && note?.memory_type === "image" ? note.image_url : "";
       detailImage.style.display = "none";
       fillAssetActions(detailAssetActions, note);
+    }
+
+    async function openDetail(note) {
+      fillDetail(note, true);
       setModalVisible(detailBackdrop, true);
+      try {
+        const fullNote = await fetchNoteDetail(note);
+        if (noteId(activeDetailNote) === noteId(note)) fillDetail(fullNote, false);
+      } catch (err) {
+        detailRaw.textContent = err?.message || "Could not load details.";
+      }
     }
 
     function closeDetail() {
