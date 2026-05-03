@@ -1351,15 +1351,7 @@ function setAuthedState(isAuthed) {
       });
     });
 
-    (async function boot() {
-      if ("serviceWorker" in navigator) {
-        window.addEventListener("load", () => {
-          navigator.serviceWorker.register("/service-worker.js").catch((err) => {
-            console.warn("Service worker registration failed", err);
-          });
-        });
-      }
-
+    async function initHomePage() {
       setAuthMode("login");
       const hasLoginHint = Boolean(localStorage.getItem("reverie_email") || localStorage.getItem("reverie_seen_authenticated"));
       if (hasLoginHint) {
@@ -1387,4 +1379,19 @@ function setAuthedState(isAuthed) {
           setAuthedState(false);
         }
       }
+    }
+
+    window.ReveriePageInit = initHomePage;
+    window.ReverieHomeInit = initHomePage;
+
+    (async function boot() {
+      if ("serviceWorker" in navigator) {
+        window.addEventListener("load", () => {
+          navigator.serviceWorker.register("/service-worker.js").catch((err) => {
+            console.warn("Service worker registration failed", err);
+          });
+        });
+      }
+
+      await initHomePage();
     })();

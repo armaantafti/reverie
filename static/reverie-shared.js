@@ -350,7 +350,7 @@ window.ReverieShared = (() => {
 
   function isAppShellRoute(url) {
     if (url.origin !== window.location.origin) return false;
-    return ["/", "/search", "/tasks", "/recommendations"].includes(url.pathname);
+    return ["/search", "/tasks", "/recommendations"].includes(url.pathname);
   }
 
   function runDynamicScript(sourceScript) {
@@ -404,6 +404,7 @@ window.ReverieShared = (() => {
       for (const script of scripts) {
         await runDynamicScript(script);
       }
+      await window.ReveriePageInit?.({ fromAppShell: true, path: url.pathname });
       window.scrollTo({ top: 0, behavior: "instant" });
     } catch (err) {
       console.warn("App shell navigation fell back to full navigation", err);
