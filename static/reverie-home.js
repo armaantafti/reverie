@@ -750,6 +750,17 @@ function setAuthedState(isAuthed) {
       });
     }
 
+    function showForYouSkeleton() {
+      if (forYouListEl.querySelector(".note-card:not(.skeleton-card)")) return;
+      forYouListEl.innerHTML = "";
+      for (let i = 0; i < 3; i += 1) {
+        const card = document.createElement("div");
+        card.className = "note-card skeleton-card";
+        card.innerHTML = '<div class="skeleton-line wide"></div><div class="skeleton-line"></div><div class="skeleton-chips"><span></span><span></span><span></span></div>';
+        forYouListEl.appendChild(card);
+      }
+    }
+
     function renderContextItem(note, showStatusButton = false, showManageActions = false) {
       const item = document.createElement("div");
       item.className = "context-item";
@@ -864,14 +875,17 @@ function setAuthedState(isAuthed) {
 
     async function loadForYou() {
       if (!(await ensureSession())) return;
+      showForYouSkeleton();
       try {
         const data = await apiGet("/for-you", { limit: 3 });
         const notes = Array.isArray(data?.notes) ? data.notes : [];
         forYouListEl.innerHTML = "";
         if (!notes.length) {
+          forYouEmptyEl.style.display = "";
           forYouListEl.appendChild(forYouEmptyEl);
           return;
         }
+        forYouEmptyEl.style.display = "none";
         notes.forEach(note => {
           const card = renderNoteCard(note, "featured", { showStatusButton: true });
           forYouListEl.appendChild(card);
@@ -879,6 +893,7 @@ function setAuthedState(isAuthed) {
       } catch (err) {
         console.error(err);
         forYouListEl.innerHTML = "";
+        forYouEmptyEl.style.display = "";
         forYouListEl.appendChild(forYouEmptyEl);
       }
     }

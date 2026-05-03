@@ -1118,7 +1118,9 @@ button,input,textarea,select{font:inherit}
   }
 }
 .mobile-tabbar,
-.mobile-fab{
+.mobile-fab,
+.quick-capture-backdrop,
+.quick-capture-panel{
   display:none;
 }
 @media (max-width: 700px), (display-mode: standalone) and (max-width: 900px){
@@ -1341,6 +1343,78 @@ button,input,textarea,select{font:inherit}
     font-weight:800;
     background:linear-gradient(135deg, var(--accent), #c4b3ff);
     box-shadow:0 18px 36px rgba(122,215,255,.28);
+  }
+  .quick-capture-backdrop{
+    position:fixed;
+    inset:0;
+    z-index:250;
+    display:none;
+    background:rgba(4,8,16,.68);
+    backdrop-filter:blur(8px);
+  }
+  body.quick-capture-open .quick-capture-backdrop{
+    display:block;
+  }
+  .quick-capture-panel{
+    position:fixed;
+    left:8px;
+    right:8px;
+    bottom:calc(10px + env(safe-area-inset-bottom, 0px));
+    z-index:330;
+    display:flex;
+    flex-direction:column;
+    max-height:52dvh;
+    overflow:auto;
+    transform:translateY(calc(100dvh + 40px));
+    opacity:0;
+    pointer-events:none;
+    transition:transform 220ms ease, opacity 180ms ease;
+    border-radius:28px;
+    background:linear-gradient(180deg, rgba(15,23,41,.99), rgba(8,13,24,.99));
+    border:1px solid rgba(155,179,214,.24);
+    box-shadow:0 28px 70px rgba(0,0,0,.62);
+  }
+  .quick-capture-panel::before{
+    content:"";
+    display:block;
+    width:46px;
+    height:4px;
+    margin:0 auto 14px;
+    border-radius:999px;
+    background:rgba(170,187,212,.38);
+  }
+  body.quick-capture-open .quick-capture-panel{
+    transform:translateY(0);
+    opacity:1;
+    pointer-events:auto;
+  }
+  body.quick-capture-open .mobile-tabbar,
+  body.quick-capture-open .mobile-fab{
+    display:none;
+  }
+  .quick-capture-panel textarea{
+    min-height:120px;
+    max-height:24dvh;
+    flex:0 0 auto;
+    width:100%;
+    border:none;
+    outline:none;
+    color:var(--text);
+    resize:vertical;
+    padding:16px;
+    border-radius:22px;
+    background:rgba(3,8,18,.95);
+    border:1px solid rgba(122,215,255,.22);
+  }
+  .quick-capture-panel .actions{
+    display:flex;
+    flex-wrap:wrap;
+    gap:10px;
+    padding-top:10px;
+    padding-bottom:4px;
+  }
+  .quick-capture-panel .actions .btn{
+    flex:1 1 130px;
   }
   .mobile-tabbar a.active .tab-icon{
     background:rgba(6,17,29,.16);

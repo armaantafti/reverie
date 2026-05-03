@@ -10,7 +10,7 @@
   <link rel="manifest" href="/static/manifest.json" />
   <link rel="icon" href="/static/icon-192.png" />
   <link rel="apple-touch-icon" href="/static/icon-192.png" />
-  <link rel="stylesheet" href="/static/reverie-home.css?v=26" />
+  <link rel="stylesheet" href="/static/reverie-home.css?v=27" />
 </head>
 <body>
   <div class="shell">
@@ -120,7 +120,7 @@
               <button class="btn btn-ghost" id="forYouMoreBtn" type="button">View all</button>
             </div>
             <div class="result-list" id="forYouList">
-              <div class="note-card" id="forYouEmpty" style="cursor:default;">
+              <div class="note-card" id="forYouEmpty" style="cursor:default;display:none;">
                 <h4 class="note-title">Nothing surfaced yet</h4>
               </div>
             </div>
@@ -377,7 +377,7 @@
   <script>
     window.REVERIE_TAGS = {{ predefined_tags | tojson }};
   </script>
-  <script src="/static/reverie-shared.js?v=26"></script>
-  <script src="/static/reverie-home.js?v=26"></script>
+  <script src="/static/reverie-shared.js?v=27"></script>
+  <script src="/static/reverie-home.js?v=27"></script>
 </body>
 </html>

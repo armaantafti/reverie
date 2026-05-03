@@ -10,7 +10,7 @@
   <link rel="manifest" href="/static/manifest.json" />
   <link rel="icon" href="/static/icon-192.png" />
   <link rel="apple-touch-icon" href="/static/icon-192.png" />
-  <link rel="stylesheet" href="/static/reverie-list-page.css?v=26" />
+  <link rel="stylesheet" href="/static/reverie-list-page.css?v=27" />
 </head>
 <body>
   <div class="shell">
@@ -40,7 +40,7 @@
             <div class="section-kicker">Recommendations</div>
           </div>
           <div class="note-grid" id="recsRecentList">
-            <div class="note-card" id="recsRecentEmpty" style="cursor:default;">
+            <div class="note-card" id="recsRecentEmpty" style="cursor:default;display:none;">
               <h4 class="note-title">No recent recommendations</h4>
             </div>
           </div>
@@ -51,7 +51,7 @@
             <div class="section-kicker">Earlier</div>
           </div>
           <div class="note-grid" id="recsPastList">
-            <div class="note-card" id="recsPastEmpty" style="cursor:default;">
+            <div class="note-card" id="recsPastEmpty" style="cursor:default;display:none;">
               <h4 class="note-title">No earlier recommendations</h4>
             </div>
           </div>
@@ -196,8 +196,8 @@
     </div>
   </div>
 
-  <script src="/static/reverie-shared.js?v=26"></script>
-  <script src="/static/reverie-list-page.js?v=26"></script>
+  <script src="/static/reverie-shared.js?v=27"></script>
+  <script src="/static/reverie-list-page.js?v=27"></script>
   <script>
     if ("serviceWorker" in navigator) {
       window.addEventListener("load", () => {
@@ -220,6 +220,7 @@
       },
       signedOutText: "Sign in on Home to view recommendations",
       notesUrl: "/notes?types=recommendation&limit=120",
+      previewNotesUrl: "/notes?types=recommendation&limit=3",
       detail: {
         backdropId: "recsModal",
         closeId: "recsCloseBtn",
@@ -286,7 +287,25 @@
       },
     });
   </script>
-  <a class="mobile-fab" href="/#capturePanel" aria-label="Capture memory">+</a>
+  <div class="quick-capture-backdrop" id="quickCaptureBackdrop"></div>
+  <section class="panel quick-capture-panel" id="quickCapturePanel">
+    <div class="modal-head">
+      <div>
+        <div class="section-kicker">Capture</div>
+        <p class="modal-sub">Save a memory, reminder, screenshot, or document.</p>
+      </div>
+      <button class="modal-close" id="quickCaptureClose" type="button" aria-label="Close">x</button>
+    </div>
+    <textarea id="quickCaptureText" placeholder="Write a memory, reminder, or idea..."></textarea>
+    <div class="actions">
+      <button class="btn btn-primary" id="quickCaptureSave" type="button">Save</button>
+      <button class="btn btn-secondary" id="quickCaptureUpload" type="button">Upload</button>
+      <input id="quickCaptureUploadInput" type="file" accept="image/*,.pdf,.doc,.docx,.txt,.md,.rtf,.odt,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain,text/markdown,application/rtf,text/rtf,application/vnd.oasis.opendocument.text" multiple class="hidden" />
+    </div>
+    <div class="status-line" id="quickCaptureStatus" aria-live="polite"></div>
+  </section>
+  <script src="/static/reverie-capture.js?v=27"></script>
+  <a class="mobile-fab" href="#quickCapturePanel" aria-label="Capture memory">+</a>
   <nav class="mobile-tabbar" aria-label="Mobile primary">
     <a href="/" aria-label="Home">
       <span class="tab-icon">&#8962;</span>

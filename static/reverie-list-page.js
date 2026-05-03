@@ -141,6 +141,8 @@ function initReverieListPage(config) {
     }
 
     function resetEmptyState() {
+      primaryEmpty.style.display = "";
+      secondaryEmpty.style.display = "";
       primaryEmpty.querySelector(".note-title").textContent = config.primary.emptyText;
       secondaryEmpty.querySelector(".note-title").textContent = config.secondary.emptyText;
     }
@@ -155,6 +157,7 @@ function initReverieListPage(config) {
     }
 
     function showSkeletons() {
+      if (config.fetchNotes && !config.showSkeletons) return;
       if (primaryList.querySelector(".note-card:not(.skeleton-card)")) return;
       primaryList.innerHTML = "";
       secondaryList.innerHTML = "";
@@ -163,6 +166,25 @@ function initReverieListPage(config) {
         card.className = "note-card skeleton-card";
         card.innerHTML = '<div class="skeleton-line wide"></div><div class="skeleton-line"></div><div class="skeleton-chips"><span></span><span></span><span></span></div>';
         primaryList.appendChild(card);
+      }
+    }
+
+    function renderNotesProgressively(list, empty, notes) {
+      list.innerHTML = "";
+      if (!notes.length) {
+        empty.style.display = "";
+        list.appendChild(empty);
+        return;
+      }
+
+      empty.style.display = "none";
+      const firstChunk = notes.slice(0, 3);
+      const rest = notes.slice(3);
+      firstChunk.forEach((note) => list.appendChild(renderCard(note)));
+      if (rest.length) {
+        window.setTimeout(() => {
+          rest.forEach((note) => list.appendChild(renderCard(note)));
+        }, 20);
       }
     }
 
@@ -561,10 +583,10 @@ function initReverieListPage(config) {
       return card;
     }
 
-    async function defaultFetchNotes() {
-      const url = new URL(config.notesUrl || "/notes", window.location.origin);
+    async function fetchNotesFromUrl(urlText, allowCache = true) {
+      const url = new URL(urlText || "/notes", window.location.origin);
       url.searchParams.set("_", String(Date.now()));
-      const cached = readCachedJson(url.toString());
+      const cached = allowCache ? readCachedJson(url.toString()) : null;
       if (cached) return cached;
       const resp = await fetch(url.toString(), {
         credentials: "same-origin",
@@ -577,8 +599,12 @@ function initReverieListPage(config) {
       }
       if (!resp.ok) throw new Error("HTTP " + resp.status);
       const data = await resp.json();
-      writeCachedJson(url.toString(), data);
+      if (allowCache) writeCachedJson(url.toString(), data);
       return data;
+    }
+
+    async function defaultFetchNotes() {
+      return fetchNotesFromUrl(config.notesUrl || "/notes");
     }
 
     async function loadItems(options = {}) {
@@ -589,26 +615,23 @@ function initReverieListPage(config) {
           return;
         }
 
-        if (!options.quiet) showSkeletons();
+        let showedPreview = false;
+        if (config.previewNotesUrl && !readCachedJson(config.notesUrl || "/notes")) {
+          const previewNotes = await fetchNotesFromUrl(config.previewNotesUrl);
+          const previewGroups = config.splitNotes(Array.isArray(previewNotes) ? previewNotes : []);
+          renderNotesProgressively(primaryList, primaryEmpty, previewGroups.primary);
+          renderNotesProgressively(secondaryList, secondaryEmpty, previewGroups.secondary);
+          showedPreview = true;
+        }
+
+        if (!options.quiet && !showedPreview) showSkeletons();
         const notes = config.fetchNotes ? await config.fetchNotes() : await defaultFetchNotes();
         if (notes === null) return;
         lastLoadAt = Date.now();
         const groups = config.splitNotes(Array.isArray(notes) ? notes : []);
 
-        primaryList.innerHTML = "";
-        secondaryList.innerHTML = "";
-
-        if (!groups.primary.length) {
-          primaryList.appendChild(primaryEmpty);
-        } else {
-          groups.primary.forEach((note) => primaryList.appendChild(renderCard(note)));
-        }
-
-        if (!groups.secondary.length) {
-          secondaryList.appendChild(secondaryEmpty);
-        } else {
-          groups.secondary.forEach((note) => secondaryList.appendChild(renderCard(note)));
-        }
+        renderNotesProgressively(primaryList, primaryEmpty, groups.primary);
+        renderNotesProgressively(secondaryList, secondaryEmpty, groups.secondary);
       } catch (err) {
         console.error(err);
         if (config.errorText) {
@@ -688,6 +711,10 @@ function initReverieListPage(config) {
     });
     document.addEventListener("visibilitychange", () => {
       if (!document.hidden && Date.now() - lastLoadAt > CACHE_TTL_MS) loadItems({ quiet: true });
+    });
+    window.addEventListener("reverie:notes-changed", () => {
+      clearListCache();
+      loadItems({ quiet: true });
     });
     setInterval(() => loadItems({ quiet: true }), 60000);
   }
