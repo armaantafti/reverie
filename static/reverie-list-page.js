@@ -210,13 +210,9 @@ function initReverieListPage(config) {
       fillChipContainer(detailTags, note?.tags, "tag", openContext);
       fillChipContainer(detailEntities, note?.entities, "entity", openContext);
       if (detailImage) {
-        if (note?.image_url && note?.memory_type === "image") {
-          detailImage.src = note.image_url;
-          detailImage.style.display = "block";
-        } else {
-          detailImage.removeAttribute("src");
-          detailImage.style.display = "none";
-        }
+        detailImage.removeAttribute("src");
+        detailImage.dataset.src = note?.image_url && note?.memory_type === "image" ? note.image_url : "";
+        detailImage.style.display = "none";
       }
       fillAssetActions(detailAssetActions, note);
       setModalVisible(detailBackdrop, true);
@@ -615,16 +611,7 @@ function initReverieListPage(config) {
           return;
         }
 
-        let showedPreview = false;
-        if (config.previewNotesUrl && !readCachedJson(config.notesUrl || "/notes")) {
-          const previewNotes = await fetchNotesFromUrl(config.previewNotesUrl);
-          const previewGroups = config.splitNotes(Array.isArray(previewNotes) ? previewNotes : []);
-          renderNotesProgressively(primaryList, primaryEmpty, previewGroups.primary);
-          renderNotesProgressively(secondaryList, secondaryEmpty, previewGroups.secondary);
-          showedPreview = true;
-        }
-
-        if (!options.quiet && !showedPreview) showSkeletons();
+        if (!options.quiet) showSkeletons();
         const notes = config.fetchNotes ? await config.fetchNotes() : await defaultFetchNotes();
         if (notes === null) return;
         lastLoadAt = Date.now();
@@ -645,6 +632,13 @@ function initReverieListPage(config) {
     detailClose.addEventListener("click", closeDetail);
     detailBackdrop.addEventListener("click", (e) => {
       if (e.target === detailBackdrop) closeDetail();
+    });
+    detailBackdrop.querySelectorAll(".detail-disclosure").forEach((disclosure) => {
+      disclosure.addEventListener("toggle", () => {
+        if (!disclosure.open || !detailImage?.dataset?.src || detailImage.src) return;
+        detailImage.src = detailImage.dataset.src;
+        detailImage.style.display = "block";
+      });
     });
     detailEditBtn.addEventListener("click", () => openEditModal(activeDetailNote));
     detailDeleteBtn.addEventListener("click", async () => {

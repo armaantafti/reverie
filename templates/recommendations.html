@@ -10,7 +10,7 @@
   <link rel="manifest" href="/static/manifest.json" />
   <link rel="icon" href="/static/icon-192.png" />
   <link rel="apple-touch-icon" href="/static/icon-192.png" />
-  <link rel="stylesheet" href="/static/reverie-list-page.css?v=27" />
+  <link rel="stylesheet" href="/static/reverie-list-page.css?v=28" />
 </head>
 <body>
   <div class="shell">
@@ -196,8 +196,8 @@
     </div>
   </div>
 
-  <script src="/static/reverie-shared.js?v=27"></script>
-  <script src="/static/reverie-list-page.js?v=27"></script>
+  <script src="/static/reverie-shared.js?v=28"></script>
+  <script src="/static/reverie-list-page.js?v=28"></script>
   <script>
     if ("serviceWorker" in navigator) {
       window.addEventListener("load", () => {
@@ -219,8 +219,7 @@
         emptyText: "No earlier recommendations",
       },
       signedOutText: "Sign in on Home to view recommendations",
-      notesUrl: "/notes?types=recommendation&limit=120",
-      previewNotesUrl: "/notes?types=recommendation&limit=3",
+      notesUrl: "/notes?types=recommendation&limit=60",
       detail: {
         backdropId: "recsModal",
         closeId: "recsCloseBtn",
@@ -304,7 +303,7 @@
     </div>
     <div class="status-line" id="quickCaptureStatus" aria-live="polite"></div>
   </section>
-  <script src="/static/reverie-capture.js?v=27"></script>
+  <script src="/static/reverie-capture.js?v=28"></script>
   <a class="mobile-fab" href="#quickCapturePanel" aria-label="Capture memory">+</a>
   <nav class="mobile-tabbar" aria-label="Mobile primary">
     <a href="/" aria-label="Home">

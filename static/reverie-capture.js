@@ -98,11 +98,11 @@
     }
   }
 
-  document.querySelectorAll('a[href="#quickCapturePanel"]').forEach((link) => {
-    link.addEventListener("click", (event) => {
-      event.preventDefault();
-      openPanel();
-    });
+  document.addEventListener("click", (event) => {
+    const link = event.target?.closest?.('a[href="#quickCapturePanel"]');
+    if (!link) return;
+    event.preventDefault();
+    openPanel();
   });
   closeBtn?.addEventListener("click", closePanel);
   backdrop?.addEventListener("click", closePanel);

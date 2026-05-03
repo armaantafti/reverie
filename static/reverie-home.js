@@ -585,13 +585,9 @@ function setAuthedState(isAuthed) {
       }
       fillChipContainer(detailTags, note?.tags, "tag");
       fillChipContainer(detailEntities, note?.entities, "entity");
-      if (note?.image_url && note?.memory_type === "image") {
-        detailImage.src = note.image_url;
-        detailImage.style.display = "block";
-      } else {
-        detailImage.removeAttribute("src");
-        detailImage.style.display = "none";
-      }
+      detailImage.removeAttribute("src");
+      detailImage.dataset.src = note?.image_url && note?.memory_type === "image" ? note.image_url : "";
+      detailImage.style.display = "none";
       fillAssetActions(detailAssetActions, note);
       setModalVisible(detailBackdrop, true);
     }
@@ -602,6 +598,13 @@ function setAuthedState(isAuthed) {
     }
     detailClose.addEventListener("click", closeDetail);
     detailBackdrop.addEventListener("click", (e) => { if (e.target === detailBackdrop) closeDetail(); });
+    detailBackdrop.querySelectorAll(".detail-disclosure").forEach((disclosure) => {
+      disclosure.addEventListener("toggle", () => {
+        if (!disclosure.open || !detailImage?.dataset?.src || detailImage.src) return;
+        detailImage.src = detailImage.dataset.src;
+        detailImage.style.display = "block";
+      });
+    });
     detailEditBtn.addEventListener("click", () => openEditModal(activeDetailNote));
     detailDeleteBtn.addEventListener("click", async () => {
       try {

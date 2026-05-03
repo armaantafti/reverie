@@ -52,15 +52,24 @@ async def service_worker():
     )
 
 
-def get_user_notes(user_id: str):
-    result = (
+def get_user_notes(user_id: str, note_types: Optional[list[str]] = None, limit: Optional[int] = None):
+    query = (
         supabase_admin.table("notes")
         .select("*")
         .eq("user_id", user_id)
-        .order("created_at", desc=True)
-        .execute()
     )
+    clean_types = [item.strip().lower() for item in (note_types or []) if item and item.strip()]
+    if clean_types:
+        query = query.in_("note_type", clean_types)
+    query = query.order("created_at", desc=True)
+    if limit:
+        query = query.limit(limit)
+    result = query.execute()
     return result.data or []
+
+
+def _parse_note_types(types: Optional[str]) -> list[str]:
+    return [item.strip().lower() for item in (types or "").split(",") if item.strip()]
 
 
 def _template_context(request: Request) -> dict[str, Any]:
@@ -432,14 +441,8 @@ def list_notes(
     types: Optional[str] = Query(None, description="Comma-separated note_type filter"),
     limit: Optional[int] = Query(None, ge=1, le=200, description="Maximum notes to return"),
 ):
-    notes = get_user_notes(_get_authenticated_user_id(request))
-    if types:
-        allowed = {item.strip().lower() for item in types.split(",") if item.strip()}
-        if allowed:
-            notes = [note for note in notes if str(note.get("note_type") or "").strip().lower() in allowed]
+    notes = get_user_notes(_get_authenticated_user_id(request), note_types=_parse_note_types(types), limit=limit)
     results = filter_notes(notes, query=query, days=days)
-    if limit:
-        results = results[:limit]
     return results
 
 
