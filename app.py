@@ -3,6 +3,7 @@ from typing import Optional, Any
 
 from fastapi import FastAPI, Query, Request, HTTPException, BackgroundTasks, UploadFile, File
 from fastapi.encoders import jsonable_encoder
+from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
@@ -33,11 +34,25 @@ from llm_search import summarise_search, extract_search_signals
 from tag_config import PREDEFINED_TAGS
 
 app = FastAPI(title="Reverie API")
+app.add_middleware(GZipMiddleware, minimum_size=500, compresslevel=6)
 
 SESSION_COOKIE_NAME = "reverie_session"
 
+
+class CacheControlStaticFiles(StaticFiles):
+    async def get_response(self, path: str, scope):
+        response = await super().get_response(path, scope)
+        if response.status_code == 200:
+            query_string = scope.get("query_string", b"").decode("latin-1")
+            if "v=" in query_string:
+                response.headers["Cache-Control"] = "public, max-age=31536000, immutable"
+            else:
+                response.headers["Cache-Control"] = "public, max-age=86400"
+        return response
+
+
 # Static files
-app.mount("/static", StaticFiles(directory="static"), name="static")
+app.mount("/static", CacheControlStaticFiles(directory="static"), name="static")
 
 # Templates
 templates = Jinja2Templates(directory="templates")

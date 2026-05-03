@@ -1,4 +1,4 @@
-    const { normaliseTags, normaliseEntities, toDisplayCase, displayNoteType, displayPerson, displayTag, displayEntity, formatWhen, toInputDateTimeValue, fromInputDateTimeValue, splitCommaList, chipClass, makeChip, appendImagePreview, fillAssetActions, noteStatus, isActionableNote, statusLabel, noteId, setModalVisible } = window.ReverieShared;
+    const { normaliseTags, normaliseEntities, toDisplayCase, displayNoteType, displayPerson, displayTag, displayEntity, formatWhen, toInputDateTimeValue, fromInputDateTimeValue, splitCommaList, chipClass, makeChip, appendImagePreview, fillAssetActions, noteStatus, isActionableNote, statusLabel, noteId, setModalVisible, readApiCache, writeApiCache, clearApiCache, getSessionInfo: sharedGetSessionInfo, markSessionAuthenticated, invalidateSession } = window.ReverieShared;
     const ALL_TAGS = Array.isArray(window.REVERIE_TAGS) ? window.REVERIE_TAGS : [];
     const TOPIC_BUTTONS = [...ALL_TAGS, "passive"];
 
@@ -126,7 +126,6 @@ function fillChipContainer(container, values, kind) {
     let activeDetailNote = null;
     let activeEditNote = null;
     let activeContextQuery = null;
-    let sessionInfoPromise = null;
     let manageEntityItems = [];
     let manageEntitySelection = new Set();
 
@@ -158,23 +157,7 @@ function setAuthedState(isAuthed) {
     }
 
     async function getSessionInfo(force = false) {
-      if (!force && sessionInfoPromise) return sessionInfoPromise;
-      sessionInfoPromise = (async () => {
-        try {
-          const url = new URL("/session", window.location.origin);
-          url.searchParams.set("_", String(Date.now()));
-          const resp = await fetch(url.toString(), {
-            credentials: "same-origin",
-            cache: "no-store",
-          });
-          if (!resp.ok) return null;
-          const data = await resp.json();
-          return data?.authenticated ? data : null;
-        } catch (_) {
-          return null;
-        }
-      })();
-      return sessionInfoPromise;
+      return sharedGetSessionInfo(force);
     }
 
     async function ensureSession(force = false) {
@@ -243,6 +226,7 @@ function setAuthedState(isAuthed) {
     }
 
     async function refreshAfterStatusChange() {
+      clearApiCache();
       const refreshes = [loadForYou()];
       if ((searchQueryEl.value || "").trim() || (searchRangeEl.value || "").trim()) {
         refreshes.push(runSearch());
@@ -431,6 +415,7 @@ function setAuthedState(isAuthed) {
     }
 
     async function refreshAfterNoteMutation() {
+      clearApiCache();
       await refreshAfterStatusChange();
     }
 
@@ -764,6 +749,20 @@ function setAuthedState(isAuthed) {
       }
     }
 
+    function renderForYouCards(notes) {
+      forYouListEl.innerHTML = "";
+      if (!notes.length) {
+        forYouEmptyEl.style.display = "";
+        forYouListEl.appendChild(forYouEmptyEl);
+        return;
+      }
+      forYouEmptyEl.style.display = "none";
+      notes.forEach(note => {
+        const card = renderNoteCard(note, "featured", { showStatusButton: true });
+        forYouListEl.appendChild(card);
+      });
+    }
+
     function renderContextItem(note, showStatusButton = false, showManageActions = false) {
       const item = document.createElement("div");
       item.className = "context-item";
@@ -878,26 +877,25 @@ function setAuthedState(isAuthed) {
 
     async function loadForYou() {
       if (!(await ensureSession())) return;
-      showForYouSkeleton();
+      const cacheUrl = "/for-you?limit=3";
+      const cached = readApiCache(cacheUrl, 30000);
+      if (cached?.notes) {
+        renderForYouCards(Array.isArray(cached.notes) ? cached.notes : []);
+      } else {
+        showForYouSkeleton();
+      }
       try {
         const data = await apiGet("/for-you", { limit: 3 });
         const notes = Array.isArray(data?.notes) ? data.notes : [];
-        forYouListEl.innerHTML = "";
-        if (!notes.length) {
-          forYouEmptyEl.style.display = "";
-          forYouListEl.appendChild(forYouEmptyEl);
-          return;
-        }
-        forYouEmptyEl.style.display = "none";
-        notes.forEach(note => {
-          const card = renderNoteCard(note, "featured", { showStatusButton: true });
-          forYouListEl.appendChild(card);
-        });
+        writeApiCache(cacheUrl, { notes });
+        renderForYouCards(notes);
       } catch (err) {
         console.error(err);
-        forYouListEl.innerHTML = "";
-        forYouEmptyEl.style.display = "";
-        forYouListEl.appendChild(forYouEmptyEl);
+        if (!cached?.notes) {
+          forYouListEl.innerHTML = "";
+          forYouEmptyEl.style.display = "";
+          forYouListEl.appendChild(forYouEmptyEl);
+        }
       }
     }
 
@@ -1165,7 +1163,8 @@ function setAuthedState(isAuthed) {
     }
 
     function clearSession() {
-      sessionInfoPromise = Promise.resolve(null);
+      invalidateSession();
+      clearApiCache();
       localStorage.removeItem("reverie_email");
       setAuthedState(false);
       authEmail.value = "";
@@ -1192,6 +1191,7 @@ function setAuthedState(isAuthed) {
         await apiPost(path, { email, password });
 
         localStorage.setItem("reverie_email", email);
+        markSessionAuthenticated({ email });
         const authed = await ensureSession(true);
         if (!authed) {
           authStatus.textContent = authMode === "signup"
@@ -1322,12 +1322,25 @@ function setAuthedState(isAuthed) {
       }
 
       setAuthMode("login");
-      if (await ensureSession(true)) {
+      const cachedSession = await getSessionInfo(false);
+      if (cachedSession?.authenticated) {
         setAuthedState(true);
         buildTagShelf();
         loadForYou();
         runSearch();
       } else {
-        setAuthedState(false);
+        if (await ensureSession(true)) {
+          setAuthedState(true);
+          buildTagShelf();
+          loadForYou();
+          runSearch();
+        } else {
+          setAuthedState(false);
+        }
+      }
+      if (cachedSession?.authenticated) {
+        ensureSession(true).then((isAuthed) => {
+          if (!isAuthed) setAuthedState(false);
+        });
       }
     })();

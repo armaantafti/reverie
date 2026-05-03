@@ -1,5 +1,5 @@
 (function () {
-  const { normaliseTags, normaliseEntities, toDisplayCase, displayNoteType, displayPerson, displayTag, displayEntity, formatWhen, toInputDateTimeValue, fromInputDateTimeValue, splitCommaList, chipClass, makeChip, appendImagePreview, fillAssetActions, noteStatus, isActionableNote, statusLabel, noteId, setModalVisible } = window.ReverieShared;
+  const { normaliseTags, normaliseEntities, toDisplayCase, displayNoteType, displayPerson, displayTag, displayEntity, formatWhen, toInputDateTimeValue, fromInputDateTimeValue, splitCommaList, chipClass, makeChip, appendImagePreview, fillAssetActions, noteStatus, isActionableNote, statusLabel, noteId, setModalVisible, readApiCache, writeApiCache, clearApiCache, ensureSession, invalidateSession } = window.ReverieShared;
 
 function fillChipContainer(container, values, kind, openContext) {
     container.innerHTML = "";
@@ -21,36 +21,6 @@ function fillChipContainer(container, values, kind, openContext) {
       });
       container.appendChild(btn);
     });
-  }
-
-  let sessionInfoPromise = null;
-
-  async function getSessionInfo(force) {
-    if (!force && sessionInfoPromise) return sessionInfoPromise;
-    sessionInfoPromise = (async () => {
-      try {
-        const url = new URL("/session", window.location.origin);
-        url.searchParams.set("_", String(Date.now()));
-        const resp = await fetch(url.toString(), {
-          credentials: "same-origin",
-          cache: "no-store",
-        });
-        if (!resp.ok) return null;
-        const data = await resp.json();
-        return data?.authenticated ? data : null;
-      } catch (_) {
-        return null;
-      }
-    })();
-    return sessionInfoPromise;
-  }
-
-  async function ensureSession(force) {
-    return Boolean((await getSessionInfo(force))?.authenticated);
-  }
-
-  function invalidateSession() {
-    sessionInfoPromise = Promise.resolve(null);
   }
 
 function initReverieListPage(config) {
@@ -133,11 +103,7 @@ function initReverieListPage(config) {
     }
 
     function clearListCache() {
-      try {
-        Object.keys(sessionStorage)
-          .filter((key) => key.startsWith(cachePrefix))
-          .forEach((key) => sessionStorage.removeItem(key));
-      } catch (_) {}
+      clearApiCache();
     }
 
     function resetEmptyState() {
@@ -186,6 +152,13 @@ function initReverieListPage(config) {
           rest.forEach((note) => list.appendChild(renderCard(note)));
         }, 20);
       }
+    }
+
+    function renderGroups(notes) {
+      lastLoadAt = Date.now();
+      const groups = config.splitNotes(Array.isArray(notes) ? notes : []);
+      renderNotesProgressively(primaryList, primaryEmpty, groups.primary);
+      renderNotesProgressively(secondaryList, secondaryEmpty, groups.secondary);
     }
 
     function closeDetail() {
@@ -582,7 +555,7 @@ function initReverieListPage(config) {
     async function fetchNotesFromUrl(urlText, allowCache = true) {
       const url = new URL(urlText || "/notes", window.location.origin);
       url.searchParams.set("_", String(Date.now()));
-      const cached = allowCache ? readCachedJson(url.toString()) : null;
+      const cached = allowCache ? (readApiCache(url.toString(), CACHE_TTL_MS) || readCachedJson(url.toString())) : null;
       if (cached) return cached;
       const resp = await fetch(url.toString(), {
         credentials: "same-origin",
@@ -595,7 +568,10 @@ function initReverieListPage(config) {
       }
       if (!resp.ok) throw new Error("HTTP " + resp.status);
       const data = await resp.json();
-      if (allowCache) writeCachedJson(url.toString(), data);
+      if (allowCache) {
+        writeApiCache(url.toString(), data);
+        writeCachedJson(url.toString(), data);
+      }
       return data;
     }
 
@@ -606,19 +582,29 @@ function initReverieListPage(config) {
     async function loadItems(options = {}) {
       try {
         resetEmptyState();
-        if (!options.quiet) showSkeletons();
+        const cacheUrl = config.notesUrl || "/notes";
+        const cached = !config.fetchNotes && !options.skipCached
+          ? (readApiCache(cacheUrl, CACHE_TTL_MS) || readCachedJson(cacheUrl))
+          : null;
+
+        if (cached) {
+          renderGroups(cached);
+        } else if (!options.quiet) {
+          showSkeletons();
+        }
+
         if (!(await ensureSession())) {
           setSignedOutState();
           return;
         }
 
-        const notes = config.fetchNotes ? await config.fetchNotes() : await defaultFetchNotes();
+        const notes = config.fetchNotes ? await config.fetchNotes() : await fetchNotesFromUrl(cacheUrl, false);
         if (notes === null) return;
-        lastLoadAt = Date.now();
-        const groups = config.splitNotes(Array.isArray(notes) ? notes : []);
-
-        renderNotesProgressively(primaryList, primaryEmpty, groups.primary);
-        renderNotesProgressively(secondaryList, secondaryEmpty, groups.secondary);
+        if (!config.fetchNotes) {
+          writeApiCache(cacheUrl, notes);
+          writeCachedJson(cacheUrl, notes);
+        }
+        renderGroups(notes);
       } catch (err) {
         console.error(err);
         if (config.errorText) {

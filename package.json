@@ -1,0 +1,8 @@
+{
+  "scripts": {
+    "build:assets": "node scripts/build-assets.mjs"
+  },
+  "devDependencies": {
+    "esbuild": "0.25.3"
+  }
+}

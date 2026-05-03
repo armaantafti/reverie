@@ -1,7 +1,105 @@
 window.ReverieShared = (() => {
+  const SESSION_CACHE_KEY = "reverie:session:v1";
+  const SESSION_TTL_MS = 60000;
+  const API_CACHE_PREFIX = "reverie:api:";
+
   const isStandalone = window.matchMedia?.("(display-mode: standalone)")?.matches
     || window.navigator.standalone === true;
   document.documentElement.classList.toggle("app-mode", Boolean(isStandalone));
+
+  let sessionInfoPromise = null;
+
+  function readStoredJson(key, ttlMs) {
+    try {
+      const raw = sessionStorage.getItem(key);
+      if (!raw) return null;
+      const cached = JSON.parse(raw);
+      if (ttlMs && Date.now() - Number(cached.time || 0) > ttlMs) return null;
+      return cached.data;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  function writeStoredJson(key, data) {
+    try {
+      sessionStorage.setItem(key, JSON.stringify({ time: Date.now(), data }));
+    } catch (_) {}
+  }
+
+  function stableApiKey(urlText) {
+    const parsed = new URL(urlText, window.location.origin);
+    parsed.searchParams.delete("_");
+    return API_CACHE_PREFIX + parsed.toString();
+  }
+
+  function readApiCache(urlText, ttlMs = 30000) {
+    return readStoredJson(stableApiKey(urlText), ttlMs);
+  }
+
+  function writeApiCache(urlText, data) {
+    writeStoredJson(stableApiKey(urlText), data);
+  }
+
+  function clearApiCache(prefix = null) {
+    try {
+      Object.keys(sessionStorage)
+        .filter((key) => {
+          if (prefix) return key.startsWith(prefix);
+          return key.startsWith(API_CACHE_PREFIX) || key.startsWith("reverie:list:");
+        })
+        .forEach((key) => sessionStorage.removeItem(key));
+    } catch (_) {}
+  }
+
+  function cachedSession() {
+    return readStoredJson(SESSION_CACHE_KEY, SESSION_TTL_MS);
+  }
+
+  async function getSessionInfo(force = false) {
+    if (!force) {
+      const cached = cachedSession();
+      if (cached) return cached;
+      if (sessionInfoPromise) return sessionInfoPromise;
+    }
+
+    sessionInfoPromise = (async () => {
+      try {
+        const url = new URL("/session", window.location.origin);
+        url.searchParams.set("_", String(Date.now()));
+        const resp = await fetch(url.toString(), {
+          credentials: "same-origin",
+          cache: "no-store",
+        });
+        if (!resp.ok) return null;
+        const data = await resp.json();
+        const session = data?.authenticated ? data : null;
+        if (session) writeStoredJson(SESSION_CACHE_KEY, session);
+        else sessionStorage.removeItem(SESSION_CACHE_KEY);
+        return session;
+      } catch (_) {
+        return cachedSession();
+      }
+    })();
+    return sessionInfoPromise;
+  }
+
+  async function ensureSession(force = false) {
+    return Boolean((await getSessionInfo(force))?.authenticated);
+  }
+
+  function markSessionAuthenticated(data = { authenticated: true }) {
+    const session = { authenticated: true, ...data };
+    writeStoredJson(SESSION_CACHE_KEY, session);
+    sessionInfoPromise = Promise.resolve(session);
+  }
+
+  function invalidateSession() {
+    try {
+      sessionStorage.removeItem(SESSION_CACHE_KEY);
+    } catch (_) {}
+    sessionInfoPromise = Promise.resolve(null);
+  }
 
   function normaliseTags(tags) {
     if (!Array.isArray(tags)) return [];
@@ -175,12 +273,49 @@ window.ReverieShared = (() => {
     }, { timeout: 1600 });
   }
 
+  function warmApi(urlText) {
+    const cached = readApiCache(urlText, 30000);
+    if (cached) return;
+    fetch(urlText, {
+      method: "GET",
+      credentials: "same-origin",
+      cache: "no-store",
+    })
+      .then((resp) => resp.ok ? resp.json() : null)
+      .then((data) => {
+        if (data) writeApiCache(urlText, data);
+      })
+      .catch(() => undefined);
+  }
+
+  function warmTabData(pathname) {
+    if (pathname === "/") {
+      warmApi("/for-you?limit=3");
+      return;
+    }
+    if (pathname === "/tasks") {
+      warmApi("/notes?types=note,reminder&limit=60");
+      return;
+    }
+    if (pathname === "/recommendations") {
+      warmApi("/notes?types=recommendation&limit=60");
+    }
+  }
+
   function installFastNavigation() {
     document.querySelectorAll("a[href]").forEach((link) => {
       if (!isFastNavLink(link)) return;
       link.addEventListener("pointerenter", () => prefetchPage(link), { passive: true });
-      link.addEventListener("touchstart", () => prefetchPage(link), { passive: true });
+      link.addEventListener("touchstart", () => {
+        prefetchPage(link);
+        try {
+          warmTabData(new URL(link.href, window.location.href).pathname);
+        } catch (_) {}
+      }, { passive: true });
       link.addEventListener("click", () => {
+        try {
+          warmTabData(new URL(link.href, window.location.href).pathname);
+        } catch (_) {}
         document.documentElement.classList.add("route-loading");
       });
     });
@@ -200,6 +335,13 @@ window.ReverieShared = (() => {
   }
 
   return {
+    readApiCache,
+    writeApiCache,
+    clearApiCache,
+    getSessionInfo,
+    ensureSession,
+    markSessionAuthenticated,
+    invalidateSession,
     normaliseTags,
     normaliseEntities,
     toDisplayCase,
