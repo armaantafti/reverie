@@ -1,11 +1,12 @@
-const CACHE_NAME = "reverie-pwa-v36";
-const PAGE_CACHE_NAME = "reverie-pages-v36";
+const CACHE_NAME = "reverie-pwa-v38";
+const PAGE_CACHE_NAME = "reverie-pages-v38";
 const STATIC_ASSETS = [
   "/",
   "/search",
   "/entities",
   "/uploads",
   "/privacy",
+  "/account-deletion",
   "/tasks",
   "/recommendations",
   "/static/manifest.json",

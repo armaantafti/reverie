@@ -441,6 +441,14 @@ async def privacy_page(request: Request):
     )
 
 
+@app.get("/account-deletion", response_class=HTMLResponse)
+async def account_deletion_page(request: Request):
+    return templates.TemplateResponse(
+        "account_deletion.html",
+        _template_context(request)
+    )
+
+
 class TextNoteIn(BaseModel):
     text: str
 
