@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Reverie</string>
+    <string name="title_activity_main">Reverie</string>
+    <string name="package_name">com.reverie.myapp</string>
+    <string name="custom_url_scheme">com.reverie.myapp</string>
+</resources>

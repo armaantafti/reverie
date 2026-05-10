@@ -1,0 +1,12 @@
+{
+  "appId": "com.reverie.myapp",
+  "appName": "Reverie",
+  "webDir": "www",
+  "server": {
+    "url": "https://reverie-i2b8.onrender.com",
+    "cleartext": false
+  },
+  "android": {
+    "backgroundColor": "#08111e"
+  }
+}

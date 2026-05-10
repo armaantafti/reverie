@@ -1,0 +1,13 @@
+node_modules/
+
+# Local Android build/config artifacts
+android/.gradle/
+android/**/build/
+android/local.properties
+android/keys/
+*.apk
+*.aab
+
+# Signing material must never be committed
+*.jks
+*.keystore
