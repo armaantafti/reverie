@@ -21,6 +21,14 @@
     }
     *{box-sizing:border-box}
     html{scroll-behavior:smooth}
+    html.auth-checking #authPanel{
+      display:none;
+    }
+    html.auth-checking #appShell{
+      display:block;
+      opacity:.55;
+      pointer-events:none;
+    }
     body{
       margin:0;
       min-height:100vh;
@@ -32,6 +40,9 @@
         radial-gradient(circle at 50% 92%, rgba(95,168,255,.10), transparent 28%),
         linear-gradient(180deg, #08111e 0%, #0a1323 35%, #0c1728 100%);
       overflow-x:hidden;
+    }
+    html.native-shell body{
+      padding-top:env(safe-area-inset-top, 0px);
     }
     html.route-loading::before{
       content:"";
@@ -984,6 +995,7 @@
       border-radius:18px;
       border:1px solid rgba(148,163,184,.12);
       background:rgba(148,163,184,.05);
+      font:inherit;
       cursor:pointer;
     }
     .account-action span{
@@ -996,6 +1008,13 @@
     }
     .account-action.danger span{
       color:#fecaca;
+    }
+    .account-action-status{
+      min-height:18px;
+      color:var(--muted);
+      font-size:.82rem;
+      line-height:1.35;
+      padding:0 4px;
     }
     .panel-subtitle{
       margin:10px 0 0;

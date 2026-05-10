@@ -1,4 +1,4 @@
-    const { normaliseTags, normaliseEntities, toDisplayCase, displayNoteType, displayPerson, displayTag, displayEntity, formatWhen, toInputDateTimeValue, fromInputDateTimeValue, splitCommaList, chipClass, makeChip, appendImagePreview, fillAssetActions, noteStatus, isActionableNote, statusLabel, noteId, fetchNoteDetail, setModalVisible, readApiCache, writeApiCache, clearApiCache, getSessionInfo: sharedGetSessionInfo, markSessionAuthenticated, invalidateSession } = window.ReverieShared;
+    const { normaliseTags, normaliseEntities, toDisplayCase, displayNoteType, displayPerson, displayTag, displayEntity, formatWhen, toInputDateTimeValue, fromInputDateTimeValue, splitCommaList, chipClass, makeChip, appendImagePreview, fillAssetActions, noteStatus, isActionableNote, statusLabel, noteId, fetchNoteDetail, setModalVisible, readApiCache, writeApiCache, clearApiCache, getSessionInfo: sharedGetSessionInfo, markSessionAuthenticated, storeAccessTokenFromPayload, invalidateSession } = window.ReverieShared;
     const ALL_TAGS = Array.isArray(window.REVERIE_TAGS) ? window.REVERIE_TAGS : [];
     const TOPIC_BUTTONS = [...ALL_TAGS, "passive"];
 
@@ -149,7 +149,8 @@ function setAuthMode(nextMode) {
       authStatus.textContent = "";
     }
 
-function setAuthedState(isAuthed) {
+    function setAuthedState(isAuthed) {
+      document.documentElement.classList.remove("auth-checking");
       authPanel.classList.toggle("hidden", isAuthed);
       appShell.classList.toggle("hidden", !isAuthed);
       logoutBtn?.classList.toggle("hidden", !isAuthed);
@@ -1216,7 +1217,8 @@ function setAuthedState(isAuthed) {
 
       try {
         const path = authMode === "login" ? "/login" : "/signup";
-        await apiPost(path, { email, password });
+        const authPayload = await apiPost(path, { email, password });
+        storeAccessTokenFromPayload?.(authPayload);
 
         localStorage.setItem("reverie_email", email);
         localStorage.setItem("reverie_seen_authenticated", "1");
@@ -1231,6 +1233,7 @@ function setAuthedState(isAuthed) {
 
         authStatus.textContent = authMode === "login" ? "Logged in." : "Account created.";
         showAppForUser();
+        window.ReverieNotifications?.sync?.().catch((err) => console.warn("Notification sync failed", err));
       } catch (err) {
         console.error(err);
         authStatus.textContent = err.message || "Authentication failed.";

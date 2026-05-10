@@ -35,6 +35,9 @@ body{
     linear-gradient(180deg, #08111e 0%, #0a1323 35%, #0c1728 100%);
   overflow-x:hidden;
 }
+html.native-shell body{
+  padding-top:env(safe-area-inset-top, 0px);
+}
 html.route-loading::before{
   content:"";
   position:fixed;
@@ -620,6 +623,13 @@ button,input,textarea,select{font:inherit}
   color:#ffe4e6;
   background:rgba(244,63,94,.10);
   border-color:rgba(244,63,94,.20);
+}
+.account-action-status{
+  min-height:18px;
+  color:var(--muted);
+  font-size:.82rem;
+  line-height:1.35;
+  padding:0 4px;
 }
 .note-title-wrap{
   display:grid;
