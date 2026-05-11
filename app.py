@@ -9,6 +9,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
 
+from auth_sessions import create_app_session, get_session_user, migrate_legacy_refresh_token, revoke_app_session
 from supabase_client import supabase_admin, supabase_auth
 from note_core import (
     process_text_note,
@@ -36,17 +37,19 @@ from tag_config import PREDEFINED_TAGS
 app = FastAPI(title="Reverie API")
 app.add_middleware(GZipMiddleware, minimum_size=500, compresslevel=6)
 
-SESSION_COOKIE_NAME = "reverie_session"
-REFRESH_COOKIE_NAME = "reverie_refresh"
+SESSION_COOKIE_NAME = "reverie_app_session"
+LEGACY_SESSION_COOKIE_NAME = "reverie_session"
+LEGACY_REFRESH_COOKIE_NAME = "reverie_refresh"
 SESSION_COOKIE_MAX_AGE = 60 * 60 * 24 * 30
 
 
 @app.middleware("http")
 async def no_cache_html(request: Request, call_next):
     response = await call_next(request)
-    refreshed_payload = getattr(request.state, "refreshed_auth_payload", None)
-    if refreshed_payload is not None:
-        _set_auth_cookies(response, request, refreshed_payload)
+    migrated_session_id = getattr(request.state, "migrated_app_session_id", None)
+    if migrated_session_id:
+        _set_session_cookie(response, request, migrated_session_id)
+        _clear_legacy_auth_cookies(response, request)
     content_type = response.headers.get("content-type", "")
     if "text/html" in content_type:
         response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
@@ -259,125 +262,58 @@ def _set_session_cookie(response: Response, request: Request, token: str) -> Non
     )
 
 
-def _set_refresh_cookie(response: Response, request: Request, token: str) -> None:
-    response.set_cookie(
-        key=REFRESH_COOKIE_NAME,
-        value=token,
-        httponly=True,
-        secure=_cookie_secure(request),
-        samesite="none" if _cookie_secure(request) else "lax",
-        max_age=SESSION_COOKIE_MAX_AGE,
+def _delete_cookie(response: Response, request: Request, name: str) -> None:
+    response.delete_cookie(
+        key=name,
         path="/",
+        samesite="none" if _cookie_secure(request) else "lax",
+        secure=_cookie_secure(request),
     )
 
 
-def _set_auth_cookies(response: Response, request: Request, payload: Any) -> None:
-    access_token = _get_auth_payload_token(payload)
-    refresh_token = _get_auth_payload_refresh_token(payload)
-    if access_token:
-        _set_session_cookie(response, request, access_token)
-    if refresh_token:
-        _set_refresh_cookie(response, request, refresh_token)
+def _clear_legacy_auth_cookies(response: Response, request: Request) -> None:
+    _delete_cookie(response, request, LEGACY_SESSION_COOKIE_NAME)
+    _delete_cookie(response, request, LEGACY_REFRESH_COOKIE_NAME)
 
 
 def _clear_session_cookie(response: JSONResponse, request: Request) -> None:
-    response.delete_cookie(
-        key=SESSION_COOKIE_NAME,
-        path="/",
-        samesite="none" if _cookie_secure(request) else "lax",
-        secure=_cookie_secure(request),
-    )
-    response.delete_cookie(
-        key=REFRESH_COOKIE_NAME,
-        path="/",
-        samesite="none" if _cookie_secure(request) else "lax",
-        secure=_cookie_secure(request),
-    )
+    _delete_cookie(response, request, SESSION_COOKIE_NAME)
+    _clear_legacy_auth_cookies(response, request)
 
 
-def _extract_request_token(request: Request) -> str:
-    cookie_token = (request.cookies.get(SESSION_COOKIE_NAME) or "").strip()
-    if cookie_token:
-        return cookie_token
+def _extract_request_session_id(request: Request) -> str:
+    session_id = (request.cookies.get(SESSION_COOKIE_NAME) or "").strip()
+    if session_id:
+        return session_id
+
+    legacy_refresh = (request.cookies.get(LEGACY_REFRESH_COOKIE_NAME) or "").strip()
+    if legacy_refresh:
+        session_id, _user = migrate_legacy_refresh_token(legacy_refresh)
+        request.state.migrated_app_session_id = session_id
+        return session_id
+
     raise HTTPException(status_code=401, detail="missing session cookie")
 
 
 def _get_authenticated_user_id(request: Request) -> str:
-    try:
-        token = _extract_request_token(request)
-        response = supabase_auth.auth.get_user(token)
-    except Exception as e:
-        user, _ = _refresh_session_from_cookie(request)
-        return str(user.get("id") or "").strip()
-
-    user = getattr(response, "user", None) or (response.get("user") if isinstance(response, dict) else None)
-    user_id = getattr(user, "id", None) or (user.get("id") if isinstance(user, dict) else None)
-    if not isinstance(user_id, str) or not user_id.strip():
-        user, _ = _refresh_session_from_cookie(request)
-        return str(user.get("id") or "").strip()
-    return user_id.strip()
+    user = _get_authenticated_user(request)
+    return str(user.get("id") or "").strip()
 
 
 def _get_authenticated_user(request: Request) -> dict[str, Any]:
-    try:
-        token = _extract_request_token(request)
-        response = supabase_auth.auth.get_user(token)
-    except Exception as e:
-        user, _ = _refresh_session_from_cookie(request)
-        return user
-
-    user = getattr(response, "user", None) or (response.get("user") if isinstance(response, dict) else None)
-    encoded = jsonable_encoder(user) if user is not None else None
-    if not isinstance(encoded, dict) or not str(encoded.get("id") or "").strip():
-        user, _ = _refresh_session_from_cookie(request)
-        return user
-    return encoded
+    session_id = _extract_request_session_id(request)
+    return get_session_user(session_id)
 
 
-def _get_auth_payload_token(payload: Any) -> str:
-    data = jsonable_encoder(payload)
-    return str(
-        data.get("access_token")
-        or (data.get("session") or {}).get("access_token")
-        or (data.get("data") or {}).get("access_token")
-        or ((data.get("data") or {}).get("session") or {}).get("access_token")
-        or ""
-    ).strip()
-
-
-def _get_auth_payload_refresh_token(payload: Any) -> str:
-    data = jsonable_encoder(payload)
-    return str(
-        data.get("refresh_token")
-        or (data.get("session") or {}).get("refresh_token")
-        or (data.get("data") or {}).get("refresh_token")
-        or ((data.get("data") or {}).get("session") or {}).get("refresh_token")
-        or ""
-    ).strip()
-
-
-def _refresh_session_from_cookie(request: Request) -> tuple[dict[str, Any], Any]:
-    refresh_token = (request.cookies.get(REFRESH_COOKIE_NAME) or "").strip()
-    if not refresh_token:
-        raise HTTPException(status_code=401, detail="missing refresh token")
-    try:
-        payload = supabase_auth.auth.refresh_session(refresh_token)
-        user = getattr(payload, "user", None) or (payload.get("user") if isinstance(payload, dict) else None)
-        encoded = jsonable_encoder(user) if user is not None else None
-        if not isinstance(encoded, dict) or not str(encoded.get("id") or "").strip():
-            token = _get_auth_payload_token(payload)
-            if token:
-                response = supabase_auth.auth.get_user(token)
-                user = getattr(response, "user", None) or (response.get("user") if isinstance(response, dict) else None)
-                encoded = jsonable_encoder(user) if user is not None else None
-        if not isinstance(encoded, dict) or not str(encoded.get("id") or "").strip():
-            raise HTTPException(status_code=401, detail="invalid refresh token")
-        request.state.refreshed_auth_payload = payload
-        return encoded, payload
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(status_code=401, detail="invalid refresh token") from e
+def _auth_response_from_payload(request: Request, payload: Any) -> JSONResponse:
+    session_id, user = create_app_session(payload)
+    response = JSONResponse(content={
+        "authenticated": True,
+        "user": {"id": user.get("id"), "email": user.get("email")},
+    })
+    _set_session_cookie(response, request, session_id)
+    _clear_legacy_auth_cookies(response, request)
+    return response
 
 
 class AuthIn(BaseModel):
@@ -398,10 +334,9 @@ async def signup(data: AuthIn, request: Request):
             "email": email,
             "password": password
         })
-        body = jsonable_encoder(res)
-        response = JSONResponse(content=body)
-        _set_auth_cookies(response, request, res)
-        return response
+        return _auth_response_from_payload(request, res)
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=400, detail=_error_detail(e)) from e
 
@@ -419,10 +354,9 @@ async def login(data: AuthIn, request: Request):
             "email": email,
             "password": password
         })
-        body = jsonable_encoder(res)
-        response = JSONResponse(content=body)
-        _set_auth_cookies(response, request, res)
-        return response
+        return _auth_response_from_payload(request, res)
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=400, detail=_error_detail(e)) from e
 
@@ -442,6 +376,9 @@ def get_session(request: Request):
 
 @app.post("/logout")
 def logout(request: Request):
+    session_id = (request.cookies.get(SESSION_COOKIE_NAME) or "").strip()
+    if session_id:
+        revoke_app_session(session_id)
     response = JSONResponse(content={"ok": True})
     _clear_session_cookie(response, request)
     return response

@@ -19,7 +19,16 @@ $env:SUPABASE_ANON_KEY="your-supabase-anon-key"
 $env:SUPABASE_SERVICE_ROLE_KEY="your-service-role-key"
 ```
 
-4. Optional OCR and AI variables:
+4. Run required Supabase SQL migrations:
+
+Open Supabase SQL Editor and run:
+
+- `supabase_entity_aliases.sql`
+- `supabase_user_sessions.sql`
+
+The `user_sessions` table stores Supabase access and refresh tokens on the server. Browser and Android clients receive only an opaque `reverie_app_session` cookie.
+
+5. Optional OCR and AI variables:
 
 ```powershell
 $env:OPENAI_API_KEY="your-openai-api-key"
@@ -28,7 +37,7 @@ $env:SUPABASE_IMAGE_BUCKET="memory-images"
 $env:TESSERACT_CMD="C:\Program Files\Tesseract-OCR\tesseract.exe"
 ```
 
-5. Run the app:
+6. Run the app:
 
 ```powershell
 python -m uvicorn app:app --host 127.0.0.1 --port 8000
@@ -78,6 +87,7 @@ Tesseract is installed for Docker deployments by the `Dockerfile`. If using a no
 - If these files were previously pushed to GitHub, revoke/rotate the Google OAuth client and refresh token in Google Cloud.
 - Calendar sync is disabled for beta and does not use local Google credential or token files.
 - `SUPABASE_SERVICE_ROLE_KEY` must remain server-side only.
+- Browser cookies store only an opaque session ID. Supabase access and refresh tokens are stored server-side in `user_sessions`.
 - Uploaded images are validated by MIME type, extension, file size, dimensions, and Pillow image verification before being stored or processed.
 
 ## PWA / Android TWA

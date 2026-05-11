@@ -2,6 +2,7 @@ window.ReverieShared = (() => {
   const SESSION_CACHE_KEY = "reverie:session:v1";
   const SESSION_TTL_MS = 600000;
   const API_CACHE_PREFIX = "reverie:api:";
+  const nativeFetch = window.fetch.bind(window);
 
   const isStandalone = window.matchMedia?.("(display-mode: standalone)")?.matches
     || window.navigator.standalone === true;
@@ -12,6 +13,7 @@ window.ReverieShared = (() => {
   window.ReveriePageCleanup = [];
 
   let sessionInfoPromise = null;
+  let sessionRetryPromise = null;
 
   function isNativeShell() {
     return Boolean(window.Capacitor?.isNativePlatform?.() || window.Capacitor?.getPlatform?.() === "android");
@@ -20,6 +22,58 @@ window.ReverieShared = (() => {
   try {
     localStorage.removeItem("reverie:access-token:v1");
   } catch (_) {}
+
+  function isSameOriginUrl(input) {
+    try {
+      const url = new URL(typeof input === "string" ? input : input?.url, window.location.origin);
+      return url.origin === window.location.origin ? url : null;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  function shouldRetryAuth(input) {
+    const url = isSameOriginUrl(input);
+    if (!url) return false;
+    return !["/session", "/login", "/signup", "/logout"].includes(url.pathname);
+  }
+
+  async function refreshSessionForRetry() {
+    if (!sessionRetryPromise) {
+      sessionRetryPromise = (async () => {
+        try {
+          const url = new URL("/session", window.location.origin);
+          url.searchParams.set("_", String(Date.now()));
+          const resp = await nativeFetch(url.toString(), {
+            credentials: "same-origin",
+            cache: "no-store",
+          });
+          if (!resp.ok) return false;
+          const data = await resp.json().catch(() => null);
+          if (data?.authenticated) {
+            writeStoredJson(SESSION_CACHE_KEY, data);
+            return true;
+          }
+        } catch (_) {}
+        return false;
+      })().finally(() => {
+        sessionRetryPromise = null;
+      });
+    }
+    return sessionRetryPromise;
+  }
+
+  window.fetch = async (input, init) => {
+    const response = await nativeFetch(input, init);
+    if (response.status !== 401 || !shouldRetryAuth(input)) {
+      return response;
+    }
+    const refreshed = await refreshSessionForRetry();
+    if (!refreshed) {
+      return response;
+    }
+    return nativeFetch(input, init);
+  };
 
   function readStoredJson(key, ttlMs) {
     try {
