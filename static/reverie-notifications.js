@@ -26,7 +26,8 @@
   }
 
   function notificationId(note) {
-    const raw = String(note?.id || note?.note_id || note?.title || note?.due_time || "");
+    const raw = String(note?.id || note?.note_id || "").trim();
+    if (!raw) return null;
     let hash = 0;
     for (let i = 0; i < raw.length; i += 1) {
       hash = ((hash << 5) - hash + raw.charCodeAt(i)) | 0;
@@ -84,16 +85,21 @@
         return Number.isFinite(due) && due > now && due <= max;
       })
       .slice(0, 50)
-      .map((note) => ({
-        id: notificationId(note),
-        title: note?.note_type === "reminder" ? "Reminder due" : "Task due",
-        body: notificationBody(note),
-        schedule: { at: new Date(note.due_time) },
-        extra: {
-          noteId: String(note?.id || note?.note_id || ""),
-          path: "/tasks",
-        },
-      }));
+      .map((note) => {
+        const id = notificationId(note);
+        if (!id) return null;
+        return {
+          id,
+          title: note?.note_type === "reminder" ? "Reminder due" : "Task due",
+          body: notificationBody(note),
+          schedule: { at: new Date(note.due_time) },
+          extra: {
+            noteId: String(note?.id || note?.note_id || ""),
+            path: "/tasks",
+          },
+        };
+      })
+      .filter(Boolean);
   }
 
   async function sync() {
@@ -123,23 +129,34 @@
     return { scheduled: notifications.length };
   }
 
-  async function enableFromButton(button, statusEl) {
+  async function setNotificationEnabled(enabled, statusEl) {
+    if (!enabled) {
+      setEnabled(false);
+      await cancelScheduled();
+      if (statusEl) statusEl.textContent = "Reminder notifications disabled.";
+      return { scheduled: 0, enabled: false };
+    }
     if (!isNative()) {
       if (statusEl) statusEl.textContent = "Notifications are available in the Android app.";
-      return;
+      return { scheduled: 0, enabled: false, reason: "unavailable" };
     }
+    setEnabled(true);
+    const result = await sync();
+    if (statusEl) {
+      statusEl.textContent = result.reason === "permission"
+        ? "Notification permission was not granted."
+        : `Reminder notifications enabled. ${result.scheduled || 0} scheduled.`;
+    }
+    return { ...result, enabled: true };
+  }
+
+  async function enableFromButton(button, statusEl) {
     button.disabled = true;
     const oldText = button.querySelector("span")?.textContent || button.textContent;
     const label = button.querySelector("span");
     if (label) label.textContent = "Setting up...";
     try {
-      setEnabled(true);
-      const result = await sync();
-      if (statusEl) {
-        statusEl.textContent = result.reason === "permission"
-          ? "Notification permission was not granted."
-          : `Reminder notifications enabled. ${result.scheduled || 0} scheduled.`;
-      }
+      await setNotificationEnabled(true, statusEl);
     } catch (err) {
       console.error(err);
       if (statusEl) statusEl.textContent = err?.message || "Could not enable notifications.";
@@ -149,6 +166,26 @@
     }
   }
 
+  function installToggle(input) {
+    if (input.dataset.reverieNotificationsReady === "1") return;
+    input.dataset.reverieNotificationsReady = "1";
+    const statusEl = document.querySelector("[data-reverie-notification-status]");
+    input.checked = getEnabled();
+    input.addEventListener("change", async () => {
+      input.disabled = true;
+      if (statusEl) statusEl.textContent = input.checked ? "Setting up notifications..." : "Disabling notifications...";
+      try {
+        await setNotificationEnabled(input.checked, statusEl);
+      } catch (err) {
+        console.error(err);
+        input.checked = getEnabled();
+        if (statusEl) statusEl.textContent = err?.message || "Could not update notification setting.";
+      } finally {
+        input.disabled = false;
+      }
+    });
+  }
+
   function installAccountControls() {
     document.querySelectorAll("[data-reverie-enable-notifications]").forEach((button) => {
       if (button.dataset.reverieNotificationsReady === "1") return;
@@ -156,6 +193,7 @@
       const statusEl = button.closest(".account-actions")?.querySelector("[data-reverie-notification-status]");
       button.addEventListener("click", () => enableFromButton(button, statusEl));
     });
+    document.querySelectorAll("[data-reverie-notification-toggle]").forEach(installToggle);
   }
 
   async function init() {
@@ -171,6 +209,7 @@
 
   window.ReverieNotifications = {
     sync,
+    setNotificationEnabled,
     requestPermissions,
     cancelScheduled,
     getEnabled,

@@ -25,6 +25,11 @@
         credentials: "same-origin",
       });
     } catch (_) {}
+    try {
+      await window.ReverieNotifications?.setNotificationEnabled?.(false);
+      localStorage.removeItem("reverie_email");
+      localStorage.removeItem("reverie_seen_authenticated");
+    } catch (_) {}
     invalidateSession?.();
     closeAccountSheet();
     window.location.href = "/";

@@ -631,6 +631,49 @@ button,input,textarea,select{font:inherit}
   line-height:1.35;
   padding:0 4px;
 }
+.account-page-actions{
+  max-width:720px;
+}
+.account-toggle-row{
+  position:relative;
+  grid-template-columns:minmax(0, 1fr) auto;
+  align-items:center;
+}
+.account-toggle-row small{
+  grid-column:1 / 2;
+}
+.account-toggle-row input{
+  grid-column:2;
+  grid-row:1 / span 2;
+  width:52px;
+  height:30px;
+  appearance:none;
+  border-radius:999px;
+  border:1px solid rgba(148,163,184,.22);
+  background:rgba(148,163,184,.16);
+  position:relative;
+  cursor:pointer;
+  transition:background .18s ease,border-color .18s ease;
+}
+.account-toggle-row input::after{
+  content:"";
+  position:absolute;
+  width:22px;
+  height:22px;
+  border-radius:50%;
+  left:3px;
+  top:3px;
+  background:#dbeafe;
+  box-shadow:0 4px 12px rgba(0,0,0,.32);
+  transition:transform .18s ease;
+}
+.account-toggle-row input:checked{
+  background:linear-gradient(135deg,var(--accent),var(--accent2));
+  border-color:transparent;
+}
+.account-toggle-row input:checked::after{
+  transform:translateX(22px);
+}
 .note-title-wrap{
   display:grid;
   gap:6px;

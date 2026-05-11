@@ -1,6 +1,5 @@
 window.ReverieShared = (() => {
   const SESSION_CACHE_KEY = "reverie:session:v1";
-  const ACCESS_TOKEN_KEY = "reverie:access-token:v1";
   const SESSION_TTL_MS = 600000;
   const API_CACHE_PREFIX = "reverie:api:";
 
@@ -13,55 +12,14 @@ window.ReverieShared = (() => {
   window.ReveriePageCleanup = [];
 
   let sessionInfoPromise = null;
-  const nativeFetch = window.fetch.bind(window);
 
   function isNativeShell() {
     return Boolean(window.Capacitor?.isNativePlatform?.() || window.Capacitor?.getPlatform?.() === "android");
   }
   document.documentElement.classList.toggle("native-shell", isNativeShell());
-
-  function getStoredAccessToken() {
-    try {
-      return localStorage.getItem(ACCESS_TOKEN_KEY) || "";
-    } catch (_) {
-      return "";
-    }
-  }
-
-  function storeAccessTokenFromPayload(payload) {
-    const token = String(
-      payload?.access_token
-      || payload?.session?.access_token
-      || payload?.data?.access_token
-      || payload?.data?.session?.access_token
-      || ""
-    ).trim();
-    if (!token) return;
-    try {
-      localStorage.setItem(ACCESS_TOKEN_KEY, token);
-    } catch (_) {}
-  }
-
-  function clearStoredAccessToken() {
-    try {
-      localStorage.removeItem(ACCESS_TOKEN_KEY);
-    } catch (_) {}
-  }
-
-  window.fetch = function reverieFetch(input, init = {}) {
-    const requestUrl = typeof input === "string" ? input : input?.url;
-    const url = requestUrl ? new URL(requestUrl, window.location.href) : null;
-    const token = getStoredAccessToken();
-    if (!token || !url || url.origin !== window.location.origin) {
-      return nativeFetch(input, init);
-    }
-
-    const headers = new Headers(init?.headers || (typeof input !== "string" ? input.headers : undefined) || {});
-    if (!headers.has("Authorization")) {
-      headers.set("Authorization", `Bearer ${token}`);
-    }
-    return nativeFetch(input, { ...init, headers });
-  };
+  try {
+    localStorage.removeItem("reverie:access-token:v1");
+  } catch (_) {}
 
   function readStoredJson(key, ttlMs) {
     try {
@@ -152,7 +110,6 @@ window.ReverieShared = (() => {
     try {
       sessionStorage.removeItem(SESSION_CACHE_KEY);
     } catch (_) {}
-    clearStoredAccessToken();
     sessionInfoPromise = Promise.resolve(null);
   }
 
@@ -501,8 +458,6 @@ window.ReverieShared = (() => {
     getSessionInfo,
     ensureSession,
     markSessionAuthenticated,
-    storeAccessTokenFromPayload,
-    clearStoredAccessToken,
     isNativeShell,
     invalidateSession,
     navigateAppShell,

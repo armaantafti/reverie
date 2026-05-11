@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="color-scheme" content="dark" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <title>Reverie &ndash; Account</title>
+  <link rel="manifest" href="/static/manifest.json" />
+  <link rel="icon" href="/static/icon-192.png" />
+  <link rel="apple-touch-icon" href="/static/icon-192.png" />
+  <link rel="stylesheet" href="/static/reverie-list-page.min.css?v=39" />
+</head>
+<body>
+  <div class="shell">
+    <header class="topbar">
+      <div class="topbar-inner">
+        <div class="brand">
+          <div class="brand-mark"><img src="/static/logo_reverie.webp?v=39" alt="Reverie" /></div>
+          <div class="brand-copy">
+            <h1 class="brand-name">Reverie</h1>
+            <p class="brand-line">Remember better.</p>
+          </div>
+        </div>
+        <nav class="nav" aria-label="Primary">
+          <a href="/">Home</a>
+          <a href="/search">Search</a>
+          <a href="/tasks">Tasks</a>
+          <a href="/recommendations">Recommendations</a>
+        </nav>
+        <div class="status"><span class="status-dot"></span> Account</div>
+      </div>
+    </header>
+
+    <main class="page">
+      <section class="stack">
+        <article class="panel">
+          <div class="panel-head">
+            <div>
+              <div class="section-kicker">Account</div>
+              <h2 class="page-title">Settings</h2>
+              <p class="panel-subtitle">Manage your Reverie workspace, uploads, privacy, and phone reminders.</p>
+            </div>
+          </div>
+
+          <div class="account-actions account-page-actions">
+            <label class="account-action account-toggle-row">
+              <span>Reminder Notifications</span>
+              <small>Get phone alerts when reminders and tasks are due.</small>
+              <input type="checkbox" data-reverie-notification-toggle />
+            </label>
+            <div class="account-action-status" data-reverie-notification-status aria-live="polite"></div>
+
+            <a class="account-action" href="/entities">
+              <span>Manage Entities</span>
+              <small>Merge, rename, and organize names, entities, and topics.</small>
+            </a>
+            <a class="account-action" href="/uploads">
+              <span>Manage Uploads</span>
+              <small>Remove image or document files while keeping memories.</small>
+            </a>
+            <a class="account-action" href="/privacy">
+              <span>Privacy</span>
+              <small>Review data use, storage, and account information.</small>
+            </a>
+            <a class="account-action danger" href="/account-deletion">
+              <span>Request Account Deletion</span>
+              <small>Permanently delete your account and associated data.</small>
+            </a>
+            <button class="account-action danger" id="mobileLogoutBtn" type="button">
+              <span>Log out</span>
+              <small>End this session on this device.</small>
+            </button>
+          </div>
+        </article>
+      </section>
+    </main>
+  </div>
+
+  <script src="/static/reverie-shared.min.js?v=39" defer></script>
+  <script src="/static/reverie-notifications.min.js?v=39" defer></script>
+  <script src="/static/reverie-account.min.js?v=39" defer></script>
+  <nav class="mobile-tabbar" aria-label="Mobile primary">
+    <a href="/" aria-label="Home"><span class="tab-icon">&#8962;</span><span>Home</span></a>
+    <a href="/search" aria-label="Search"><span class="tab-icon">&#8981;</span><span>Search</span></a>
+    <a href="/tasks" aria-label="Tasks"><span class="tab-icon">&#10003;</span><span>Tasks</span></a>
+    <a class="active" href="/account" aria-label="Account"><span class="tab-icon">&#9881;</span><span>Account</span></a>
+  </nav>
+</body>
+</html>

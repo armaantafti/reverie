@@ -1,4 +1,4 @@
-    const { normaliseTags, normaliseEntities, toDisplayCase, displayNoteType, displayPerson, displayTag, displayEntity, formatWhen, toInputDateTimeValue, fromInputDateTimeValue, splitCommaList, chipClass, makeChip, appendImagePreview, fillAssetActions, noteStatus, isActionableNote, statusLabel, noteId, fetchNoteDetail, setModalVisible, readApiCache, writeApiCache, clearApiCache, getSessionInfo: sharedGetSessionInfo, markSessionAuthenticated, storeAccessTokenFromPayload, invalidateSession } = window.ReverieShared;
+    const { normaliseTags, normaliseEntities, toDisplayCase, displayNoteType, displayPerson, displayTag, displayEntity, formatWhen, toInputDateTimeValue, fromInputDateTimeValue, splitCommaList, chipClass, makeChip, appendImagePreview, fillAssetActions, noteStatus, isActionableNote, statusLabel, noteId, fetchNoteDetail, setModalVisible, readApiCache, writeApiCache, clearApiCache, getSessionInfo: sharedGetSessionInfo, markSessionAuthenticated, invalidateSession } = window.ReverieShared;
     const ALL_TAGS = Array.isArray(window.REVERIE_TAGS) ? window.REVERIE_TAGS : [];
     const TOPIC_BUTTONS = [...ALL_TAGS, "passive"];
 
@@ -242,6 +242,7 @@ function setAuthMode(nextMode) {
         refreshes.push(openForYouModal());
       }
       await Promise.all(refreshes);
+      window.dispatchEvent(new CustomEvent("reverie:notes-changed"));
     }
 
     async function saveStatusUpdate() {
@@ -1043,6 +1044,7 @@ function setAuthMode(nextMode) {
 
         const data = await resp.json();
         saveStatusEl.textContent = data?.message || "Files uploaded. Processing is running in the background.";
+        window.dispatchEvent(new CustomEvent("reverie:notes-changed"));
         window.setTimeout(closeCaptureComposer, 700);
         await Promise.all([loadForYou(), runSearch()]);
       } catch (err) {
@@ -1075,6 +1077,7 @@ function setAuthMode(nextMode) {
         });
         noteTextEl.value = "";
         saveStatusEl.textContent = "Saved.";
+        window.dispatchEvent(new CustomEvent("reverie:notes-changed"));
         window.setTimeout(closeCaptureComposer, 550);
         await Promise.all([loadForYou(), runSearch()]);
       } catch (err) {
@@ -1217,8 +1220,7 @@ function setAuthMode(nextMode) {
 
       try {
         const path = authMode === "login" ? "/login" : "/signup";
-        const authPayload = await apiPost(path, { email, password });
-        storeAccessTokenFromPayload?.(authPayload);
+        await apiPost(path, { email, password });
 
         localStorage.setItem("reverie_email", email);
         localStorage.setItem("reverie_seen_authenticated", "1");
@@ -1279,6 +1281,9 @@ function setAuthMode(nextMode) {
       try {
         await apiPost("/logout", {});
       } catch (_) {}
+      try {
+        await window.ReverieNotifications?.setNotificationEnabled?.(false);
+      } catch (_) {}
       closeMobileAccountSheet();
       clearSession();
     }
@@ -1293,8 +1298,10 @@ function setAuthMode(nextMode) {
     mobileCaptureBackdrop?.addEventListener("click", closeCaptureComposer);
 
     mobileAccountTab?.addEventListener("click", (event) => {
-      event.preventDefault();
-      openMobileAccountSheet();
+      if ((mobileAccountTab.getAttribute("href") || "") === "#account") {
+        event.preventDefault();
+        openMobileAccountSheet();
+      }
     });
 
     mobileAccountClose?.addEventListener("click", closeMobileAccountSheet);

@@ -4,7 +4,7 @@ from typing import Optional, Any
 from fastapi import FastAPI, Query, Request, HTTPException, BackgroundTasks, UploadFile, File
 from fastapi.encoders import jsonable_encoder
 from fastapi.middleware.gzip import GZipMiddleware
-from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
@@ -44,6 +44,9 @@ SESSION_COOKIE_MAX_AGE = 60 * 60 * 24 * 30
 @app.middleware("http")
 async def no_cache_html(request: Request, call_next):
     response = await call_next(request)
+    refreshed_payload = getattr(request.state, "refreshed_auth_payload", None)
+    if refreshed_payload is not None:
+        _set_auth_cookies(response, request, refreshed_payload)
     content_type = response.headers.get("content-type", "")
     if "text/html" in content_type:
         response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
@@ -244,7 +247,7 @@ def _cookie_secure(request: Request) -> bool:
     return request.url.scheme == "https"
 
 
-def _set_session_cookie(response: JSONResponse, request: Request, token: str) -> None:
+def _set_session_cookie(response: Response, request: Request, token: str) -> None:
     response.set_cookie(
         key=SESSION_COOKIE_NAME,
         value=token,
@@ -256,7 +259,7 @@ def _set_session_cookie(response: JSONResponse, request: Request, token: str) ->
     )
 
 
-def _set_refresh_cookie(response: JSONResponse, request: Request, token: str) -> None:
+def _set_refresh_cookie(response: Response, request: Request, token: str) -> None:
     response.set_cookie(
         key=REFRESH_COOKIE_NAME,
         value=token,
@@ -268,7 +271,7 @@ def _set_refresh_cookie(response: JSONResponse, request: Request, token: str) ->
     )
 
 
-def _set_auth_cookies(response: JSONResponse, request: Request, payload: Any) -> None:
+def _set_auth_cookies(response: Response, request: Request, payload: Any) -> None:
     access_token = _get_auth_payload_token(payload)
     refresh_token = _get_auth_payload_refresh_token(payload)
     if access_token:
@@ -296,14 +299,7 @@ def _extract_request_token(request: Request) -> str:
     cookie_token = (request.cookies.get(SESSION_COOKIE_NAME) or "").strip()
     if cookie_token:
         return cookie_token
-
-    auth_header = (request.headers.get("Authorization") or "").strip()
-    if not auth_header.startswith("Bearer "):
-        raise HTTPException(status_code=401, detail="missing bearer token")
-    token = auth_header[7:].strip()
-    if not token:
-        raise HTTPException(status_code=401, detail="missing bearer token")
-    return token
+    raise HTTPException(status_code=401, detail="missing session cookie")
 
 
 def _get_authenticated_user_id(request: Request) -> str:
@@ -376,6 +372,7 @@ def _refresh_session_from_cookie(request: Request) -> tuple[dict[str, Any], Any]
                 encoded = jsonable_encoder(user) if user is not None else None
         if not isinstance(encoded, dict) or not str(encoded.get("id") or "").strip():
             raise HTTPException(status_code=401, detail="invalid refresh token")
+        request.state.refreshed_auth_payload = payload
         return encoded, payload
     except HTTPException:
         raise
@@ -432,11 +429,7 @@ async def login(data: AuthIn, request: Request):
 
 @app.get("/session")
 def get_session(request: Request):
-    refreshed_payload = None
-    try:
-        user = _get_authenticated_user(request)
-    except HTTPException:
-        user, refreshed_payload = _refresh_session_from_cookie(request)
+    user = _get_authenticated_user(request)
     response = JSONResponse(content={
         "authenticated": True,
         "user": {
@@ -444,8 +437,6 @@ def get_session(request: Request):
             "email": user.get("email"),
         },
     })
-    if refreshed_payload is not None:
-        _set_auth_cookies(response, request, refreshed_payload)
     return response
 
 
@@ -492,6 +483,14 @@ async def entities_page(request: Request):
 async def uploads_page(request: Request):
     return templates.TemplateResponse(
         "uploads.html",
+        _template_context(request)
+    )
+
+
+@app.get("/account", response_class=HTMLResponse)
+async def account_page(request: Request):
+    return templates.TemplateResponse(
+        "account.html",
         _template_context(request)
     )
 

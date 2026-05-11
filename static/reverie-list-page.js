@@ -416,6 +416,7 @@ function initReverieListPage(config) {
       clearListCache();
       closeStatusModal();
       await loadItems();
+      window.dispatchEvent(new CustomEvent("reverie:notes-changed"));
     }
 
     async function saveEdit() {
@@ -458,6 +459,7 @@ function initReverieListPage(config) {
       closeEditModal();
       closeDetail();
       await loadItems();
+      window.dispatchEvent(new CustomEvent("reverie:notes-changed"));
     }
 
     async function deleteActiveNote() {
@@ -494,6 +496,7 @@ function initReverieListPage(config) {
       closeEditModal();
       closeDetail();
       await loadItems();
+      window.dispatchEvent(new CustomEvent("reverie:notes-changed"));
     }
 
     function renderCard(note) {
