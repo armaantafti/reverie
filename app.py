@@ -1,4 +1,6 @@
+import os
 from datetime import datetime, timedelta, timezone
+from io import BytesIO
 from typing import Optional, Any
 
 from fastapi import FastAPI, Query, Request, HTTPException, BackgroundTasks, UploadFile, File
@@ -8,6 +10,7 @@ from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
+import requests
 
 from auth_sessions import create_app_session, get_session_user, migrate_legacy_refresh_token, revoke_app_session
 from supabase_client import supabase_admin, supabase_auth
@@ -42,6 +45,17 @@ SESSION_COOKIE_NAME = "reverie_app_session"
 LEGACY_SESSION_COOKIE_NAME = "reverie_session"
 LEGACY_REFRESH_COOKIE_NAME = "reverie_refresh"
 SESSION_COOKIE_MAX_AGE = 60 * 60 * 24 * 30
+MAX_VOICE_UPLOAD_BYTES = 10 * 1024 * 1024
+SUPPORTED_AUDIO_EXTENSIONS = {".webm", ".m4a", ".mp3", ".wav"}
+SUPPORTED_AUDIO_TYPES = {
+    "audio/webm",
+    "audio/mp4",
+    "audio/m4a",
+    "audio/mpeg",
+    "audio/mp3",
+    "audio/wav",
+    "audio/x-wav",
+}
 
 
 @app.middleware("http")
@@ -346,6 +360,55 @@ def _clean_due_time(value: Any) -> Optional[str]:
         raise HTTPException(status_code=400, detail="due_time must be a valid datetime")
 
 
+def _audio_file_extension(filename: str) -> str:
+    lower = str(filename or "").lower()
+    for ext in SUPPORTED_AUDIO_EXTENSIONS:
+        if lower.endswith(ext):
+            return ext
+    return ""
+
+
+def _validate_audio_upload(filename: str, content_type: str, file_bytes: bytes) -> tuple[str, str]:
+    if not file_bytes:
+        raise HTTPException(status_code=400, detail="audio file is empty")
+    if len(file_bytes) > MAX_VOICE_UPLOAD_BYTES:
+        raise HTTPException(status_code=400, detail="voice recording must be 10 MB or smaller")
+
+    ext = _audio_file_extension(filename)
+    clean_type = (content_type or "").split(";")[0].strip().lower()
+    if clean_type not in SUPPORTED_AUDIO_TYPES and ext not in SUPPORTED_AUDIO_EXTENSIONS:
+        raise HTTPException(status_code=400, detail="upload a webm, m4a, mp3, or wav voice recording")
+
+    upload_name = filename or f"voice{ext or '.webm'}"
+    upload_type = clean_type or "application/octet-stream"
+    return upload_name, upload_type
+
+
+def _transcribe_audio_bytes(file_name: str, content_type: str, file_bytes: bytes) -> str:
+    api_key = os.getenv("OPENAI_API_KEY")
+    if not api_key:
+        raise HTTPException(status_code=503, detail="voice transcription is not configured")
+
+    model = os.getenv("OPENAI_TRANSCRIPTION_MODEL", "gpt-4o-mini-transcribe")
+    try:
+        response = requests.post(
+            "https://api.openai.com/v1/audio/transcriptions",
+            headers={"Authorization": f"Bearer {api_key}"},
+            data={"model": model, "response_format": "json"},
+            files={"file": (file_name, BytesIO(file_bytes), content_type)},
+            timeout=75,
+        )
+        if response.status_code >= 400:
+            raise RuntimeError(response.text[:500])
+        payload = response.json()
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail=f"voice transcription failed: {_error_detail(exc)}") from exc
+
+    return str(payload.get("text") or "").strip()
+
+
 def _cookie_secure(request: Request) -> bool:
     forwarded_proto = (request.headers.get("x-forwarded-proto") or "").lower()
     if "https" in forwarded_proto:
@@ -557,6 +620,19 @@ async def account_deletion_page(request: Request):
         "account_deletion.html",
         _template_context(request)
     )
+
+
+@app.post("/voice/transcribe")
+async def transcribe_voice(request: Request, audio: UploadFile = File(...)):
+    _get_authenticated_user_id(request)
+    file_name = audio.filename or "voice.webm"
+    file_bytes = await audio.read(MAX_VOICE_UPLOAD_BYTES + 1)
+    upload_name, upload_type = _validate_audio_upload(file_name, audio.content_type or "", file_bytes)
+    transcript = _transcribe_audio_bytes(upload_name, upload_type, file_bytes)
+    return {
+        "transcript": transcript,
+        "message": "Transcript added. Review before saving." if transcript else "No speech detected. Try again.",
+    }
 
 
 class TextNoteIn(BaseModel):

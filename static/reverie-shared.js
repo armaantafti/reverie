@@ -360,8 +360,22 @@ window.ReverieShared = (() => {
     return window.Capacitor?.Plugins?.SpeechBridge || null;
   }
 
+  function supportsAudioRecording() {
+    return Boolean(window.MediaRecorder && navigator.mediaDevices?.getUserMedia);
+  }
+
+  function preferredAudioMimeType() {
+    const candidates = [
+      "audio/webm;codecs=opus",
+      "audio/webm",
+      "audio/mp4",
+      "audio/wav",
+    ];
+    return candidates.find((type) => window.MediaRecorder?.isTypeSupported?.(type)) || "";
+  }
+
   function supportsVoiceInput() {
-    return Boolean(nativeSpeechBridge()?.start || speechRecognitionConstructor());
+    return Boolean(nativeSpeechBridge()?.start || speechRecognitionConstructor() || supportsAudioRecording());
   }
 
   function appendTranscript(textEl, transcript) {
@@ -391,6 +405,8 @@ window.ReverieShared = (() => {
     }
 
     let recognition = null;
+    let recorder = null;
+    let recorderStream = null;
     let listening = false;
 
     function setListening(next) {
@@ -403,11 +419,115 @@ window.ReverieShared = (() => {
     }
 
     function stop() {
+      if (recorder && recorder.state === "recording") {
+        try {
+          recorder.stop();
+        } catch (_) {
+          setListening(false);
+        }
+        return;
+      }
       if (!recognition || !listening) return;
       try {
         recognition.stop();
       } catch (_) {
         setListening(false);
+      }
+    }
+
+    function stopRecorderStream() {
+      if (!recorderStream) return;
+      recorderStream.getTracks().forEach((track) => {
+        try {
+          track.stop();
+        } catch (_) {}
+      });
+      recorderStream = null;
+    }
+
+    async function uploadRecordedAudio(blob) {
+      const extension = blob.type.includes("mp4") ? "m4a" : blob.type.includes("wav") ? "wav" : "webm";
+      const form = new FormData();
+      form.append("audio", blob, `voice.${extension}`);
+      const response = await fetch("/voice/transcribe", {
+        method: "POST",
+        body: form,
+        credentials: "same-origin",
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(data?.detail || data?.message || `HTTP ${response.status}`);
+      }
+      return data;
+    }
+
+    async function startRecordingFallback() {
+      if (!supportsAudioRecording()) {
+        if (statusEl) statusEl.textContent = "Voice input is not supported on this device yet.";
+        return;
+      }
+      if (listening) {
+        stop();
+        return;
+      }
+
+      try {
+        recorderStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        const mimeType = preferredAudioMimeType();
+        recorder = mimeType ? new MediaRecorder(recorderStream, { mimeType }) : new MediaRecorder(recorderStream);
+        const chunks = [];
+
+        recorder.ondataavailable = (event) => {
+          if (event.data?.size) chunks.push(event.data);
+        };
+        recorder.onerror = () => {
+          stopRecorderStream();
+          setListening(false);
+          if (statusEl) statusEl.textContent = "Voice recording failed. Try again.";
+        };
+        recorder.onstop = async () => {
+          const type = recorder?.mimeType || mimeType || "audio/webm";
+          recorder = null;
+          stopRecorderStream();
+          setListening(false);
+          const blob = new Blob(chunks, { type });
+          if (!blob.size) {
+            if (statusEl) statusEl.textContent = "No speech recorded. Try again.";
+            return;
+          }
+          if (statusEl) statusEl.textContent = "Transcribing...";
+          try {
+            const data = await uploadRecordedAudio(blob);
+            const transcript = String(data?.transcript || "").trim();
+            if (transcript) {
+              appendTranscript(textEl, transcript);
+              if (statusEl) statusEl.textContent = data?.message || "Transcript added. Review before saving.";
+            } else if (statusEl) {
+              statusEl.textContent = data?.message || "No speech detected. Try again.";
+            }
+          } catch (error) {
+            if (statusEl) statusEl.textContent = error?.message || "Voice transcription failed.";
+          }
+        };
+
+        recorder.start();
+        setListening(true);
+        if (statusEl) statusEl.textContent = "Recording... Tap Voice again to stop.";
+        window.setTimeout(() => {
+          if (recorder?.state === "recording") {
+            if (statusEl) statusEl.textContent = "Recording stopped at 60 seconds. Transcribing...";
+            recorder.stop();
+          }
+        }, 60000);
+      } catch (error) {
+        stopRecorderStream();
+        setListening(false);
+        const message = String(error?.message || error || "");
+        if (statusEl) {
+          statusEl.textContent = /permission|denied|notallowed/i.test(message)
+            ? "Microphone permission was denied. Enable it in browser or app settings and try again."
+            : "Voice recording could not start on this device.";
+        }
       }
     }
 
@@ -446,6 +566,7 @@ window.ReverieShared = (() => {
       recognition.interimResults = true;
       recognition.continuous = false;
       let finalTranscript = "";
+      let browserShouldFallback = false;
 
       recognition.onstart = () => {
         setListening(true);
@@ -464,17 +585,24 @@ window.ReverieShared = (() => {
       };
       recognition.onerror = (event) => {
         const code = event?.error || "";
+        browserShouldFallback = !["not-allowed", "no-speech", "aborted"].includes(code) && supportsAudioRecording();
         const message = code === "not-allowed"
           ? "Microphone permission was denied."
           : code === "no-speech"
             ? "No speech detected. Try again."
-            : "Voice input could not start on this device.";
+            : browserShouldFallback
+              ? "Voice recognition unavailable. Switching to recording..."
+              : "Voice input could not start on this device.";
         if (statusEl) statusEl.textContent = message;
       };
       recognition.onend = () => {
         if (finalTranscript) {
           appendTranscript(textEl, finalTranscript);
           if (statusEl) statusEl.textContent = "Transcript added. Review before saving.";
+        } else if (browserShouldFallback) {
+          setListening(false);
+          startRecordingFallback();
+          return;
         } else if (statusEl && listening && statusEl.textContent === "Listening...") {
           statusEl.textContent = "No speech detected. Try again.";
         }
@@ -494,7 +622,11 @@ window.ReverieShared = (() => {
         startNative();
         return;
       }
-      startBrowser();
+      if (Recognition) {
+        startBrowser();
+        return;
+      }
+      startRecordingFallback();
     }
 
     button.type = "button";
