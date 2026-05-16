@@ -1,4 +1,4 @@
-    const { normaliseTags, normaliseEntities, toDisplayCase, displayNoteType, displayPerson, displayTag, displayEntity, formatWhen, toInputDateTimeValue, fromInputDateTimeValue, splitCommaList, chipClass, makeChip, appendImagePreview, fillAssetActions, noteStatus, isActionableNote, statusLabel, noteId, hasCalendarTime, calendarActionLabel, addNoteToCalendar, fetchNoteDetail, setModalVisible, readApiCache, writeApiCache, clearApiCache, getSessionInfo: sharedGetSessionInfo, markSessionAuthenticated, invalidateSession } = window.ReverieShared;
+    const { normaliseTags, normaliseEntities, toDisplayCase, displayNoteType, displayPerson, displayTag, displayEntity, formatWhen, toInputDateTimeValue, fromInputDateTimeValue, splitCommaList, chipClass, makeChip, appendImagePreview, fillAssetActions, noteStatus, isActionableNote, statusLabel, noteId, hasCalendarTime, calendarActionLabel, addNoteToCalendar, installVoiceInput, fetchNoteDetail, setModalVisible, readApiCache, writeApiCache, clearApiCache, getSessionInfo: sharedGetSessionInfo, markSessionAuthenticated, invalidateSession } = window.ReverieShared;
     const ALL_TAGS = Array.isArray(window.REVERIE_TAGS) ? window.REVERIE_TAGS : [];
     const TOPIC_BUTTONS = [...ALL_TAGS, "passive"];
 
@@ -38,6 +38,7 @@ function fillChipContainer(container, values, kind) {
     const loginState = document.getElementById("loginState");
 
     const saveBtn = document.getElementById("saveBtn");
+    const voiceBtn = document.getElementById("voiceBtn");
     const uploadBtn = document.getElementById("uploadBtn");
     const uploadInput = document.getElementById("uploadInput");
     const noteTextEl = document.getElementById("noteText");
@@ -1108,6 +1109,11 @@ function setAuthMode(nextMode) {
       const files = Array.from(uploadInput.files || []);
       if (!files.length) return;
       await uploadFiles(files);
+    });
+    installVoiceInput?.({
+      button: voiceBtn,
+      textEl: noteTextEl,
+      statusEl: saveStatusEl,
     });
 
     async function runSearch() {

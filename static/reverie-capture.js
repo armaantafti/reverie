@@ -7,6 +7,7 @@
   const uploadInput = document.getElementById("quickCaptureUploadInput");
   const textEl = document.getElementById("quickCaptureText");
   const statusEl = document.getElementById("quickCaptureStatus");
+  const voiceBtn = document.getElementById("quickCaptureVoice");
 
   if (!panel || !backdrop) return;
 
@@ -111,5 +112,10 @@
   uploadInput?.addEventListener("change", async () => {
     const files = Array.from(uploadInput.files || []);
     await uploadFiles(files);
+  });
+  window.ReverieShared?.installVoiceInput?.({
+    button: voiceBtn,
+    textEl,
+    statusEl,
   });
 })();

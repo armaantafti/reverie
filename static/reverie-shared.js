@@ -352,6 +352,120 @@ window.ReverieShared = (() => {
     return { opened: true, fallback: "ics" };
   }
 
+  function speechRecognitionConstructor() {
+    return window.SpeechRecognition || window.webkitSpeechRecognition || null;
+  }
+
+  function supportsVoiceInput() {
+    return Boolean(speechRecognitionConstructor());
+  }
+
+  function appendTranscript(textEl, transcript) {
+    const nextText = String(transcript || "").trim();
+    if (!textEl || !nextText) return;
+    const current = String(textEl.value || "");
+    const spacer = current.trim() ? (current.endsWith(" ") || current.endsWith("\n") ? "" : " ") : "";
+    textEl.value = `${current}${spacer}${nextText}`;
+    textEl.dispatchEvent(new Event("input", { bubbles: true }));
+    textEl.focus();
+    try {
+      const end = textEl.value.length;
+      textEl.setSelectionRange(end, end);
+    } catch (_) {}
+  }
+
+  function installVoiceInput({ button, textEl, statusEl, language = "en-US" }) {
+    if (!button || !textEl) return null;
+    const Recognition = speechRecognitionConstructor();
+    if (!Recognition) {
+      button.disabled = true;
+      button.classList.add("unsupported");
+      button.title = "Voice input is not supported on this device yet.";
+      if (button.dataset.unsupportedLabel) button.textContent = button.dataset.unsupportedLabel;
+      return null;
+    }
+
+    let recognition = null;
+    let listening = false;
+
+    function setListening(next) {
+      listening = Boolean(next);
+      button.classList.toggle("listening", listening);
+      button.setAttribute("aria-pressed", listening ? "true" : "false");
+      if (button.dataset.idleLabel && button.dataset.listeningLabel) {
+        button.textContent = listening ? button.dataset.listeningLabel : button.dataset.idleLabel;
+      }
+    }
+
+    function stop() {
+      if (!recognition || !listening) return;
+      try {
+        recognition.stop();
+      } catch (_) {
+        setListening(false);
+      }
+    }
+
+    function start() {
+      if (listening) {
+        stop();
+        return;
+      }
+      recognition = new Recognition();
+      recognition.lang = language;
+      recognition.interimResults = true;
+      recognition.continuous = false;
+      let finalTranscript = "";
+
+      recognition.onstart = () => {
+        setListening(true);
+        if (statusEl) statusEl.textContent = "Listening...";
+      };
+      recognition.onresult = (event) => {
+        let interim = "";
+        for (let index = event.resultIndex; index < event.results.length; index += 1) {
+          const result = event.results[index];
+          const transcript = String(result?.[0]?.transcript || "").trim();
+          if (!transcript) continue;
+          if (result.isFinal) finalTranscript = `${finalTranscript} ${transcript}`.trim();
+          else interim = `${interim} ${transcript}`.trim();
+        }
+        if (statusEl && interim) statusEl.textContent = `Listening: ${interim}`;
+      };
+      recognition.onerror = (event) => {
+        const code = event?.error || "";
+        const message = code === "not-allowed"
+          ? "Microphone permission was denied."
+          : code === "no-speech"
+            ? "No speech detected. Try again."
+            : "Voice input could not start on this device.";
+        if (statusEl) statusEl.textContent = message;
+      };
+      recognition.onend = () => {
+        if (finalTranscript) {
+          appendTranscript(textEl, finalTranscript);
+          if (statusEl) statusEl.textContent = "Transcript added. Review before saving.";
+        } else if (statusEl && listening && statusEl.textContent === "Listening...") {
+          statusEl.textContent = "No speech detected. Try again.";
+        }
+        setListening(false);
+      };
+
+      try {
+        recognition.start();
+      } catch (_) {
+        setListening(false);
+        if (statusEl) statusEl.textContent = "Voice input is already starting. Try again.";
+      }
+    }
+
+    button.type = "button";
+    button.setAttribute("aria-pressed", "false");
+    button.addEventListener("click", start);
+    window.addEventListener("beforeunload", stop);
+    return { start, stop, isListening: () => listening };
+  }
+
   async function fetchNoteDetail(note) {
     const id = noteId(note);
     if (!id) return note || null;
@@ -582,6 +696,8 @@ window.ReverieShared = (() => {
     hasCalendarTime,
     calendarActionLabel,
     addNoteToCalendar,
+    supportsVoiceInput,
+    installVoiceInput,
     fetchNoteDetail,
     setModalVisible,
     installFastNavigation,
