@@ -19,8 +19,8 @@ Keep this package ID unchanged if this shell is meant to update the existing Goo
 The generated Android project is set to:
 
 ```text
-versionCode 7
-versionName 1.6
+versionCode 8
+versionName 1.7
 ```
 
 Increase `versionCode` again before every Play Store upload.

@@ -356,8 +356,12 @@ window.ReverieShared = (() => {
     return window.SpeechRecognition || window.webkitSpeechRecognition || null;
   }
 
+  function nativeSpeechBridge() {
+    return window.Capacitor?.Plugins?.SpeechBridge || null;
+  }
+
   function supportsVoiceInput() {
-    return Boolean(speechRecognitionConstructor());
+    return Boolean(nativeSpeechBridge()?.start || speechRecognitionConstructor());
   }
 
   function appendTranscript(textEl, transcript) {
@@ -376,8 +380,9 @@ window.ReverieShared = (() => {
 
   function installVoiceInput({ button, textEl, statusEl, language = "en-US" }) {
     if (!button || !textEl) return null;
+    const nativeSpeech = nativeSpeechBridge();
     const Recognition = speechRecognitionConstructor();
-    if (!Recognition) {
+    if (!nativeSpeech?.start && !Recognition) {
       button.disabled = true;
       button.classList.add("unsupported");
       button.title = "Voice input is not supported on this device yet.";
@@ -406,7 +411,32 @@ window.ReverieShared = (() => {
       }
     }
 
-    function start() {
+    async function startNative() {
+      if (listening) return;
+      setListening(true);
+      if (statusEl) statusEl.textContent = "Listening...";
+      try {
+        const result = await nativeSpeech.start({ language });
+        const transcript = String(result?.transcript || "").trim();
+        if (transcript) {
+          appendTranscript(textEl, transcript);
+          if (statusEl) statusEl.textContent = "Transcript added. Review before saving.";
+        } else if (statusEl) {
+          statusEl.textContent = "No speech detected. Try again.";
+        }
+      } catch (error) {
+        const message = String(error?.message || error || "");
+        if (statusEl) {
+          statusEl.textContent = /permission|denied/i.test(message)
+            ? "Microphone permission was denied. Enable it in Android app settings and try again."
+            : message || "Voice input could not start on this device.";
+        }
+      } finally {
+        setListening(false);
+      }
+    }
+
+    function startBrowser() {
       if (listening) {
         stop();
         return;
@@ -459,11 +489,39 @@ window.ReverieShared = (() => {
       }
     }
 
+    function start() {
+      if (nativeSpeech?.start) {
+        startNative();
+        return;
+      }
+      startBrowser();
+    }
+
     button.type = "button";
     button.setAttribute("aria-pressed", "false");
     button.addEventListener("click", start);
     window.addEventListener("beforeunload", stop);
     return { start, stop, isListening: () => listening };
+  }
+
+  function syncKeyboardInset() {
+    const viewport = window.visualViewport;
+    const inset = viewport
+      ? Math.max(0, Math.round(window.innerHeight - viewport.height - viewport.offsetTop))
+      : 0;
+    document.documentElement.style.setProperty("--keyboard-inset", `${inset}px`);
+  }
+
+  function installKeyboardInsetSync() {
+    if (window.__reverieKeyboardInsetInstalled) return;
+    window.__reverieKeyboardInsetInstalled = true;
+    syncKeyboardInset();
+    window.addEventListener("resize", syncKeyboardInset, { passive: true });
+    window.addEventListener("orientationchange", () => window.setTimeout(syncKeyboardInset, 120), { passive: true });
+    if (window.visualViewport) {
+      window.visualViewport.addEventListener("resize", syncKeyboardInset, { passive: true });
+      window.visualViewport.addEventListener("scroll", syncKeyboardInset, { passive: true });
+    }
   }
 
   async function fetchNoteDetail(note) {
@@ -656,10 +714,12 @@ window.ReverieShared = (() => {
 
   if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", () => {
+      installKeyboardInsetSync();
       installFastNavigation();
       installAppShellNavigation();
     }, { once: true });
   } else {
+    installKeyboardInsetSync();
     installFastNavigation();
     installAppShellNavigation();
   }

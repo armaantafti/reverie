@@ -1284,9 +1284,8 @@ function setAuthMode(nextMode) {
 
     function syncCaptureViewport() {
       if (!window.visualViewport || !capturePanel) return;
-      const compactHeight = Math.max(300, Math.min(430, Math.round(window.visualViewport.height * 0.52)));
+      const compactHeight = Math.max(260, Math.min(380, Math.round(window.visualViewport.height * 0.48)));
       capturePanel.style.maxHeight = `${compactHeight}px`;
-      capturePanel.style.bottom = `${Math.max(10, window.innerHeight - window.visualViewport.height - window.visualViewport.offsetTop + 10)}px`;
     }
 
     function openMobileAccountSheet() {
