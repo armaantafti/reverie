@@ -1136,7 +1136,7 @@
     .mobile-capture-backdrop{
       display:none;
     }
-    @media (max-width: 700px), (display-mode: standalone) and (max-width: 900px){
+    @media (max-width: 700px), (hover: none) and (pointer: coarse), (display-mode: standalone) and (max-width: 900px){
       html{
         scroll-padding-top:96px;
         scroll-padding-bottom:112px;
