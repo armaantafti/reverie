@@ -1,5 +1,5 @@
-const CACHE_NAME = "reverie-pwa-v41";
-const PAGE_CACHE_NAME = "reverie-pages-v41";
+const CACHE_NAME = "reverie-pwa-v42";
+const PAGE_CACHE_NAME = "reverie-pages-v42";
 const STATIC_ASSETS = [
   "/",
   "/search",

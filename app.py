@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 from typing import Optional, Any
 
 from fastapi import FastAPI, Query, Request, HTTPException, BackgroundTasks, UploadFile, File
@@ -13,6 +13,7 @@ from auth_sessions import create_app_session, get_session_user, migrate_legacy_r
 from supabase_client import supabase_admin, supabase_auth
 from note_core import (
     process_text_note,
+    generate_id,
     canonicalize_note_metadata,
     list_entity_manager_items,
     merge_entity_manager_items,
@@ -143,6 +144,105 @@ def get_user_note_detail(user_id: str, note_id: str) -> dict[str, Any]:
     if not rows:
         raise HTTPException(status_code=404, detail="note not found")
     return rows[0]
+
+
+def _ics_escape(value: Any) -> str:
+    text = str(value or "")
+    return (
+        text.replace("\\", "\\\\")
+        .replace(";", "\\;")
+        .replace(",", "\\,")
+        .replace("\r\n", "\\n")
+        .replace("\n", "\\n")
+        .replace("\r", "\\n")
+    )
+
+
+def _ics_fold_line(line: str) -> str:
+    encoded = line.encode("utf-8")
+    if len(encoded) <= 75:
+        return line
+    chunks: list[str] = []
+    current = ""
+    current_len = 0
+    for char in line:
+        char_len = len(char.encode("utf-8"))
+        if current and current_len + char_len > 75:
+            chunks.append(current)
+            current = " " + char
+            current_len = 1 + char_len
+        else:
+            current += char
+            current_len += char_len
+    if current:
+        chunks.append(current)
+    return "\r\n".join(chunks)
+
+
+def _parse_calendar_datetime(value: Any) -> datetime:
+    text = str(value or "").strip()
+    if not text:
+        raise HTTPException(status_code=400, detail="note does not have a due time")
+    try:
+        parsed = datetime.fromisoformat(text.replace("Z", "+00:00"))
+    except ValueError:
+        raise HTTPException(status_code=400, detail="note due time is invalid")
+    if parsed.tzinfo is None:
+        parsed = parsed.replace(tzinfo=timezone.utc)
+    return parsed
+
+
+def _ics_datetime(value: datetime) -> str:
+    return value.astimezone(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+
+
+def _calendar_filename(note: dict[str, Any]) -> str:
+    title = str(note.get("title") or "reverie-reminder").strip().lower()
+    safe = "".join(ch if ch.isalnum() else "-" for ch in title).strip("-")
+    safe = "-".join(part for part in safe.split("-") if part)[:48] or "reverie-reminder"
+    return f"{safe}.ics"
+
+
+def _build_note_ics(note: dict[str, Any]) -> str:
+    note_id = str(note.get("id") or note.get("note_id") or generate_id()).strip()
+    start = _parse_calendar_datetime(note.get("due_time"))
+    end = start + timedelta(minutes=30)
+    title = note.get("title") or "Reverie reminder"
+    description_parts = [
+        str(note.get("summary") or "").strip(),
+        "",
+        "Created from Reverie.",
+    ]
+    if note.get("person_name"):
+        description_parts.append(f"Person: {note.get('person_name')}")
+    if note.get("tags"):
+        description_parts.append(f"Tags: {', '.join(note.get('tags') or [])}")
+    if note.get("entities"):
+        description_parts.append(f"Entities: {', '.join(note.get('entities') or [])}")
+
+    description = "\n".join(description_parts).strip()
+    lines = [
+        "BEGIN:VCALENDAR",
+        "VERSION:2.0",
+        "PRODID:-//Reverie//Reminder Calendar//EN",
+        "CALSCALE:GREGORIAN",
+        "METHOD:PUBLISH",
+        "BEGIN:VEVENT",
+        f"UID:reverie-{note_id}@reverie-i2b8.onrender.com",
+        f"DTSTAMP:{_ics_datetime(datetime.now(timezone.utc))}",
+        f"DTSTART:{_ics_datetime(start)}",
+        f"DTEND:{_ics_datetime(end)}",
+        f"SUMMARY:{_ics_escape(title)}",
+        f"DESCRIPTION:{_ics_escape(description)}",
+        "BEGIN:VALARM",
+        "TRIGGER:-PT10M",
+        "ACTION:DISPLAY",
+        f"DESCRIPTION:{_ics_escape(title)}",
+        "END:VALARM",
+        "END:VEVENT",
+        "END:VCALENDAR",
+    ]
+    return "\r\n".join(_ics_fold_line(line) for line in lines) + "\r\n"
 
 
 def _parse_note_types(types: Optional[str]) -> list[str]:
@@ -536,6 +636,25 @@ def note_detail(note_id: str, request: Request):
     if not clean_note_id:
         raise HTTPException(status_code=400, detail="note_id is required")
     return get_user_note_detail(_get_authenticated_user_id(request), clean_note_id)
+
+
+@app.get("/calendar/notes/{note_id}.ics")
+def note_calendar_ics(note_id: str, request: Request):
+    clean_note_id = (note_id or "").strip()
+    if not clean_note_id:
+        raise HTTPException(status_code=400, detail="note_id is required")
+    note = get_user_note_detail(_get_authenticated_user_id(request), clean_note_id)
+    if not note.get("due_time"):
+        raise HTTPException(status_code=400, detail="note does not have a due time")
+    ics = _build_note_ics(note)
+    return Response(
+        content=ics,
+        media_type="text/calendar; charset=utf-8",
+        headers={
+            "Content-Disposition": f'attachment; filename="{_calendar_filename(note)}"',
+            "Cache-Control": "no-store",
+        },
+    )
 
 
 @app.get("/for-you")

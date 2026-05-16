@@ -1,5 +1,5 @@
 (function () {
-  const { normaliseTags, normaliseEntities, toDisplayCase, displayNoteType, displayPerson, displayTag, displayEntity, formatWhen, toInputDateTimeValue, fromInputDateTimeValue, splitCommaList, chipClass, makeChip, appendImagePreview, fillAssetActions, noteStatus, isActionableNote, statusLabel, noteId, fetchNoteDetail, setModalVisible, readApiCache, writeApiCache, clearApiCache, ensureSession, invalidateSession } = window.ReverieShared;
+  const { normaliseTags, normaliseEntities, toDisplayCase, displayNoteType, displayPerson, displayTag, displayEntity, formatWhen, toInputDateTimeValue, fromInputDateTimeValue, splitCommaList, chipClass, makeChip, appendImagePreview, fillAssetActions, noteStatus, isActionableNote, statusLabel, noteId, hasCalendarTime, calendarActionLabel, addNoteToCalendar, fetchNoteDetail, setModalVisible, readApiCache, writeApiCache, clearApiCache, ensureSession, invalidateSession } = window.ReverieShared;
 
 function fillChipContainer(container, values, kind, openContext) {
     container.innerHTML = "";
@@ -42,6 +42,7 @@ function initReverieListPage(config) {
     const detailTime = document.getElementById(config.detail.timeId);
     const detailImage = document.getElementById(config.detail.imageId);
     const detailAssetActions = document.getElementById(config.detail.assetActionsId);
+    const detailCalendarBtn = document.getElementById(config.detail.calendarBtnId || "");
     const detailEditBtn = document.getElementById(config.detail.editBtnId);
     const detailDeleteBtn = document.getElementById(config.detail.deleteBtnId);
 
@@ -207,6 +208,11 @@ function initReverieListPage(config) {
         detailImage.style.display = "none";
       }
       fillAssetActions(detailAssetActions, note);
+      if (detailCalendarBtn) {
+        const canAddCalendar = hasCalendarTime(note);
+        detailCalendarBtn.classList.toggle("hidden", !canAddCalendar);
+        detailCalendarBtn.textContent = calendarActionLabel(note) || "Add to calendar";
+      }
     }
 
     async function openDetail(note) {
@@ -666,6 +672,14 @@ function initReverieListPage(config) {
       });
     });
     detailEditBtn.addEventListener("click", () => openEditModal(activeDetailNote));
+    detailCalendarBtn?.addEventListener("click", async () => {
+      try {
+        await addNoteToCalendar(activeDetailNote);
+      } catch (err) {
+        console.error(err);
+        alert(err?.message || "Could not open calendar.");
+      }
+    });
     detailDeleteBtn.addEventListener("click", async () => {
       try {
         await deleteActiveNote();

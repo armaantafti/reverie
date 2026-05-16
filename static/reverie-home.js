@@ -1,4 +1,4 @@
-    const { normaliseTags, normaliseEntities, toDisplayCase, displayNoteType, displayPerson, displayTag, displayEntity, formatWhen, toInputDateTimeValue, fromInputDateTimeValue, splitCommaList, chipClass, makeChip, appendImagePreview, fillAssetActions, noteStatus, isActionableNote, statusLabel, noteId, fetchNoteDetail, setModalVisible, readApiCache, writeApiCache, clearApiCache, getSessionInfo: sharedGetSessionInfo, markSessionAuthenticated, invalidateSession } = window.ReverieShared;
+    const { normaliseTags, normaliseEntities, toDisplayCase, displayNoteType, displayPerson, displayTag, displayEntity, formatWhen, toInputDateTimeValue, fromInputDateTimeValue, splitCommaList, chipClass, makeChip, appendImagePreview, fillAssetActions, noteStatus, isActionableNote, statusLabel, noteId, hasCalendarTime, calendarActionLabel, addNoteToCalendar, fetchNoteDetail, setModalVisible, readApiCache, writeApiCache, clearApiCache, getSessionInfo: sharedGetSessionInfo, markSessionAuthenticated, invalidateSession } = window.ReverieShared;
     const ALL_TAGS = Array.isArray(window.REVERIE_TAGS) ? window.REVERIE_TAGS : [];
     const TOPIC_BUTTONS = [...ALL_TAGS, "passive"];
 
@@ -88,6 +88,7 @@ function fillChipContainer(container, values, kind) {
     const statusNote = document.getElementById("statusNote");
     const detailEditBtn = document.getElementById("detailEditBtn");
     const detailDeleteBtn = document.getElementById("detailDeleteBtn");
+    const detailCalendarBtn = document.getElementById("detailCalendarBtn");
     const editBackdrop = document.getElementById("editBackdrop");
     const editClose = document.getElementById("editClose");
     const editCancel = document.getElementById("editCancel");
@@ -579,6 +580,11 @@ function setAuthMode(nextMode) {
       detailImage.dataset.src = note?.image_url && note?.memory_type === "image" ? note.image_url : "";
       detailImage.style.display = "none";
       fillAssetActions(detailAssetActions, note);
+      if (detailCalendarBtn) {
+        const canAddCalendar = hasCalendarTime(note);
+        detailCalendarBtn.classList.toggle("hidden", !canAddCalendar);
+        detailCalendarBtn.textContent = calendarActionLabel(note) || "Add to calendar";
+      }
     }
 
     async function openDetail(note) {
@@ -606,6 +612,14 @@ function setAuthMode(nextMode) {
       });
     });
     detailEditBtn.addEventListener("click", () => openEditModal(activeDetailNote));
+    detailCalendarBtn?.addEventListener("click", async () => {
+      try {
+        await addNoteToCalendar(activeDetailNote);
+      } catch (err) {
+        console.error(err);
+        alert(err?.message || "Could not open calendar.");
+      }
+    });
     detailDeleteBtn.addEventListener("click", async () => {
       try {
         await deleteActiveNote();

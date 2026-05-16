@@ -307,6 +307,51 @@ window.ReverieShared = (() => {
     return String(note?.id || note?.note_id || "").trim();
   }
 
+  function hasCalendarTime(note) {
+    if (!note?.due_time || !noteId(note)) return false;
+    const parsed = new Date(note.due_time);
+    return Number.isFinite(parsed.getTime());
+  }
+
+  function calendarActionLabel(note) {
+    if (!hasCalendarTime(note)) return "";
+    return isNativeShell() && window.Capacitor?.Plugins?.CalendarBridge
+      ? "Add to phone calendar"
+      : "Download calendar file";
+  }
+
+  function calendarDescription(note) {
+    const parts = [
+      String(note?.summary || "").trim(),
+      "",
+      "Created from Reverie.",
+    ];
+    if (note?.person_name) parts.push(`Person: ${note.person_name}`);
+    if (Array.isArray(note?.tags) && note.tags.length) parts.push(`Tags: ${note.tags.join(", ")}`);
+    if (Array.isArray(note?.entities) && note.entities.length) parts.push(`Entities: ${note.entities.join(", ")}`);
+    return parts.filter((part, index) => index === 1 || part).join("\n").trim();
+  }
+
+  async function addNoteToCalendar(note) {
+    const id = noteId(note);
+    if (!hasCalendarTime(note)) {
+      throw new Error("This memory does not have a due time.");
+    }
+    const start = new Date(note.due_time);
+    const end = new Date(start.getTime() + 30 * 60 * 1000);
+    const bridge = window.Capacitor?.Plugins?.CalendarBridge;
+    if (isNativeShell() && bridge?.addEvent) {
+      return bridge.addEvent({
+        title: note?.title || "Reverie reminder",
+        description: calendarDescription(note),
+        startIso: start.toISOString(),
+        endIso: end.toISOString(),
+      });
+    }
+    window.location.href = `/calendar/notes/${encodeURIComponent(id)}.ics`;
+    return { opened: true, fallback: "ics" };
+  }
+
   async function fetchNoteDetail(note) {
     const id = noteId(note);
     if (!id) return note || null;
@@ -534,6 +579,9 @@ window.ReverieShared = (() => {
     isActionableNote,
     statusLabel,
     noteId,
+    hasCalendarTime,
+    calendarActionLabel,
+    addNoteToCalendar,
     fetchNoteDetail,
     setModalVisible,
     installFastNavigation,

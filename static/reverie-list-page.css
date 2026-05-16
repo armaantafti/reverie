@@ -867,7 +867,8 @@ button,input,textarea,select{font:inherit}
   order:2;
 }
 .manage-actions [id$="EditBtn"],
-.manage-actions [id$="DeleteBtn"]{
+.manage-actions [id$="DeleteBtn"],
+.manage-actions .calendar-action{
   min-width:86px;
   min-height:42px;
   padding:0 13px;
@@ -880,7 +881,8 @@ button,input,textarea,select{font:inherit}
   font-weight:820;
 }
 .manage-actions [id$="EditBtn"]::before,
-.manage-actions [id$="DeleteBtn"]::before{
+.manage-actions [id$="DeleteBtn"]::before,
+.manage-actions .calendar-action::before{
   content:"";
   width:18px;
   height:18px;
@@ -892,6 +894,9 @@ button,input,textarea,select{font:inherit}
 }
 .manage-actions [id$="DeleteBtn"]::before{
   clip-path:polygon(30% 4%,70% 4%,78% 16%,96% 16%,96% 28%,86% 28%,82% 100%,18% 100%,14% 28%,4% 28%,4% 16%,22% 16%);
+}
+.manage-actions .calendar-action::before{
+  clip-path:polygon(50% 0,61% 18%,82% 14%,78% 36%,96% 50%,78% 64%,82% 86%,61% 82%,50% 100%,39% 82%,18% 86%,22% 64%,4% 50%,22% 36%,18% 14%,39% 18%);
 }
 .btn-danger{
   color:#ffe4e6;

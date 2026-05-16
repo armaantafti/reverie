@@ -247,6 +247,7 @@
       timeId: "searchDetailTime",
       imageId: "searchDetailImage",
       assetActionsId: "searchDetailAssetActions",
+      calendarBtnId: "searchCalendarBtn",
       editBtnId: "searchEditBtn",
       deleteBtnId: "searchDeleteBtn",
     },

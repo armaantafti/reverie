@@ -19,8 +19,8 @@ Keep this package ID unchanged if this shell is meant to update the existing Goo
 The generated Android project is set to:
 
 ```text
-versionCode 2
-versionName 1.1
+versionCode 7
+versionName 1.6
 ```
 
 Increase `versionCode` again before every Play Store upload.
@@ -53,6 +53,8 @@ Important: sign the Capacitor release with the same Play App Signing/upload key 
 - Privacy page opens.
 - Account deletion page opens.
 - Android back button behavior feels correct.
+- Release 0 readiness: app can open custom `reverie://...` links.
+- Release 0 readiness: native calendar bridge compiles and is available to web code.
 
 ## Current Local Build Status
 
