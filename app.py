@@ -30,8 +30,8 @@ from image_pipeline import (
     upload_file_bytes,
     validate_uploaded_file,
 )
-from search_notes import filter_notes, filter_by_keywords, rank_for_you, context_notes
-from llm_search import summarise_search, extract_search_signals
+from search_notes import filter_notes, rank_for_you, context_notes, rank_smart_search
+from llm_search import summarise_search, summarise_search_structured, fallback_structured_summary, extract_search_signals
 from tag_config import PREDEFINED_TAGS
 
 app = FastAPI(title="Reverie API")
@@ -116,6 +116,9 @@ CARD_NOTE_FIELDS = {
     "status_note",
     "created_at",
     "updated_at",
+    "search_score",
+    "match_reasons",
+    "search_section",
 }
 
 
@@ -665,19 +668,35 @@ def smart_search(payload: SmartSearchIn, request: Request):
             search_terms.append(matched_tag)
 
         if not search_terms:
+            summary_json = fallback_structured_summary(payload.query, [])
             return {
-                "summary": "I couldn't understand that search well enough to find relevant notes.",
+                "summary": summary_json["executive_summary"],
+                "summary_json": summary_json,
                 "notes": [],
+                "signals": signals,
+                "count": 0,
             }
 
-        filtered = filter_by_keywords(notes, keywords=search_terms, days=payload.days)
+        ranked = rank_smart_search(
+            notes,
+            query=payload.query,
+            keywords=keywords,
+            matched_tag=matched_tag if isinstance(matched_tag, str) else None,
+            days=payload.days,
+            min_score=4,
+            limit=50,
+        )
         try:
-            summary = summarise_search(payload.query, filtered)
+            summary_json = summarise_search_structured(payload.query, ranked[:20])
         except Exception:
-            summary = "Smart summarise failed."
+            summary_json = fallback_structured_summary(payload.query, ranked[:20])
+        summary = summary_json.get("executive_summary") or "Smart search completed."
         return {
             "summary": summary,
-            "notes": _card_notes(filtered),
+            "summary_json": summary_json,
+            "notes": _card_notes(ranked),
+            "signals": signals,
+            "count": len(ranked),
         }
     except HTTPException:
         raise

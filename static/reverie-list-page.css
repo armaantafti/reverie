@@ -286,11 +286,116 @@ button,input,textarea,select{font:inherit}
   line-height:1.5;
   border:1px solid rgba(122,215,255,.16);
   border-radius:18px;
-  background:rgba(122,215,255,.08);
-  padding:12px 14px;
+  background:
+    linear-gradient(180deg, rgba(122,215,255,.10), rgba(168,140,255,.07));
+  padding:16px;
+  box-shadow:0 18px 42px rgba(2,6,23,.20);
+}
+.smart-answer-header{
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:14px;
+}
+.smart-answer-kicker{
+  display:inline-flex;
+  margin-bottom:7px;
+  color:var(--accent);
+  font-size:.7rem;
+  font-weight:850;
+  letter-spacing:.16em;
+  text-transform:uppercase;
+}
+.smart-answer-header h3{
+  margin:0;
+  font-size:1.18rem;
+  letter-spacing:-.02em;
+}
+.smart-confidence{
+  flex:0 0 auto;
+  border-radius:999px;
+  padding:6px 9px;
+  color:#dce8fb;
+  font-size:.72rem;
+  font-weight:850;
+  text-transform:uppercase;
+  border:1px solid rgba(148,163,184,.16);
+  background:rgba(148,163,184,.10);
+}
+.smart-confidence.high{
+  color:#d9f99d;
+  border-color:rgba(132,204,22,.22);
+  background:rgba(132,204,22,.11);
+}
+.smart-confidence.low{
+  color:#fed7aa;
+  border-color:rgba(251,146,60,.24);
+  background:rgba(251,146,60,.10);
+}
+.smart-executive{
+  margin:12px 0 0;
+  color:#e8f1ff;
+}
+.smart-key-points{
+  margin:12px 0 0;
+  padding-left:19px;
+  color:var(--muted);
+}
+.smart-key-points li{
+  margin:6px 0;
+}
+.smart-action-items{
+  display:grid;
+  gap:8px;
+  margin-top:14px;
+}
+.smart-action-items strong{
+  color:#f5f8ff;
+}
+.smart-action-row{
+  display:flex;
+  justify-content:space-between;
+  gap:10px;
+  border-radius:14px;
+  padding:10px 12px;
+  background:rgba(5,12,24,.42);
+  border:1px solid rgba(148,163,184,.12);
+}
+.smart-action-row small{
+  color:var(--muted);
+  white-space:nowrap;
+}
+.smart-suggestion-row{
+  display:flex;
+  flex-wrap:wrap;
+  gap:8px;
+  margin-top:14px;
+}
+.smart-suggestion-chip{
+  border:none;
+  border-radius:999px;
+  padding:8px 10px;
+  color:#dcebff;
+  background:rgba(122,215,255,.11);
+  border:1px solid rgba(122,215,255,.18);
+  cursor:pointer;
+  font-weight:760;
+}
+.smart-empty-hint{
+  margin:12px 0 0;
+  color:var(--muted);
+}
+.match-reasons{
+  margin:8px 0 0;
+  color:var(--faint);
+  font-size:.78rem;
+  line-height:1.35;
 }
 .ghost-panel{
   display:none;
+}
+.search-page .ghost-panel{
+  display:block;
 }
 .memory-map-groups{
   display:grid;

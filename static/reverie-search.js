@@ -38,6 +38,105 @@
     return date >= new Date(Date.now() - days * 24 * 60 * 60 * 1000);
   }
 
+  function clearSmartSummary() {
+    summaryEl.style.display = "none";
+    summaryEl.innerHTML = "";
+  }
+
+  function appendTextList(parent, className, items) {
+    const clean = Array.isArray(items) ? items.filter(Boolean) : [];
+    if (!clean.length) return;
+    const list = document.createElement("ul");
+    list.className = className;
+    clean.forEach((item) => {
+      const li = document.createElement("li");
+      li.textContent = String(item);
+      list.appendChild(li);
+    });
+    parent.appendChild(list);
+  }
+
+  function renderSmartSummary(summary, fallbackText = "") {
+    clearSmartSummary();
+    if (!summary && !fallbackText) return;
+
+    if (!summary || typeof summary !== "object") {
+      summaryEl.textContent = fallbackText || String(summary || "");
+      summaryEl.style.display = "block";
+      return;
+    }
+
+    const header = document.createElement("div");
+    header.className = "smart-answer-header";
+    const titleWrap = document.createElement("div");
+    const kicker = document.createElement("span");
+    kicker.className = "smart-answer-kicker";
+    kicker.textContent = "Smart answer";
+    const title = document.createElement("h3");
+    title.textContent = summary.answer_title || "What I found";
+    titleWrap.append(kicker, title);
+    const confidence = document.createElement("span");
+    confidence.className = `smart-confidence ${summary.confidence || "medium"}`;
+    confidence.textContent = summary.confidence || "medium";
+    header.append(titleWrap, confidence);
+    summaryEl.appendChild(header);
+
+    const executive = document.createElement("p");
+    executive.className = "smart-executive";
+    executive.textContent = summary.executive_summary || fallbackText || "";
+    summaryEl.appendChild(executive);
+
+    appendTextList(summaryEl, "smart-key-points", summary.key_points);
+
+    const actions = Array.isArray(summary.action_items) ? summary.action_items.filter((item) => item?.title) : [];
+    if (actions.length) {
+      const actionWrap = document.createElement("div");
+      actionWrap.className = "smart-action-items";
+      const actionTitle = document.createElement("strong");
+      actionTitle.textContent = "Open actions";
+      actionWrap.appendChild(actionTitle);
+      actions.forEach((item) => {
+        const row = document.createElement("div");
+        row.className = "smart-action-row";
+        const name = document.createElement("span");
+        name.textContent = item.title;
+        const meta = document.createElement("small");
+        meta.textContent = [item.due_time, item.status].filter(Boolean).join(" · ");
+        row.append(name, meta);
+        actionWrap.appendChild(row);
+      });
+      summaryEl.appendChild(actionWrap);
+    }
+
+    const chips = [...(summary.people_or_entities || []), ...(summary.suggested_next_searches || [])].filter(Boolean);
+    if (chips.length) {
+      const chipRow = document.createElement("div");
+      chipRow.className = "smart-suggestion-row";
+      chips.slice(0, 8).forEach((chip) => {
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = "smart-suggestion-chip";
+        button.textContent = String(chip);
+        button.addEventListener("click", () => {
+          queryEl.value = String(chip);
+          searchHasRun = true;
+          document.getElementById("searchPageBtn")?.click();
+        });
+        chipRow.appendChild(button);
+      });
+      summaryEl.appendChild(chipRow);
+    }
+
+    if (!actions.length && summary.empty_state_suggestion) {
+      const hint = document.createElement("p");
+      hint.className = "smart-empty-hint";
+      hint.textContent = summary.empty_state_suggestion;
+      summaryEl.appendChild(hint);
+    }
+
+    summaryEl.style.display = "block";
+  }
+
   async function fetchJson(url, options) {
     const resp = await fetch(url, {
       credentials: "same-origin",
@@ -77,8 +176,7 @@
     const days = Number.parseInt(rangeEl?.value || "", 10);
     const cleanDays = Number.isFinite(days) && days > 0 ? days : null;
 
-    summaryEl.style.display = "none";
-    summaryEl.textContent = "";
+    clearSmartSummary();
 
     if (!searchHasRun) {
       statusEl.textContent = "Search or tap a tag, entity, or person to begin.";
@@ -100,10 +198,7 @@
         body: JSON.stringify({ query, days: cleanDays }),
       });
       const notes = Array.isArray(data?.notes) ? data.notes : [];
-      if (data?.summary) {
-        summaryEl.textContent = data.summary;
-        summaryEl.style.display = "block";
-      }
+      renderSmartSummary(data?.summary_json, data?.summary);
       statusEl.textContent = `${notes.length} ${notes.length === 1 ? "match" : "matches"} found.`;
       return notes;
     }
@@ -187,9 +282,15 @@
     },
     splitNotes(notes) {
       const sorted = notes.slice().sort((a, b) =>
-        new Date(b?.created_at || b?.due_time || 0) - new Date(a?.created_at || a?.due_time || 0)
+        Number(b?.search_score || 0) - Number(a?.search_score || 0)
+        || new Date(b?.created_at || b?.due_time || 0) - new Date(a?.created_at || a?.due_time || 0)
       );
-      return { primary: sorted, secondary: [] };
+      const primary = sorted.filter((note) => ["best", "action"].includes(note?.search_section)).slice(0, 12);
+      const primaryIds = new Set(primary.map((note) => note?.id));
+      const secondary = sorted.filter((note) => !primaryIds.has(note?.id));
+      const relatedPanel = document.querySelector(".search-related-panel");
+      if (relatedPanel) relatedPanel.style.display = secondary.length ? "" : "none";
+      return { primary: primary.length ? primary : sorted, secondary };
     },
   });
 
@@ -254,8 +355,7 @@
   async function loadContextSummary(kind, value) {
     const title = `${window.ReverieShared.toDisplayCase(kind)}: ${window.ReverieShared.toDisplayCase(value)}`;
     statusEl.textContent = `Loading ${title}...`;
-    summaryEl.style.display = "none";
-    summaryEl.textContent = "";
+    clearSmartSummary();
     try {
       let data;
       try {
@@ -273,10 +373,7 @@
         }
       }
       const notes = Array.isArray(data?.notes) ? data.notes : [];
-      if (data?.summary) {
-        summaryEl.textContent = data.summary;
-        summaryEl.style.display = "block";
-      }
+      renderSmartSummary(data?.summary_json, data?.summary);
       queryEl.value = title;
       contextNotesOverride = { title, notes };
       searchHasRun = true;

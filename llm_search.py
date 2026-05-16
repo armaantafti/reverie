@@ -18,12 +18,28 @@ KEYWORD_SYSTEM_PROMPT = (
 )
 
 SEARCH_SYSTEM_PROMPT = (
-    "You are a helpful assistant inside the Reverie app. "
-    "Given a user's search query and a list of notes (title, summary, tags, due_time, status, status_note), "
-    "write a concise response that helps the user recall what they asked for. "
-    "Focus on the most relevant notes and group similar ones together. "
-    "Take note status and any status note into account when they matter. "
-    "Do NOT invent notes that are not in the list."
+    "You are Reverie's professional memory-search assistant. "
+    "Given a user's search query and matching personal notes, produce a polished, useful answer. "
+    "Use only the provided notes. Do not invent facts. "
+    "Separate confirmed facts from possible inferences. "
+    "Prioritize pending reminders, dated items, people, entities, and recent notes when relevant."
+)
+
+STRUCTURED_SEARCH_SYSTEM_PROMPT = (
+    SEARCH_SYSTEM_PROMPT
+    + " Return ONLY valid JSON in this exact shape: "
+    '{'
+    '"answer_title":"...",'
+    '"executive_summary":"...",'
+    '"key_points":["..."],'
+    '"action_items":[{"title":"...","due_time":"...","status":"...","source_note_number":1}],'
+    '"people_or_entities":["..."],'
+    '"suggested_next_searches":["..."],'
+    '"confidence":"high|medium|low",'
+    '"empty_state_suggestion":"..."'
+    '}. '
+    "If there are no relevant notes, use a low confidence answer and fill empty_state_suggestion. "
+    "Keep the tone concise and professional."
 )
 
 
@@ -160,3 +176,173 @@ def summarise_search(query: str, notes: List[Dict]) -> str:
     )
 
     return _call_llm_raw(cfg, SEARCH_SYSTEM_PROMPT, user_prompt)
+
+
+def _note_lines(notes: List[Dict]) -> str:
+    lines = []
+    for i, n in enumerate(notes[:20], start=1):
+        title = n.get("title") or "(no title)"
+        summary = n.get("summary") or ""
+        tags = ", ".join(n.get("tags") or [])
+        entities = ", ".join(n.get("entities") or [])
+        person = n.get("person_name") or ""
+        due = n.get("due_time") or ""
+        status = n.get("status") or "pending"
+        status_note = n.get("status_note") or ""
+        note_type = n.get("note_type") or ""
+        memory_type = n.get("memory_type") or ""
+        reasons = "; ".join(n.get("match_reasons") or [])
+        score = n.get("search_score") or ""
+        line = (
+            f"{i}. Title: {title}\n"
+            f"   Summary: {summary}\n"
+            f"   Type: {note_type}; Memory type: {memory_type}\n"
+            f"   Person: {person}\n"
+            f"   Tags: {tags}\n"
+            f"   Entities: {entities}\n"
+            f"   Due: {due}\n"
+            f"   Status: {status}\n"
+            f"   Status note: {status_note}\n"
+            f"   Search score: {score}\n"
+            f"   Match reasons: {reasons}"
+        )
+        lines.append(line)
+    return "\n\n".join(lines)
+
+
+def _clean_string_list(value: Any, limit: int = 6) -> List[str]:
+    if not isinstance(value, list):
+        return []
+    out: List[str] = []
+    for item in value:
+        text = str(item or "").strip()
+        if text:
+            out.append(text)
+        if len(out) >= limit:
+            break
+    return out
+
+
+def _normalise_action_items(value: Any) -> List[Dict[str, Any]]:
+    if not isinstance(value, list):
+        return []
+    out: List[Dict[str, Any]] = []
+    for item in value:
+        if not isinstance(item, dict):
+            continue
+        title = str(item.get("title") or "").strip()
+        if not title:
+            continue
+        out.append(
+            {
+                "title": title,
+                "due_time": str(item.get("due_time") or "").strip(),
+                "status": str(item.get("status") or "").strip(),
+                "source_note_number": item.get("source_note_number"),
+            }
+        )
+        if len(out) >= 5:
+            break
+    return out
+
+
+def _normalise_summary_json(value: Dict[str, Any], query: str, notes: List[Dict]) -> Dict[str, Any]:
+    title = str(value.get("answer_title") or "Smart answer").strip()
+    executive = str(value.get("executive_summary") or "").strip()
+    if not executive:
+        if notes:
+            executive = f"I found {len(notes)} relevant memory{'ies' if len(notes) != 1 else 'y'} for this search."
+        else:
+            executive = "I could not find a confident match for this search."
+    confidence = str(value.get("confidence") or "medium").strip().lower()
+    if confidence not in {"high", "medium", "low"}:
+        confidence = "medium" if notes else "low"
+    return {
+        "answer_title": title,
+        "executive_summary": executive,
+        "key_points": _clean_string_list(value.get("key_points"), limit=5),
+        "action_items": _normalise_action_items(value.get("action_items")),
+        "people_or_entities": _clean_string_list(value.get("people_or_entities"), limit=8),
+        "suggested_next_searches": _clean_string_list(value.get("suggested_next_searches"), limit=4),
+        "confidence": confidence,
+        "empty_state_suggestion": str(value.get("empty_state_suggestion") or "").strip(),
+        "query": query,
+    }
+
+
+def fallback_structured_summary(query: str, notes: List[Dict]) -> Dict[str, Any]:
+    key_points: List[str] = []
+    action_items: List[Dict[str, Any]] = []
+    people_or_entities: List[str] = []
+    seen_people_entities = set()
+    for index, note in enumerate(notes[:8], start=1):
+        title = note.get("title") or "(no title)"
+        summary = note.get("summary") or ""
+        if len(key_points) < 4:
+            key_points.append(f"{title}: {summary}" if summary else str(title))
+        if (note.get("note_type") or "").lower() == "reminder" and (note.get("status") or "pending").lower() == "pending":
+            action_items.append(
+                {
+                    "title": str(title),
+                    "due_time": note.get("due_time") or "",
+                    "status": note.get("status") or "pending",
+                    "source_note_number": index,
+                }
+            )
+        person = str(note.get("person_name") or "").strip()
+        if person and person.lower() not in seen_people_entities:
+            people_or_entities.append(person)
+            seen_people_entities.add(person.lower())
+        for entity in note.get("entities") or []:
+            clean = str(entity or "").strip()
+            if clean and clean.lower() not in seen_people_entities:
+                people_or_entities.append(clean)
+                seen_people_entities.add(clean.lower())
+            if len(people_or_entities) >= 8:
+                break
+    if not notes:
+        return _normalise_summary_json(
+            {
+                "answer_title": "No confident matches",
+                "executive_summary": "I could not find a strong match in your saved memories.",
+                "confidence": "low",
+                "empty_state_suggestion": "Try a person name, tag, document type, or a shorter phrase.",
+            },
+            query,
+            notes,
+        )
+    return _normalise_summary_json(
+        {
+            "answer_title": "What I found",
+            "executive_summary": f"I found {len(notes)} relevant memory{'ies' if len(notes) != 1 else 'y'} for this search, ranked by match strength.",
+            "key_points": key_points,
+            "action_items": action_items,
+            "people_or_entities": people_or_entities,
+            "suggested_next_searches": [],
+            "confidence": "medium",
+        },
+        query,
+        notes,
+    )
+
+
+def summarise_search_structured(query: str, notes: List[Dict]) -> Dict[str, Any]:
+    if not notes:
+        return fallback_structured_summary(query, notes)
+
+    cfg = LLMConfig.load()
+    notes_blob = _note_lines(notes)
+    user_prompt = (
+        f"User query: {query}\n\n"
+        f"Here are the top ranked matching notes:\n\n{notes_blob}\n\n"
+        "Create the JSON answer now. "
+        "Use source_note_number values that correspond to the numbered notes above. "
+        "If the notes are weakly related, say so with low or medium confidence."
+    )
+
+    try:
+        content = _call_llm_raw(cfg, STRUCTURED_SEARCH_SYSTEM_PROMPT, user_prompt)
+        data = _parse_json_response(content)
+        return _normalise_summary_json(data, query, notes)
+    except Exception:
+        return fallback_structured_summary(query, notes)

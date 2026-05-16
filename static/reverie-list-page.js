@@ -546,6 +546,13 @@ function initReverieListPage(config) {
         card.appendChild(summary);
       }
 
+      if (Array.isArray(note?.match_reasons) && note.match_reasons.length) {
+        const reasons = document.createElement("p");
+        reasons.className = "match-reasons";
+        reasons.textContent = `Matched on: ${note.match_reasons.slice(0, 3).join(", ")}`;
+        card.appendChild(reasons);
+      }
+
       const chips = document.createElement("div");
       chips.className = "chips";
       const meta = [];

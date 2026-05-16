@@ -1,5 +1,5 @@
 from datetime import datetime, timedelta, timezone
-from typing import Any, Dict, Iterable, List, Optional
+from typing import Any, Dict, Iterable, List, Optional, Sequence
 
 from tag_config import PREDEFINED_TAG_SET, TAG_WEIGHTS
 
@@ -274,3 +274,174 @@ def filter_by_keywords(notes, keywords=None, days=None):
         if keep:
             results.append(n)
     return results
+
+
+def _normalise_search_terms(values: Sequence[Any]) -> List[str]:
+    terms: List[str] = []
+    seen = set()
+    for value in values or []:
+        term = str(value or "").strip().lower()
+        if not term or term in seen:
+            continue
+        terms.append(term)
+        seen.add(term)
+    return terms
+
+
+def _contains_term(text: str, term: str) -> bool:
+    if not text or not term:
+        return False
+    return term in text
+
+
+def _clean_reason(label: str, term: str) -> str:
+    clean = str(term or "").strip()
+    if not clean:
+        return label
+    return f"{label}: {clean}"
+
+
+def score_search_match(
+    note: Dict[str, Any],
+    query: str = "",
+    keywords: Optional[Sequence[str]] = None,
+    matched_tag: Optional[str] = None,
+) -> tuple[int, List[str]]:
+    terms = _normalise_search_terms(list(keywords or []) + _fallback_query_terms(query))
+    tag_signal = str(matched_tag or "").strip().lower()
+    if tag_signal and tag_signal not in terms:
+        terms.append(tag_signal)
+
+    title = (note.get("title") or "").lower()
+    summary = (note.get("summary") or "").lower()
+    raw = f"{note.get('raw_text') or ''} {note.get('extracted_text') or ''}".lower()
+    note_type = (note.get("note_type") or "").lower()
+    memory_type = (note.get("memory_type") or "").lower()
+    tags = [str(t).strip().lower() for t in (note.get("tags") or []) if str(t).strip()]
+    entities = [str(e).strip().lower() for e in (note.get("entities") or []) if str(e).strip()]
+    person = (note.get("person_name") or "").strip().lower()
+
+    score = 0
+    reasons: List[str] = []
+
+    def add(points: int, reason: str) -> None:
+        nonlocal score
+        score += points
+        if reason and reason not in reasons:
+            reasons.append(reason)
+
+    for term in terms:
+        if not term:
+            continue
+        if _contains_term(title, term):
+            add(10, _clean_reason("title", term))
+        if _contains_term(summary, term):
+            add(7, _clean_reason("summary", term))
+        if term in tags:
+            add(8, _clean_reason("tag", term))
+        elif any(_contains_term(tag, term) or _contains_term(term, tag) for tag in tags):
+            add(5, _clean_reason("related tag", term))
+        if term in entities:
+            add(8, _clean_reason("entity", term))
+        elif any(_contains_term(entity, term) or _contains_term(term, entity) for entity in entities):
+            add(5, _clean_reason("related entity", term))
+        if person and (term == person or _contains_term(person, term) or _contains_term(term, person)):
+            add(9, _clean_reason("person", term))
+        if term in {note_type, memory_type}:
+            add(6, _clean_reason("type", term))
+        if _contains_term(raw, term):
+            add(2, _clean_reason("text", term))
+
+    if tag_signal and tag_signal in tags:
+        add(6, _clean_reason("selected tag", tag_signal))
+
+    return score, reasons[:6]
+
+
+def _fallback_query_terms(query: str) -> List[str]:
+    tokens = [token.lower() for token in str(query or "").replace("/", " ").replace("-", " ").split()]
+    stop_words = {
+        "a", "an", "and", "are", "for", "from", "i", "in", "is", "it", "me", "my",
+        "of", "on", "or", "show", "that", "the", "to", "was", "what", "when", "where",
+        "with", "about", "all", "find", "search",
+    }
+    terms: List[str] = []
+    seen = set()
+    for token in tokens:
+        cleaned = "".join(ch for ch in token if ch.isalnum() or ch in {"'", "_"}).strip("'_")
+        if len(cleaned) < 2 or cleaned in stop_words or cleaned in seen:
+            continue
+        terms.append(cleaned)
+        seen.add(cleaned)
+        if len(terms) >= 6:
+            break
+    return terms
+
+
+def _search_reference_ts(note: Dict[str, Any], now: datetime) -> float:
+    ref = _note_reference_time(note, now) or now
+    return ref.timestamp()
+
+
+def _search_section(note: Dict[str, Any], score: int) -> str:
+    note_type = (note.get("note_type") or "").lower()
+    status = (note.get("status") or "pending").strip().lower()
+    memory_type = (note.get("memory_type") or "").lower()
+    if note_type == "reminder" and status == "pending":
+        return "action"
+    if memory_type in {"image", "document"}:
+        return "document"
+    if score >= 12:
+        return "best"
+    return "related"
+
+
+def rank_smart_search(
+    notes: Iterable[Dict[str, Any]],
+    query: str = "",
+    keywords: Optional[Sequence[str]] = None,
+    matched_tag: Optional[str] = None,
+    days: Optional[int] = None,
+    min_score: int = 4,
+    limit: Optional[int] = None,
+) -> List[Dict[str, Any]]:
+    now = datetime.now(IST)
+    cutoff = now - timedelta(days=days) if days is not None else None
+    ranked: List[Dict[str, Any]] = []
+    for note in notes:
+        if cutoff is not None:
+            created = parse_date(note.get("created_at"))
+            if created is None or created < cutoff:
+                continue
+        score, reasons = score_search_match(note, query=query, keywords=keywords, matched_tag=matched_tag)
+        if score < min_score:
+            continue
+        item = dict(note)
+        item["search_score"] = score
+        item["match_reasons"] = reasons
+        item["search_section"] = _search_section(item, score)
+        item["_reference_ts"] = _search_reference_ts(note, now)
+        item["_status_rank"] = 1 if (note.get("status") or "pending").strip().lower() == "pending" else 0
+        item["_type_rank"] = {"reminder": 3, "recommendation": 2, "note": 1, "passive": 0}.get(
+            (note.get("note_type") or "").lower(),
+            0,
+        )
+        ranked.append(item)
+
+    ranked.sort(
+        key=lambda n: (
+            -int(n.get("search_score") or 0),
+            -int(n.get("_status_rank") or 0),
+            -int(n.get("_type_rank") or 0),
+            -float(n.get("_reference_ts") or 0.0),
+            str(n.get("title") or "").lower(),
+        )
+    )
+    cleaned = []
+    for item in ranked[:limit] if limit is not None else ranked:
+        item = dict(item)
+        item.pop("_reference_ts", None)
+        item.pop("_status_rank", None)
+        item.pop("_type_rank", None)
+        cleaned.append(item)
+    return cleaned
