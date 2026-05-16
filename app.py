@@ -1,19 +1,23 @@
 import os
+import base64
+import hashlib
+import secrets
 from datetime import datetime, timedelta, timezone
 from io import BytesIO
 from typing import Optional, Any
+from urllib.parse import urlencode
 
 from fastapi import FastAPI, Query, Request, HTTPException, BackgroundTasks, UploadFile, File
 from fastapi.encoders import jsonable_encoder
 from fastapi.middleware.gzip import GZipMiddleware
-from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, Response
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, Response, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
 import requests
 
 from auth_sessions import create_app_session, get_session_user, migrate_legacy_refresh_token, revoke_app_session
-from supabase_client import supabase_admin, supabase_auth
+from supabase_client import SUPABASE_URL, supabase_admin, supabase_auth
 from note_core import (
     process_text_note,
     generate_id,
@@ -44,7 +48,10 @@ app.add_middleware(GZipMiddleware, minimum_size=500, compresslevel=6)
 SESSION_COOKIE_NAME = "reverie_app_session"
 LEGACY_SESSION_COOKIE_NAME = "reverie_session"
 LEGACY_REFRESH_COOKIE_NAME = "reverie_refresh"
+GOOGLE_OAUTH_STATE_COOKIE = "reverie_google_oauth_state"
+GOOGLE_OAUTH_VERIFIER_COOKIE = "reverie_google_oauth_verifier"
 SESSION_COOKIE_MAX_AGE = 60 * 60 * 24 * 30
+OAUTH_COOKIE_MAX_AGE = 10 * 60
 MAX_VOICE_UPLOAD_BYTES = 10 * 1024 * 1024
 SUPPORTED_AUDIO_EXTENSIONS = {".webm", ".m4a", ".mp3", ".wav"}
 SUPPORTED_AUDIO_TYPES = {
@@ -447,6 +454,38 @@ def _clear_session_cookie(response: JSONResponse, request: Request) -> None:
     _clear_legacy_auth_cookies(response, request)
 
 
+def _set_oauth_cookie(response: Response, request: Request, name: str, value: str) -> None:
+    response.set_cookie(
+        key=name,
+        value=value,
+        httponly=True,
+        secure=_cookie_secure(request),
+        samesite="none" if _cookie_secure(request) else "lax",
+        max_age=OAUTH_COOKIE_MAX_AGE,
+        path="/",
+    )
+
+
+def _clear_oauth_cookies(response: Response, request: Request) -> None:
+    _delete_cookie(response, request, GOOGLE_OAUTH_STATE_COOKIE)
+    _delete_cookie(response, request, GOOGLE_OAUTH_VERIFIER_COOKIE)
+
+
+def _external_origin(request: Request) -> str:
+    proto = (request.headers.get("x-forwarded-proto") or request.url.scheme or "https").split(",")[0].strip()
+    host = (request.headers.get("x-forwarded-host") or request.headers.get("host") or request.url.netloc).split(",")[0].strip()
+    return f"{proto}://{host}"
+
+
+def _google_oauth_redirect_to(request: Request) -> str:
+    return f"{_external_origin(request).rstrip('/')}/auth/google/callback"
+
+
+def _pkce_challenge(verifier: str) -> str:
+    digest = hashlib.sha256(verifier.encode("ascii")).digest()
+    return base64.urlsafe_b64encode(digest).decode("ascii").rstrip("=")
+
+
 def _extract_request_session_id(request: Request) -> str:
     session_id = (request.cookies.get(SESSION_COOKIE_NAME) or "").strip()
     if session_id:
@@ -548,6 +587,57 @@ def logout(request: Request):
     response = JSONResponse(content={"ok": True})
     _clear_session_cookie(response, request)
     return response
+
+
+@app.get("/auth/google/start")
+def google_auth_start(request: Request):
+    state = secrets.token_urlsafe(32)
+    verifier = secrets.token_urlsafe(64)
+    redirect_to = _google_oauth_redirect_to(request)
+    params = {
+        "provider": "google",
+        "redirect_to": redirect_to,
+        "code_challenge": _pkce_challenge(verifier),
+        "code_challenge_method": "s256",
+        "state": state,
+    }
+    response = RedirectResponse(
+        url=f"{SUPABASE_URL.rstrip('/')}/auth/v1/authorize?{urlencode(params)}",
+        status_code=302,
+    )
+    _set_oauth_cookie(response, request, GOOGLE_OAUTH_STATE_COOKIE, state)
+    _set_oauth_cookie(response, request, GOOGLE_OAUTH_VERIFIER_COOKIE, verifier)
+    return response
+
+
+@app.get("/auth/google/callback")
+def google_auth_callback(request: Request, code: Optional[str] = None, state: Optional[str] = None, error: Optional[str] = None):
+    response = RedirectResponse(url="/?auth=google", status_code=303)
+    _clear_oauth_cookies(response, request)
+
+    if error:
+        response.headers["location"] = f"/?auth_error={error}"
+        return response
+    saved_state = (request.cookies.get(GOOGLE_OAUTH_STATE_COOKIE) or "").strip()
+    verifier = (request.cookies.get(GOOGLE_OAUTH_VERIFIER_COOKIE) or "").strip()
+    if not code or not state or not saved_state or not verifier or not secrets.compare_digest(state, saved_state):
+        response.headers["location"] = "/?auth_error=google_oauth_state"
+        return response
+
+    try:
+        auth_response = supabase_auth.auth.exchange_code_for_session({
+            "auth_code": code,
+            "code_verifier": verifier,
+            "redirect_to": _google_oauth_redirect_to(request),
+        })
+        session_id, _user = create_app_session(auth_response)
+        _set_session_cookie(response, request, session_id)
+        _clear_legacy_auth_cookies(response, request)
+        return response
+    except Exception as exc:
+        print(f"Google OAuth callback failed: {_error_detail(exc)}")
+        response.headers["location"] = "/?auth_error=google_oauth_failed"
+        return response
 
 
 @app.get("/", response_class=HTMLResponse)

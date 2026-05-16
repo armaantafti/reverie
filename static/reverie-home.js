@@ -30,6 +30,7 @@ function fillChipContainer(container, values, kind) {
     const authEmail = document.getElementById("authEmail");
     const authPassword = document.getElementById("authPassword");
     const authSubmit = document.getElementById("authSubmit");
+    const googleAuthBtn = document.getElementById("googleAuthBtn");
     const authStatus = document.getElementById("authStatus");
     const authHint = document.getElementById("authHint");
     const loginTab = document.getElementById("loginTab");
@@ -1268,6 +1269,11 @@ function setAuthMode(nextMode) {
     loginTab.addEventListener("click", () => setAuthMode("login"));
     signupTab.addEventListener("click", () => setAuthMode("signup"));
     authForm.addEventListener("submit", handleAuthSubmit);
+    googleAuthBtn?.addEventListener("click", () => {
+      googleAuthBtn.disabled = true;
+      authStatus.textContent = "Opening Google sign-in...";
+      window.location.href = "/auth/google/start";
+    });
     logoutBtn?.addEventListener("click", async () => {
       await performLogout();
     });
@@ -1385,14 +1391,26 @@ function setAuthMode(nextMode) {
 
     async function initHomePage() {
       setAuthMode("login");
+      const authParams = new URLSearchParams(window.location.search);
+      const authError = authParams.get("auth_error");
+      if (authError) {
+        authStatus.textContent = "Google sign-in could not be completed. Please try again.";
+      } else if (authParams.get("auth") === "google") {
+        authStatus.textContent = "Checking Google sign-in...";
+      }
       const hasLoginHint = Boolean(localStorage.getItem("reverie_email") || localStorage.getItem("reverie_seen_authenticated"));
-      if (hasLoginHint) {
+      if (hasLoginHint || authParams.get("auth") === "google") {
         showCachedHomeShell();
         getSessionInfo(false).then((cachedSession) => {
           if (cachedSession?.authenticated) return true;
           return ensureSession(true);
         }).then((isAuthed) => {
           if (isAuthed) {
+            if (authParams.get("auth") === "google") {
+              localStorage.setItem("reverie_seen_authenticated", "1");
+              authStatus.textContent = "Signed in with Google.";
+              window.history.replaceState({}, "", "/");
+            }
             loadForYou();
           } else {
             setAuthedState(false);
