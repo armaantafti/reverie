@@ -25,8 +25,10 @@ Open Supabase SQL Editor and run:
 
 - `supabase_entity_aliases.sql`
 - `supabase_user_sessions.sql`
+- `supabase_profiles.sql`
 
 The `user_sessions` table stores Supabase access and refresh tokens on the server. Browser and Android clients receive only an opaque `reverie_app_session` cookie.
+The `profiles` table stores editable account profile fields such as display name, phone number, timezone, and preferred language.
 
 5. Optional OCR and AI variables:
 

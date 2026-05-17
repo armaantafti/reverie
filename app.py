@@ -600,6 +600,109 @@ class AuthIn(BaseModel):
     password: str
 
 
+class ProfileUpdateIn(BaseModel):
+    display_name: Optional[str] = None
+    phone_number: Optional[str] = None
+    timezone: Optional[str] = None
+    preferred_language: Optional[str] = None
+
+
+PROFILE_TABLE_ERROR = (
+    "Profile storage is not ready. Run supabase_profiles.sql "
+    "in Supabase SQL Editor, then redeploy."
+)
+
+
+def _user_metadata(user: dict[str, Any]) -> dict[str, Any]:
+    metadata = user.get("user_metadata") or user.get("raw_user_meta_data") or {}
+    return metadata if isinstance(metadata, dict) else {}
+
+
+def _app_metadata(user: dict[str, Any]) -> dict[str, Any]:
+    metadata = user.get("app_metadata") or {}
+    return metadata if isinstance(metadata, dict) else {}
+
+
+def _profile_defaults(user: dict[str, Any]) -> dict[str, Any]:
+    metadata = _user_metadata(user)
+    app_metadata = _app_metadata(user)
+    display_name = (
+        metadata.get("full_name")
+        or metadata.get("name")
+        or metadata.get("display_name")
+        or ""
+    )
+    providers = app_metadata.get("providers")
+    auth_provider = app_metadata.get("provider")
+    if not auth_provider and isinstance(providers, list) and providers:
+        auth_provider = providers[0]
+    return {
+        "user_id": str(user.get("id") or "").strip(),
+        "display_name": str(display_name or "").strip(),
+        "email": str(user.get("email") or metadata.get("email") or "").strip(),
+        "avatar_url": str(metadata.get("avatar_url") or metadata.get("picture") or "").strip(),
+        "phone_number": "",
+        "timezone": "Asia/Kolkata",
+        "preferred_language": "English",
+        "auth_provider": str(auth_provider or "email").strip(),
+    }
+
+
+def _clean_profile_text(value: Optional[str], max_len: int = 120) -> str:
+    return str(value or "").strip()[:max_len]
+
+
+def _fetch_user_profile(user: dict[str, Any]) -> tuple[dict[str, Any], bool]:
+    defaults = _profile_defaults(user)
+    if not defaults["user_id"]:
+        raise HTTPException(status_code=401, detail="invalid user")
+    try:
+        result = (
+            supabase_admin.table("profiles")
+            .select("*")
+            .eq("user_id", defaults["user_id"])
+            .limit(1)
+            .execute()
+        )
+    except Exception:
+        return defaults, False
+    rows = result.data or []
+    row = rows[0] if rows and isinstance(rows[0], dict) else {}
+    if not row:
+        try:
+            supabase_admin.table("profiles").upsert(
+                {
+                    **defaults,
+                    "updated_at": datetime.now(timezone.utc).isoformat(),
+                },
+                on_conflict="user_id",
+            ).execute()
+        except Exception:
+            return defaults, False
+    profile = {**defaults, **{k: v for k, v in row.items() if v is not None}}
+    return profile, True
+
+
+def _upsert_user_profile(user: dict[str, Any], data: ProfileUpdateIn) -> dict[str, Any]:
+    defaults = _profile_defaults(user)
+    if not defaults["user_id"]:
+        raise HTTPException(status_code=401, detail="invalid user")
+
+    row = {
+        **defaults,
+        "display_name": _clean_profile_text(data.display_name),
+        "phone_number": _clean_profile_text(data.phone_number, 40),
+        "timezone": _clean_profile_text(data.timezone, 80) or "Asia/Kolkata",
+        "preferred_language": _clean_profile_text(data.preferred_language, 80) or "English",
+        "updated_at": datetime.now(timezone.utc).isoformat(),
+    }
+    try:
+        supabase_admin.table("profiles").upsert(row, on_conflict="user_id").execute()
+    except Exception as exc:
+        raise HTTPException(status_code=503, detail=PROFILE_TABLE_ERROR) from exc
+    return row
+
+
 @app.post("/signup")
 async def signup(data: AuthIn, request: Request):
     email = data.email.strip()
@@ -651,6 +754,24 @@ def get_session(request: Request):
         },
     })
     return response
+
+
+@app.get("/profile")
+def get_profile(request: Request):
+    user = _get_authenticated_user(request)
+    profile, storage_ready = _fetch_user_profile(user)
+    return {
+        "profile": profile,
+        "storage_ready": storage_ready,
+        "setup_required": None if storage_ready else PROFILE_TABLE_ERROR,
+    }
+
+
+@app.patch("/profile")
+def update_profile(data: ProfileUpdateIn, request: Request):
+    user = _get_authenticated_user(request)
+    profile = _upsert_user_profile(user, data)
+    return {"profile": profile, "storage_ready": True}
 
 
 @app.post("/logout")

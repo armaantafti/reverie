@@ -10,15 +10,15 @@
   <link rel="manifest" href="/static/manifest.json" />
   <link rel="icon" href="/static/icon-192.png" />
   <link rel="apple-touch-icon" href="/static/icon-192.png" />
-  <link rel="stylesheet" href="/static/reverie-list-page.css?v=56" />
-  <link rel="stylesheet" href="/static/reverie-website.css?v=56" media="(min-width: 920px) and (hover: hover) and (pointer: fine)" />
+  <link rel="stylesheet" href="/static/reverie-list-page.css?v=57" />
+  <link rel="stylesheet" href="/static/reverie-website.css?v=57" media="(min-width: 920px) and (hover: hover) and (pointer: fine)" />
 </head>
 <body>
   <div class="shell">
     <header class="topbar">
       <div class="topbar-inner">
         <div class="brand">
-          <div class="brand-mark"><img src="/static/logo_reverie.webp?v=56" alt="Reverie" /></div>
+          <div class="brand-mark"><img src="/static/logo_reverie.webp?v=57" alt="Reverie" /></div>
           <div class="brand-copy">
             <h1 class="brand-name">Reverie</h1>
             <p class="brand-line">Remember better.</p>
@@ -45,6 +45,44 @@
             </div>
           </div>
 
+          <div class="profile-card" id="profileCard">
+            <div class="profile-avatar" id="profileAvatar">R</div>
+            <div class="profile-copy">
+              <h3 id="profileDisplayName">Loading profile...</h3>
+              <p id="profileEmail">Checking account details</p>
+              <div class="profile-meta">
+                <span id="profileProvider">Login method</span>
+                <span id="profileTimezone">Timezone</span>
+                <span id="profileLanguage">Language</span>
+              </div>
+            </div>
+          </div>
+
+          <form class="profile-form" id="profileForm">
+            <div class="profile-form-grid">
+              <label class="profile-field">
+                <span>Display name</span>
+                <input id="profileNameInput" name="display_name" type="text" autocomplete="name" placeholder="Your name" />
+              </label>
+              <label class="profile-field">
+                <span>Phone number</span>
+                <input id="profilePhoneInput" name="phone_number" type="tel" autocomplete="tel" placeholder="Optional" />
+              </label>
+              <label class="profile-field">
+                <span>Timezone</span>
+                <input id="profileTimezoneInput" name="timezone" type="text" autocomplete="off" placeholder="Asia/Kolkata" />
+              </label>
+              <label class="profile-field">
+                <span>Preferred language</span>
+                <input id="profileLanguageInput" name="preferred_language" type="text" autocomplete="off" placeholder="English" />
+              </label>
+            </div>
+            <div class="profile-actions">
+              <button class="btn btn-primary" id="profileSaveBtn" type="submit">Save Profile</button>
+              <span class="account-action-status" id="profileStatus" aria-live="polite"></span>
+            </div>
+          </form>
+
           <div class="account-actions account-page-actions">
             <label class="account-action account-toggle-row">
               <span>Reminder Notifications</span>
@@ -65,6 +103,10 @@
               <span>Privacy</span>
               <small>Review data use, storage, and account information.</small>
             </a>
+            <button class="account-action" id="replayOnboardingBtn" type="button">
+              <span>Replay Tutorial</span>
+              <small>See how Capture, Home, Search, Tasks, and Account work.</small>
+            </button>
             <a class="account-action danger" href="/account-deletion">
               <span>Request Account Deletion</span>
               <small>Permanently delete your account and associated data.</small>
@@ -79,9 +121,9 @@
     </main>
   </div>
 
-  <script src="/static/reverie-shared.js?v=56" defer></script>
-  <script src="/static/reverie-notifications.min.js?v=56" defer></script>
-  <script src="/static/reverie-account.min.js?v=56" defer></script>
+  <script src="/static/reverie-shared.js?v=57" defer></script>
+  <script src="/static/reverie-notifications.min.js?v=57" defer></script>
+  <script src="/static/reverie-account.js?v=57" defer></script>
   <nav class="mobile-tabbar" aria-label="Mobile primary">
     <a href="/" aria-label="Home"><span class="tab-icon">&#8962;</span><span>Home</span></a>
     <a href="/search" aria-label="Search"><span class="tab-icon">&#8981;</span><span>Search</span></a>
