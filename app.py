@@ -63,6 +63,34 @@ SUPPORTED_AUDIO_TYPES = {
     "audio/wav",
     "audio/x-wav",
 }
+NATIVE_GOOGLE_OAUTH_PENDING: dict[str, dict[str, Any]] = {}
+
+
+def _remember_native_oauth_state(state: str, verifier: str) -> None:
+    _prune_native_oauth_states()
+    NATIVE_GOOGLE_OAUTH_PENDING[state] = {
+        "verifier": verifier,
+        "expires_at": datetime.now(timezone.utc) + timedelta(seconds=OAUTH_COOKIE_MAX_AGE),
+    }
+
+
+def _pop_native_oauth_verifier(state: str) -> str:
+    _prune_native_oauth_states()
+    entry = NATIVE_GOOGLE_OAUTH_PENDING.pop(state, None)
+    if not entry:
+        return ""
+    return str(entry.get("verifier") or "").strip()
+
+
+def _prune_native_oauth_states() -> None:
+    now = datetime.now(timezone.utc)
+    expired = [
+        state
+        for state, entry in NATIVE_GOOGLE_OAUTH_PENDING.items()
+        if entry.get("expires_at") and entry["expires_at"] < now
+    ]
+    for state in expired:
+        NATIVE_GOOGLE_OAUTH_PENDING.pop(state, None)
 
 
 @app.middleware("http")
@@ -642,6 +670,8 @@ def google_auth_start(request: Request, native: Optional[str] = None):
         url=f"{SUPABASE_URL.rstrip('/')}/auth/v1/authorize?{urlencode(params)}",
         status_code=302,
     )
+    if is_native:
+        _remember_native_oauth_state(state, verifier)
     _set_oauth_cookie(response, request, GOOGLE_OAUTH_STATE_COOKIE, state)
     _set_oauth_cookie(response, request, GOOGLE_OAUTH_VERIFIER_COOKIE, verifier)
     return response
@@ -664,6 +694,11 @@ def google_auth_callback(
         return response
     saved_state = (request.cookies.get(GOOGLE_OAUTH_STATE_COOKIE) or "").strip()
     verifier = (request.cookies.get(GOOGLE_OAUTH_VERIFIER_COOKIE) or "").strip()
+    if is_native and rv_state:
+        native_verifier = _pop_native_oauth_verifier(rv_state)
+        if native_verifier:
+            saved_state = rv_state
+            verifier = native_verifier
     if not code or not rv_state or not saved_state or not verifier or not secrets.compare_digest(rv_state, saved_state):
         response.headers["location"] = _native_auth_intent_url(error="google_oauth_state") if is_native else "/?auth_error=google_oauth_state"
         return response

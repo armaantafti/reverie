@@ -20,6 +20,7 @@ public class MainActivity extends BridgeActivity {
         if (getSupportActionBar() != null) {
             getSupportActionBar().hide();
         }
+        handleReverieAuthIntent(getIntent());
     }
 
     @Override
