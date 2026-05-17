@@ -16,6 +16,11 @@
     setModalVisible(backdrop, false);
   }
 
+  window.ReverieAccount = {
+    open: openAccountSheet,
+    close: closeAccountSheet,
+  };
+
   async function performLogout() {
     try {
       await fetch("/logout", {

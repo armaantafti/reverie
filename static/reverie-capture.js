@@ -29,6 +29,11 @@
     document.body.classList.remove("quick-capture-open");
   }
 
+  window.ReverieCapture = {
+    open: openPanel,
+    close: closePanel,
+  };
+
   async function saveText() {
     if (!(await ensureSession())) {
       statusEl.textContent = "Please sign in on Home first.";

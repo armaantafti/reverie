@@ -1256,6 +1256,7 @@ function setAuthMode(nextMode) {
 
         authStatus.textContent = authMode === "login" ? "Logged in." : "Account created.";
         showAppForUser();
+        window.ReverieOnboarding?.maybeStart?.({ delay: 700 });
         window.ReverieNotifications?.sync?.().catch((err) => console.warn("Notification sync failed", err));
       } catch (err) {
         console.error(err);
@@ -1301,6 +1302,15 @@ function setAuthMode(nextMode) {
     function closeMobileAccountSheet() {
       setModalVisible(mobileAccountBackdrop, false);
     }
+
+    window.ReverieCapture = {
+      open: openCaptureComposer,
+      close: closeCaptureComposer,
+    };
+    window.ReverieAccount = {
+      open: openMobileAccountSheet,
+      close: closeMobileAccountSheet,
+    };
 
     async function performLogout() {
       try {
@@ -1412,6 +1422,7 @@ function setAuthMode(nextMode) {
               window.history.replaceState({}, "", "/");
             }
             loadForYou();
+            window.ReverieOnboarding?.maybeStart?.({ delay: 900 });
           } else {
             setAuthedState(false);
           }
@@ -1421,10 +1432,12 @@ function setAuthMode(nextMode) {
         if (cachedSession?.authenticated) {
           showCachedHomeShell();
           loadForYou();
+          window.ReverieOnboarding?.maybeStart?.({ delay: 900 });
           return;
         }
         if (await ensureSession(true)) {
           showAppForUser();
+          window.ReverieOnboarding?.maybeStart?.({ delay: 900 });
         } else {
           setAuthedState(false);
         }

@@ -733,6 +733,278 @@ window.ReverieShared = (() => {
     }
   }
 
+  const ONBOARDING_SEEN_KEY = "reverie_onboarding_seen";
+  const onboardingSteps = [
+    {
+      key: "home",
+      route: "/",
+      title: "Your day at a glance",
+      body: "Home gives you a quick summary of your most relevant reminders, tasks, and surfaced memories so you know what needs attention first.",
+      bullets: [
+        "See top reminders and tasks",
+        "Review important surfaced memories",
+        "Jump quickly into what needs attention",
+      ],
+    },
+    {
+      key: "capture",
+      route: "/",
+      title: "Capture anything from anywhere",
+      body: "Use the floating + button from any screen to add a memory, reminder, note, recommendation, screenshot, image, document, or voice input.",
+      bullets: [
+        "Type a note or reminder",
+        "Speak using voice input",
+        "Upload images, screenshots, or documents",
+      ],
+    },
+    {
+      key: "search",
+      route: "/search",
+      title: "Find anything instantly",
+      body: "Use Search to find saved memories, reminders, uploads, people, topics, and entities. Smart Search helps you ask natural questions.",
+      bullets: [
+        "Search across saved content",
+        "Use Smart Search for natural questions",
+        "Filter or narrow results when needed",
+      ],
+    },
+    {
+      key: "tasks",
+      route: "/tasks",
+      title: "Turn memories into action",
+      body: "Use Tasks to review reminders and follow-ups detected from your memories. Track what is pending, completed, or skipped.",
+      bullets: [
+        "Review pending reminders",
+        "Mark tasks completed or skipped",
+        "Add updates when something changes",
+      ],
+    },
+    {
+      key: "account",
+      route: "/account",
+      title: "Manage your workspace",
+      body: "Use Account to manage your Reverie workspace, privacy options, uploads, names, entities, topics, and account settings.",
+      bullets: [
+        "Manage names, entities, and topics",
+        "Review privacy and uploads",
+        "Log out or request account deletion",
+      ],
+    },
+  ];
+
+  let onboardingIndex = 0;
+  let onboardingActive = false;
+  let onboardingStartTimer = null;
+  let onboardingStyleInstalled = false;
+
+  function onboardingSeen() {
+    try {
+      return localStorage.getItem(ONBOARDING_SEEN_KEY) === "1";
+    } catch (_) {
+      return true;
+    }
+  }
+
+  function setOnboardingSeen() {
+    try {
+      localStorage.setItem(ONBOARDING_SEEN_KEY, "1");
+    } catch (_) {}
+  }
+
+  function installOnboardingStyles() {
+    if (onboardingStyleInstalled || document.getElementById("reverieOnboardingStyles")) return;
+    onboardingStyleInstalled = true;
+    const style = document.createElement("style");
+    style.id = "reverieOnboardingStyles";
+    style.textContent = `
+      .reverie-onboarding-highlight{position:relative;z-index:360!important;box-shadow:0 0 0 3px rgba(122,215,255,.36),0 0 38px rgba(122,215,255,.32)!important}
+      .reverie-onboarding-backdrop{position:fixed;inset:0;z-index:520;display:flex;align-items:flex-end;justify-content:center;padding:18px;background:linear-gradient(180deg,rgba(2,6,14,.28),rgba(2,6,14,.72));backdrop-filter:blur(3px);-webkit-backdrop-filter:blur(3px)}
+      .reverie-onboarding-card{width:min(560px,100%);border-radius:28px;padding:22px;background:linear-gradient(180deg,rgba(17,25,42,.98),rgba(8,13,24,.98));border:1px solid rgba(155,179,214,.24);box-shadow:0 28px 80px rgba(0,0,0,.58);color:var(--text,#eef4ff)}
+      .reverie-onboarding-kicker{margin:0 0 10px;color:var(--muted,#aab6c8);font-size:.76rem;font-weight:800;letter-spacing:.16em;text-transform:uppercase}
+      .reverie-onboarding-title{margin:0;color:var(--text,#eef4ff);font-size:1.35rem;line-height:1.15;letter-spacing:0}
+      .reverie-onboarding-body{margin:12px 0 0;color:var(--muted,#aab6c8);font-size:.96rem;line-height:1.58}
+      .reverie-onboarding-list{display:grid;gap:8px;margin:16px 0 0;padding:0;list-style:none;color:var(--text,#eef4ff)}
+      .reverie-onboarding-list li{position:relative;padding-left:22px;line-height:1.45}
+      .reverie-onboarding-list li:before{content:"";position:absolute;left:0;top:.55em;width:8px;height:8px;border-radius:50%;background:linear-gradient(135deg,var(--accent,#88d8ff),#c2b5ff);box-shadow:0 0 14px rgba(122,215,255,.42)}
+      .reverie-onboarding-progress{display:flex;gap:7px;margin:18px 0 0}
+      .reverie-onboarding-dot{width:8px;height:8px;border-radius:50%;background:rgba(148,163,184,.34)}
+      .reverie-onboarding-dot.active{width:22px;background:linear-gradient(135deg,var(--accent,#88d8ff),#c2b5ff)}
+      .reverie-onboarding-actions{display:flex;gap:10px;align-items:center;justify-content:space-between;margin-top:20px;flex-wrap:wrap}
+      .reverie-onboarding-actions-left,.reverie-onboarding-actions-right{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+      .reverie-onboarding-button{min-height:42px;border-radius:999px;border:1px solid rgba(148,163,184,.18);padding:0 16px;background:rgba(148,163,184,.08);color:var(--text,#eef4ff);font:inherit;font-weight:800;cursor:pointer}
+      .reverie-onboarding-button.primary{color:#06111d;border-color:transparent;background:linear-gradient(135deg,var(--accent,#88d8ff),#c2b5ff)}
+      .reverie-onboarding-button.link{border-color:transparent;background:transparent;color:var(--muted,#aab6c8);padding-inline:4px}
+      .reverie-onboarding-button:disabled{opacity:.45;cursor:not-allowed}
+      @media (min-width: 760px){.reverie-onboarding-backdrop{align-items:center}.reverie-onboarding-card{padding:26px}}
+      @media (max-width: 520px){.reverie-onboarding-backdrop{padding:12px 10px calc(14px + env(safe-area-inset-bottom,0px))}.reverie-onboarding-card{border-radius:24px;padding:18px}.reverie-onboarding-title{font-size:1.18rem}.reverie-onboarding-actions{align-items:stretch}.reverie-onboarding-actions-left,.reverie-onboarding-actions-right{width:100%;justify-content:space-between}.reverie-onboarding-button{flex:1}}
+    `;
+    document.head.appendChild(style);
+  }
+
+  function clearOnboardingHighlights() {
+    document.querySelectorAll(".reverie-onboarding-highlight").forEach((node) => {
+      node.classList.remove("reverie-onboarding-highlight");
+    });
+  }
+
+  function closeBackgroundSheets() {
+    window.ReverieCapture?.close?.();
+    window.ReverieAccount?.close?.();
+    document.body.classList.remove("quick-capture-open", "capture-sheet-open");
+    clearOnboardingHighlights();
+  }
+
+  function renderOnboardingModal() {
+    installOnboardingStyles();
+    document.getElementById("reverieOnboardingOverlay")?.remove();
+    const step = onboardingSteps[onboardingIndex];
+    const overlay = document.createElement("div");
+    overlay.className = "reverie-onboarding-backdrop";
+    overlay.id = "reverieOnboardingOverlay";
+    overlay.setAttribute("role", "dialog");
+    overlay.setAttribute("aria-modal", "true");
+    overlay.setAttribute("aria-labelledby", "reverieOnboardingTitle");
+
+    const dots = onboardingSteps.map((_, index) => (
+      `<span class="reverie-onboarding-dot${index === onboardingIndex ? " active" : ""}" aria-hidden="true"></span>`
+    )).join("");
+    const bullets = step.bullets.map((bullet) => `<li>${bullet}</li>`).join("");
+    const isFirst = onboardingIndex === 0;
+    const isLast = onboardingIndex === onboardingSteps.length - 1;
+
+    overlay.innerHTML = `
+      <section class="reverie-onboarding-card">
+        <p class="reverie-onboarding-kicker">Step ${onboardingIndex + 1} of ${onboardingSteps.length}</p>
+        <h2 class="reverie-onboarding-title" id="reverieOnboardingTitle">${step.title}</h2>
+        <p class="reverie-onboarding-body">${step.body}</p>
+        <ul class="reverie-onboarding-list">${bullets}</ul>
+        <div class="reverie-onboarding-progress" aria-label="Tutorial progress">${dots}</div>
+        <div class="reverie-onboarding-actions">
+          <div class="reverie-onboarding-actions-left">
+            <button class="reverie-onboarding-button" data-onboarding-action="back" type="button" ${isFirst ? "disabled" : ""}>Back</button>
+            <button class="reverie-onboarding-button link" data-onboarding-action="skip" type="button">Skip tutorial</button>
+          </div>
+          <div class="reverie-onboarding-actions-right">
+            <button class="reverie-onboarding-button primary" data-onboarding-action="${isLast ? "finish" : "next"}" type="button">${isLast ? "Finish" : "Next"}</button>
+          </div>
+        </div>
+      </section>
+    `;
+    document.body.appendChild(overlay);
+  }
+
+  async function navigateToOnboardingRoute(route) {
+    const target = new URL(route, window.location.origin);
+    if (window.location.pathname === target.pathname && window.location.search === target.search) return;
+    if (typeof navigateAppShell === "function" && isAppShellRoute(target)) {
+      await navigateAppShell(target);
+      return;
+    }
+    window.location.href = target.href;
+  }
+
+  function applyOnboardingBackground(step) {
+    closeBackgroundSheets();
+    if (step.key === "capture") {
+      window.setTimeout(() => {
+        window.ReverieCapture?.open?.();
+        const target = document.getElementById("capturePanel")
+          || document.getElementById("quickCapturePanel")
+          || document.getElementById("mobileCaptureFab")
+          || document.querySelector('a[href="#quickCapturePanel"]')
+          || document.querySelector('a[href="#capturePanel"]');
+        target?.classList?.add("reverie-onboarding-highlight");
+      }, 80);
+    }
+    if (step.key === "account") {
+      window.setTimeout(() => {
+        if (window.location.pathname !== "/account") window.ReverieAccount?.open?.();
+        const target = document.querySelector(".account-page-actions")
+          || document.getElementById("mobileAccountBackdrop")
+          || document.querySelector('a[href="/account"]');
+        target?.classList?.add("reverie-onboarding-highlight");
+      }, 80);
+    }
+  }
+
+  async function showOnboardingStep(index) {
+    onboardingIndex = Math.max(0, Math.min(index, onboardingSteps.length - 1));
+    const step = onboardingSteps[onboardingIndex];
+    await navigateToOnboardingRoute(step.route);
+    applyOnboardingBackground(step);
+    renderOnboardingModal();
+  }
+
+  function finishOnboarding() {
+    setOnboardingSeen();
+    onboardingActive = false;
+    document.getElementById("reverieOnboardingOverlay")?.remove();
+    closeBackgroundSheets();
+  }
+
+  async function startOnboarding({ force = false } = {}) {
+    if (onboardingActive) return;
+    if (!force && onboardingSeen()) return;
+    onboardingActive = true;
+    await showOnboardingStep(0);
+  }
+
+  function maybeStartOnboarding({ delay = 500 } = {}) {
+    if (onboardingSeen() || onboardingActive) return;
+    window.clearTimeout(onboardingStartTimer);
+    onboardingStartTimer = window.setTimeout(async () => {
+      if (onboardingSeen() || onboardingActive) return;
+      const authed = await ensureSession(false);
+      if (authed) startOnboarding();
+    }, delay);
+  }
+
+  function installOnboardingControls() {
+    if (window.__reverieOnboardingControlsInstalled) return;
+    window.__reverieOnboardingControlsInstalled = true;
+    installOnboardingStyles();
+    document.addEventListener("click", async (event) => {
+      const action = event.target?.closest?.("[data-onboarding-action]")?.dataset?.onboardingAction;
+      if (!action) return;
+      event.preventDefault();
+      if (action === "skip" || action === "finish") {
+        finishOnboarding();
+        return;
+      }
+      if (action === "back") {
+        await showOnboardingStep(onboardingIndex - 1);
+        return;
+      }
+      if (action === "next") {
+        await showOnboardingStep(onboardingIndex + 1);
+      }
+    });
+    document.addEventListener("keydown", (event) => {
+      if (!onboardingActive || event.key !== "Escape") return;
+      finishOnboarding();
+    });
+    document.addEventListener("click", (event) => {
+      const replay = event.target?.closest?.("[data-replay-onboarding]");
+      if (!replay) return;
+      event.preventDefault();
+      startOnboarding({ force: true });
+    });
+  }
+
+  function installReplayTutorialAction() {
+    document.querySelectorAll(".account-actions").forEach((actions) => {
+      if (actions.querySelector("[data-replay-onboarding]")) return;
+      const button = document.createElement("button");
+      button.className = "account-action";
+      button.id = actions.classList.contains("account-page-actions") ? "replayOnboardingBtn" : "";
+      button.type = "button";
+      button.dataset.replayOnboarding = "1";
+      button.innerHTML = "<span>Replay Tutorial</span><small>See how Home, Capture, Search, Tasks, and Account work</small>";
+      const privacyLink = actions.querySelector('a[href="/privacy"]');
+      actions.insertBefore(button, privacyLink || actions.firstChild);
+    });
+  }
+
   function installFastNavigation() {
     document.querySelectorAll("a[href]").forEach((link) => {
       if (!isFastNavLink(link)) return;
@@ -761,7 +1033,7 @@ window.ReverieShared = (() => {
 
   function isAppShellRoute(url) {
     if (url.origin !== window.location.origin) return false;
-    return ["/search", "/tasks", "/recommendations"].includes(url.pathname);
+    return ["/", "/search", "/tasks", "/recommendations", "/account"].includes(url.pathname);
   }
 
   function runDynamicScript(sourceScript) {
@@ -816,6 +1088,7 @@ window.ReverieShared = (() => {
         await runDynamicScript(script);
       }
       await window.ReveriePageInit?.({ fromAppShell: true, path: url.pathname });
+      installReplayTutorialAction();
       window.scrollTo({ top: 0, behavior: "instant" });
     } catch (err) {
       console.warn("App shell navigation fell back to full navigation", err);
@@ -849,12 +1122,21 @@ window.ReverieShared = (() => {
       installKeyboardInsetSync();
       installFastNavigation();
       installAppShellNavigation();
+      installOnboardingControls();
+      installReplayTutorialAction();
     }, { once: true });
   } else {
     installKeyboardInsetSync();
     installFastNavigation();
     installAppShellNavigation();
+    installOnboardingControls();
+    installReplayTutorialAction();
   }
+
+  window.ReverieOnboarding = {
+    start: startOnboarding,
+    maybeStart: maybeStartOnboarding,
+  };
 
   return {
     readApiCache,
@@ -893,5 +1175,7 @@ window.ReverieShared = (() => {
     fetchNoteDetail,
     setModalVisible,
     installFastNavigation,
+    startOnboarding,
+    maybeStartOnboarding,
   };
 })();
