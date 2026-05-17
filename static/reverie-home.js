@@ -1,4 +1,4 @@
-    const { normaliseTags, normaliseEntities, toDisplayCase, displayNoteType, displayPerson, displayTag, displayEntity, formatWhen, toInputDateTimeValue, fromInputDateTimeValue, splitCommaList, chipClass, makeChip, appendImagePreview, fillAssetActions, noteStatus, isActionableNote, statusLabel, noteId, hasCalendarTime, calendarActionLabel, addNoteToCalendar, installVoiceInput, fetchNoteDetail, setModalVisible, readApiCache, writeApiCache, clearApiCache, getSessionInfo: sharedGetSessionInfo, markSessionAuthenticated, invalidateSession } = window.ReverieShared;
+    const { normaliseTags, normaliseEntities, toDisplayCase, displayNoteType, displayPerson, displayTag, displayEntity, formatWhen, toInputDateTimeValue, fromInputDateTimeValue, splitCommaList, chipClass, makeChip, appendImagePreview, fillAssetActions, noteStatus, isActionableNote, statusLabel, noteId, hasCalendarTime, calendarActionLabel, addNoteToCalendar, installVoiceInput, fetchNoteDetail, setModalVisible, readApiCache, writeApiCache, clearApiCache, getSessionInfo: sharedGetSessionInfo, markSessionAuthenticated, invalidateSession, isNativeShell } = window.ReverieShared;
     const ALL_TAGS = Array.isArray(window.REVERIE_TAGS) ? window.REVERIE_TAGS : [];
     const TOPIC_BUTTONS = [...ALL_TAGS, "passive"];
 
@@ -1290,7 +1290,7 @@ function setAuthMode(nextMode) {
     googleAuthBtn?.addEventListener("click", () => {
       googleAuthBtn.disabled = true;
       authStatus.textContent = "Opening Google sign-in...";
-      window.location.href = "/auth/google/start";
+      window.location.href = isNativeShell?.() ? "/auth/google/start?native=1" : "/auth/google/start";
     });
     logoutBtn?.addEventListener("click", async () => {
       await performLogout();

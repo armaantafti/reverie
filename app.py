@@ -5,7 +5,7 @@ import secrets
 from datetime import datetime, timedelta, timezone
 from io import BytesIO
 from typing import Optional, Any
-from urllib.parse import urlencode
+from urllib.parse import urlencode, quote
 
 from fastapi import FastAPI, Query, Request, HTTPException, BackgroundTasks, UploadFile, File
 from fastapi.encoders import jsonable_encoder
@@ -483,8 +483,39 @@ def _external_origin(request: Request) -> str:
     return f"{proto}://{host}"
 
 
-def _google_oauth_redirect_to(request: Request) -> str:
-    return f"{_external_origin(request).rstrip('/')}/auth/google/callback"
+def _google_oauth_redirect_to(request: Request, *, state: Optional[str] = None, native: bool = False) -> str:
+    url = f"{_external_origin(request).rstrip('/')}/auth/google/callback"
+    params: dict[str, str] = {}
+    if state:
+        params["rv_state"] = state
+    if native:
+        params["native"] = "1"
+    if params:
+        url = f"{url}?{urlencode(params)}"
+    return url
+
+
+def _native_auth_intent_url(session_id: str = "", error: str = "") -> str:
+    params: dict[str, str] = {}
+    if session_id:
+        params["session"] = session_id
+    if error:
+        params["error"] = error
+    query = f"?{urlencode(params)}" if params else ""
+    fallback_target = "/auth/native/complete"
+    if session_id:
+        fallback_target = f"{fallback_target}?session={quote(session_id, safe='')}"
+    elif error:
+        fallback_target = f"/?auth_error={quote(error, safe='')}"
+    fallback = f"{os.getenv('REVERIE_PUBLIC_URL', 'https://reverie-i2b8.onrender.com').rstrip('/')}{fallback_target}"
+    return (
+        f"intent://auth/google{query}"
+        "#Intent;"
+        "scheme=reverie;"
+        "package=com.reverie.myapp;"
+        f"S.browser_fallback_url={quote(fallback, safe='')};"
+        "end"
+    )
 
 
 def _pkce_challenge(verifier: str) -> str:
@@ -596,16 +627,16 @@ def logout(request: Request):
 
 
 @app.get("/auth/google/start")
-def google_auth_start(request: Request):
+def google_auth_start(request: Request, native: Optional[str] = None):
     state = secrets.token_urlsafe(32)
     verifier = secrets.token_urlsafe(64)
-    redirect_to = _google_oauth_redirect_to(request)
+    is_native = str(native or "").strip().lower() in {"1", "true", "yes"}
+    redirect_to = _google_oauth_redirect_to(request, state=state, native=is_native)
     params = {
         "provider": "google",
         "redirect_to": redirect_to,
         "code_challenge": _pkce_challenge(verifier),
         "code_challenge_method": "s256",
-        "state": state,
     }
     response = RedirectResponse(
         url=f"{SUPABASE_URL.rstrip('/')}/auth/v1/authorize?{urlencode(params)}",
@@ -617,33 +648,60 @@ def google_auth_start(request: Request):
 
 
 @app.get("/auth/google/callback")
-def google_auth_callback(request: Request, code: Optional[str] = None, state: Optional[str] = None, error: Optional[str] = None):
+def google_auth_callback(
+    request: Request,
+    code: Optional[str] = None,
+    rv_state: Optional[str] = None,
+    native: Optional[str] = None,
+    error: Optional[str] = None,
+):
+    is_native = str(native or "").strip().lower() in {"1", "true", "yes"}
     response = RedirectResponse(url="/?auth=google", status_code=303)
     _clear_oauth_cookies(response, request)
 
     if error:
-        response.headers["location"] = f"/?auth_error={error}"
+        response.headers["location"] = _native_auth_intent_url(error=error) if is_native else f"/?auth_error={error}"
         return response
     saved_state = (request.cookies.get(GOOGLE_OAUTH_STATE_COOKIE) or "").strip()
     verifier = (request.cookies.get(GOOGLE_OAUTH_VERIFIER_COOKIE) or "").strip()
-    if not code or not state or not saved_state or not verifier or not secrets.compare_digest(state, saved_state):
-        response.headers["location"] = "/?auth_error=google_oauth_state"
+    if not code or not rv_state or not saved_state or not verifier or not secrets.compare_digest(rv_state, saved_state):
+        response.headers["location"] = _native_auth_intent_url(error="google_oauth_state") if is_native else "/?auth_error=google_oauth_state"
         return response
 
     try:
         auth_response = supabase_auth.auth.exchange_code_for_session({
             "auth_code": code,
             "code_verifier": verifier,
-            "redirect_to": _google_oauth_redirect_to(request),
+            "redirect_to": _google_oauth_redirect_to(request, state=rv_state, native=is_native),
         })
         session_id, _user = create_app_session(auth_response)
-        _set_session_cookie(response, request, session_id)
-        _clear_legacy_auth_cookies(response, request)
+        if is_native:
+            response.headers["location"] = _native_auth_intent_url(session_id=session_id)
+        else:
+            _set_session_cookie(response, request, session_id)
+            _clear_legacy_auth_cookies(response, request)
         return response
     except Exception as exc:
         print(f"Google OAuth callback failed: {_error_detail(exc)}")
-        response.headers["location"] = "/?auth_error=google_oauth_failed"
+        response.headers["location"] = _native_auth_intent_url(error="google_oauth_failed") if is_native else "/?auth_error=google_oauth_failed"
         return response
+
+
+@app.get("/auth/native/complete")
+def native_auth_complete(request: Request, session: Optional[str] = None, error: Optional[str] = None):
+    if error:
+        return RedirectResponse(url=f"/?auth_error={error}", status_code=303)
+    session_id = (session or "").strip()
+    if not session_id:
+        return RedirectResponse(url="/?auth_error=native_auth_missing", status_code=303)
+    try:
+        get_session_user(session_id)
+    except Exception:
+        return RedirectResponse(url="/?auth_error=native_auth_invalid", status_code=303)
+    response = RedirectResponse(url="/?auth=google", status_code=303)
+    _set_session_cookie(response, request, session_id)
+    _clear_legacy_auth_cookies(response, request)
+    return response
 
 
 @app.get("/", response_class=HTMLResponse)
