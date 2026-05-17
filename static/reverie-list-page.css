@@ -1594,7 +1594,7 @@ button,input,textarea,select{font:inherit}
     z-index:330;
     display:flex;
     flex-direction:column;
-    max-height:min(48dvh, calc(100dvh - var(--keyboard-inset, 0px) - 28px));
+    max-height:min(72dvh, calc(100dvh - var(--keyboard-inset, 0px) - 28px));
     overflow:auto;
     transform:translateY(calc(100dvh + 40px));
     opacity:0;
@@ -1642,8 +1642,13 @@ button,input,textarea,select{font:inherit}
     flex-wrap:wrap;
     gap:10px;
     flex:0 0 auto;
-    padding-top:10px;
-    padding-bottom:4px;
+    position:sticky;
+    bottom:0;
+    z-index:2;
+    margin-left:-2px;
+    margin-right:-2px;
+    padding:10px 2px 8px;
+    background:linear-gradient(180deg, rgba(8,13,24,0), rgba(8,13,24,.96) 34%);
   }
   .quick-capture-panel .actions .btn{
     flex:1 1 130px;

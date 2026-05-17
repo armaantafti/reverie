@@ -750,7 +750,7 @@ window.ReverieShared = (() => {
     {
       key: "capture",
       route: "/",
-      preview: "/static/onboarding/capture.jpg",
+      preview: "/static/onboarding/capture-crop.jpg",
       title: "Capture anything from anywhere",
       body: "Use the floating + button from any screen to add a memory, reminder, note, recommendation, screenshot, image, document, or voice input.",
       bullets: [

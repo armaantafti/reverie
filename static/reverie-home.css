@@ -1297,7 +1297,7 @@
         top:auto;
         bottom:calc(10px + env(safe-area-inset-bottom, 0px) + var(--keyboard-inset, 0px));
         height:auto;
-        max-height:min(48dvh, calc(100dvh - var(--keyboard-inset, 0px) - 28px));
+        max-height:min(72dvh, calc(100dvh - var(--keyboard-inset, 0px) - 28px));
         z-index:330;
         overflow:auto;
         transform:translateY(calc(100dvh + 40px));
@@ -1354,8 +1354,13 @@
       }
       .capture-panel .actions{
         flex:0 0 auto;
-        padding-top:10px;
-        padding-bottom:4px;
+        position:sticky;
+        bottom:0;
+        z-index:2;
+        margin-left:-2px;
+        margin-right:-2px;
+        padding:10px 2px 8px;
+        background:linear-gradient(180deg, rgba(8,13,24,0), rgba(8,13,24,.96) 34%);
       }
       .panel-head{
         margin-bottom:12px;

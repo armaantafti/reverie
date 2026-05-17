@@ -156,6 +156,8 @@ function setAuthMode(nextMode) {
       document.documentElement.classList.remove("auth-checking");
       authPanel.classList.toggle("hidden", isAuthed);
       appShell.classList.toggle("hidden", !isAuthed);
+      document.querySelector(".mobile-tabbar")?.classList.toggle("hidden", !isAuthed);
+      mobileCaptureFab?.classList.toggle("hidden", !isAuthed);
       logoutBtn?.classList.toggle("hidden", !isAuthed);
       loginState.textContent = isAuthed ? "Signed in" : "Signed out";
       if (isAuthed) {
@@ -1291,7 +1293,7 @@ function setAuthMode(nextMode) {
 
     function syncCaptureViewport() {
       if (!window.visualViewport || !capturePanel) return;
-      const compactHeight = Math.max(260, Math.min(380, Math.round(window.visualViewport.height * 0.48)));
+      const compactHeight = Math.max(320, Math.min(560, Math.round(window.visualViewport.height * 0.72)));
       capturePanel.style.maxHeight = `${compactHeight}px`;
     }
 
