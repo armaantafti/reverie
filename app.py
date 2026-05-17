@@ -136,6 +136,15 @@ async def service_worker():
     )
 
 
+@app.get("/google2970e309958ac0d1.html", include_in_schema=False)
+async def google_site_verification():
+    return FileResponse(
+        "google2970e309958ac0d1.html",
+        media_type="text/html",
+        headers={"Cache-Control": "no-cache"},
+    )
+
+
 def get_user_notes(user_id: str, note_types: Optional[list[str]] = None, limit: Optional[int] = None):
     query = (
         supabase_admin.table("notes")
