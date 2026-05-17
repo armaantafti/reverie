@@ -1,0 +1,268 @@
+@media (min-width: 920px) {
+  html:not(.native-shell) {
+    color-scheme: light;
+  }
+
+  html:not(.native-shell) body {
+    color: #172033;
+    background:
+      linear-gradient(180deg, rgba(247, 250, 255, .96), rgba(236, 243, 253, .96)),
+      radial-gradient(circle at 12% 10%, rgba(122, 215, 255, .22), transparent 30%),
+      radial-gradient(circle at 88% 0%, rgba(168, 140, 255, .18), transparent 28%);
+  }
+
+  html:not(.native-shell) body::before,
+  html:not(.native-shell) body::after {
+    display: none;
+  }
+
+  html:not(.native-shell) .shell {
+    width: min(1240px, calc(100% - 56px));
+    margin: 0 auto 48px;
+  }
+
+  html:not(.native-shell) .topbar {
+    position: sticky;
+    top: 0;
+    margin: 0 calc(50% - 50vw) 34px;
+    border: 0;
+    border-bottom: 1px solid rgba(31, 41, 55, .09);
+    border-radius: 0;
+    background: rgba(255, 255, 255, .92);
+    box-shadow: 0 14px 40px rgba(15, 23, 42, .07);
+  }
+
+  html:not(.native-shell) .topbar-inner {
+    width: min(1240px, calc(100vw - 56px));
+    margin: 0 auto;
+    padding: 18px 0;
+  }
+
+  html:not(.native-shell) .brand-mark {
+    width: 44px;
+    height: 44px;
+    border-radius: 13px;
+    box-shadow: 0 10px 28px rgba(15, 23, 42, .12);
+  }
+
+  html:not(.native-shell) .brand-name {
+    font-size: 1.02rem;
+    letter-spacing: .20em;
+  }
+
+  html:not(.native-shell) .brand-line {
+    color: #64748b;
+  }
+
+  html:not(.native-shell) .nav {
+    gap: 2px;
+    padding: 0;
+    border: 0;
+    background: transparent;
+  }
+
+  html:not(.native-shell) .nav a {
+    color: #475569;
+    padding: 10px 15px;
+    border-radius: 10px;
+    font-size: .94rem;
+    font-weight: 750;
+  }
+
+  html:not(.native-shell) .nav a:hover,
+  html:not(.native-shell) .nav a:focus-visible {
+    color: #0f172a;
+    background: #eef5ff;
+    transform: none;
+  }
+
+  html:not(.native-shell) .nav a.active {
+    color: #0b1324;
+    background: linear-gradient(135deg, #d9f2ff, #e8e1ff);
+    box-shadow: none;
+  }
+
+  html:not(.native-shell) .status {
+    color: #475569;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+  }
+
+  html:not(.native-shell) .panel,
+  html:not(.native-shell) .auth-card,
+  html:not(.native-shell) .note-card,
+  html:not(.native-shell) .detail-block {
+    color: #172033;
+    background: rgba(255, 255, 255, .86);
+    border: 1px solid rgba(148, 163, 184, .22);
+    box-shadow: 0 20px 60px rgba(15, 23, 42, .08);
+    backdrop-filter: blur(18px);
+    -webkit-backdrop-filter: blur(18px);
+  }
+
+  html:not(.native-shell) .panel {
+    border-radius: 18px;
+    padding: 24px;
+  }
+
+  html:not(.native-shell) .panel::after {
+    opacity: .25;
+  }
+
+  html:not(.native-shell) .layout {
+    grid-template-columns: minmax(0, .92fr) minmax(380px, .72fr);
+    gap: 22px;
+  }
+
+  html:not(.native-shell) .page,
+  html:not(.native-shell) .main-layout {
+    margin-top: 0;
+    padding-top: 0;
+  }
+
+  html:not(.native-shell) .stack {
+    gap: 22px;
+  }
+
+  html:not(.native-shell) .auth-panel {
+    padding: 36px;
+    border-radius: 22px;
+  }
+
+  html:not(.native-shell) .auth-grid {
+    grid-template-columns: 1.08fr .92fr;
+    gap: 32px;
+    align-items: center;
+  }
+
+  html:not(.native-shell) .hero-kicker,
+  html:not(.native-shell) .section-kicker {
+    color: #334155;
+    background: #f8fafc;
+    border-color: #e2e8f0;
+    box-shadow: none;
+  }
+
+  html:not(.native-shell) .hero-title {
+    color: #0f172a;
+    font-size: clamp(2.4rem, 4.2vw, 4.4rem);
+    letter-spacing: 0;
+  }
+
+  html:not(.native-shell) .hero-text,
+  html:not(.native-shell) .panel-subtitle,
+  html:not(.native-shell) .note-summary,
+  html:not(.native-shell) .modal-sub,
+  html:not(.native-shell) .detail-label,
+  html:not(.native-shell) .auth-hint,
+  html:not(.native-shell) .auth-status,
+  html:not(.native-shell) .status-line,
+  html:not(.native-shell) .search-status {
+    color: #64748b;
+  }
+
+  html:not(.native-shell) .note-title,
+  html:not(.native-shell) .modal-title {
+    color: #111827;
+  }
+
+  html:not(.native-shell) textarea,
+  html:not(.native-shell) input,
+  html:not(.native-shell) select {
+    color: #111827;
+    background: #f8fafc;
+    border-color: #dbe4f0;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, .85);
+  }
+
+  html:not(.native-shell) textarea::placeholder,
+  html:not(.native-shell) input::placeholder {
+    color: #94a3b8;
+  }
+
+  html:not(.native-shell) .btn-primary {
+    color: #06111d;
+    background: linear-gradient(135deg, #8bd8ff, #bcb3ff);
+    box-shadow: 0 14px 30px rgba(59, 130, 246, .18);
+  }
+
+  html:not(.native-shell) .btn-secondary,
+  html:not(.native-shell) .btn-ghost {
+    color: #334155;
+    background: #f8fafc;
+    border: 1px solid #dbe4f0;
+    box-shadow: none;
+  }
+
+  html:not(.native-shell) .segmented {
+    background: #eef2f7;
+    border-color: #dbe4f0;
+  }
+
+  html:not(.native-shell) .segmented button {
+    color: #475569;
+  }
+
+  html:not(.native-shell) .segmented button.active {
+    color: #06111d;
+    background: linear-gradient(135deg, #8bd8ff, #bcb3ff);
+  }
+
+  html:not(.native-shell) .note-card:hover,
+  html:not(.native-shell) .note-card:focus-visible {
+    transform: translateY(-2px);
+    box-shadow: 0 24px 70px rgba(15, 23, 42, .12);
+  }
+
+  html:not(.native-shell) .chip,
+  html:not(.native-shell) .tag-chip,
+  html:not(.native-shell) .memory-chip {
+    color: #334155;
+    background: #eef5ff;
+    border-color: #dbeafe;
+  }
+
+  html:not(.native-shell) .modal-backdrop {
+    background: rgba(241, 245, 249, .72);
+  }
+
+  html:not(.native-shell) .modal {
+    color: #172033;
+    background: rgba(255, 255, 255, .96);
+    border-color: rgba(148, 163, 184, .28);
+    box-shadow: 0 32px 90px rgba(15, 23, 42, .18);
+  }
+
+  html:not(.native-shell) .modal-close {
+    color: #111827;
+    background: #f8fafc;
+    border-color: #dbe4f0;
+  }
+
+  html:not(.native-shell) .mobile-tabbar,
+  html:not(.native-shell) .mobile-capture-fab {
+    display: none !important;
+  }
+
+  html:not(.native-shell) .capture-panel {
+    position: sticky;
+    top: 112px;
+  }
+
+  html:not(.native-shell) .search-panel .search-grid,
+  html:not(.native-shell) .recall-panel .search-grid {
+    grid-template-columns: minmax(0, 1.4fr) 150px auto;
+  }
+}
+
+@media (min-width: 1180px) {
+  html:not(.native-shell) .note-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  html:not(.native-shell) .search-page .note-grid,
+  html:not(.native-shell) .page .note-grid {
+    display: grid;
+    gap: 14px;
+  }
+}

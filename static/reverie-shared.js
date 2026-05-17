@@ -755,9 +755,6 @@ window.ReverieShared = (() => {
       warmApi("/notes?types=note,reminder&limit=60");
       return;
     }
-    if (pathname === "/recommendations") {
-      warmApi("/notes?types=recommendation&limit=60");
-    }
   }
 
   const ONBOARDING_SEEN_KEY = "reverie_onboarding_seen";
@@ -1083,7 +1080,7 @@ window.ReverieShared = (() => {
     });
     if ("requestIdleCallback" in window) {
       window.requestIdleCallback(() => {
-        ["/tasks", "/recommendations"]
+        ["/tasks"]
           .filter((path) => path !== window.location.pathname)
           .forEach((path) => fetch(path, { credentials: "same-origin", cache: "force-cache" }).catch(() => undefined));
       }, { timeout: 2500 });
@@ -1092,7 +1089,7 @@ window.ReverieShared = (() => {
 
   function isAppShellRoute(url) {
     if (url.origin !== window.location.origin) return false;
-    return ["/search", "/tasks", "/recommendations", "/account"].includes(url.pathname);
+    return ["/search", "/tasks", "/account"].includes(url.pathname);
   }
 
   function runDynamicScript(sourceScript) {

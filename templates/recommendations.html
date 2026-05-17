@@ -6,18 +6,19 @@
   <meta name="color-scheme" content="dark" />
   <meta name="mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
-  <title>Reverie &ndash; Recommendations</title>
+  <title>Reverie &ndash; Memories</title>
   <link rel="manifest" href="/static/manifest.json" />
   <link rel="icon" href="/static/icon-192.png" />
   <link rel="apple-touch-icon" href="/static/icon-192.png" />
-  <link rel="stylesheet" href="/static/reverie-list-page.css?v=54" />
+  <link rel="stylesheet" href="/static/reverie-list-page.css?v=55" />
+  <link rel="stylesheet" href="/static/reverie-website.css?v=55" media="(min-width: 920px) and (hover: hover) and (pointer: fine)" />
 </head>
 <body>
   <div class="shell">
     <header class="topbar">
       <div class="topbar-inner">
         <div class="brand">
-          <div class="brand-mark"><img src="/static/logo_reverie.webp?v=54" alt="Reverie" /></div>
+          <div class="brand-mark"><img src="/static/logo_reverie.webp?v=55" alt="Reverie" /></div>
           <div class="brand-copy">
             <h1 class="brand-name">Reverie</h1>
             <p class="brand-line">Remember better.</p>
@@ -27,7 +28,7 @@
           <a href="/">Home</a>
           <a href="/search">Search</a>
           <a href="/tasks">Tasks</a>
-          <a class="active" href="/recommendations">Recommendations</a>
+          <a href="/account">Account</a>
         </nav>
         <div class="status"><span class="status-dot"></span> Ready</div>
       </div>
@@ -37,11 +38,11 @@
       <section class="stack">
         <article class="panel">
           <div class="panel-head">
-            <div class="section-kicker">Recommendations</div>
+            <div class="section-kicker">Memories</div>
           </div>
           <div class="note-grid" id="recsRecentList">
             <div class="note-card" id="recsRecentEmpty" style="cursor:default;display:none;">
-              <h4 class="note-title">No recent recommendations</h4>
+              <h4 class="note-title">No recent saved memories</h4>
             </div>
           </div>
         </article>
@@ -52,7 +53,7 @@
           </div>
           <div class="note-grid" id="recsPastList">
             <div class="note-card" id="recsPastEmpty" style="cursor:default;display:none;">
-              <h4 class="note-title">No earlier recommendations</h4>
+              <h4 class="note-title">No earlier saved memories</h4>
             </div>
           </div>
         </article>
@@ -197,8 +198,8 @@
     </div>
   </div>
 
-  <script src="/static/reverie-shared.js?v=54" defer></script>
-  <script src="/static/reverie-list-page.js?v=54" defer></script>
+  <script src="/static/reverie-shared.js?v=55" defer></script>
+  <script src="/static/reverie-list-page.js?v=55" defer></script>
   <script>
   function initRecommendationsPage() {
     if ("serviceWorker" in navigator) {
@@ -213,14 +214,14 @@
       primary: {
         listId: "recsRecentList",
         emptyId: "recsRecentEmpty",
-        emptyText: "No recent recommendations",
+        emptyText: "No recent saved memories",
       },
       secondary: {
         listId: "recsPastList",
         emptyId: "recsPastEmpty",
-        emptyText: "No earlier recommendations",
+        emptyText: "No earlier saved memories",
       },
-      signedOutText: "Sign in on Home to view recommendations",
+      signedOutText: "Sign in on Home to view saved memories",
       notesUrl: "/notes?types=recommendation&limit=60",
       detail: {
         backdropId: "recsModal",
@@ -313,7 +314,7 @@
     </div>
     <div class="status-line" id="quickCaptureStatus" aria-live="polite"></div>
   </section>
-  <script src="/static/reverie-capture.js?v=54" defer></script>
+  <script src="/static/reverie-capture.js?v=55" defer></script>
   <a class="mobile-fab" href="#quickCapturePanel" aria-label="Capture memory">+</a>
   <nav class="mobile-tabbar" aria-label="Mobile primary">
     <a href="/" aria-label="Home">
@@ -366,7 +367,7 @@
       </div>
     </div>
   </div>
-  <script src="/static/reverie-account.min.js?v=54" defer></script>
-  <script src="/static/reverie-notifications.min.js?v=54" defer></script>
+  <script src="/static/reverie-account.min.js?v=55" defer></script>
+  <script src="/static/reverie-notifications.min.js?v=55" defer></script>
 </body>
 </html>
