@@ -352,6 +352,33 @@ window.ReverieShared = (() => {
     return { opened: true, fallback: "ics" };
   }
 
+  function shouldOfferCalendarPrompt(note) {
+    if (!hasCalendarTime(note)) return false;
+    const type = String(note?.note_type || "").trim().toLowerCase();
+    return type === "reminder" || type === "task" || type === "note";
+  }
+
+  async function promptAddNoteToCalendar(note, { statusEl } = {}) {
+    if (!shouldOfferCalendarPrompt(note)) return false;
+    const label = calendarActionLabel(note) || "Add to calendar";
+    const title = String(note?.title || "this reminder").trim();
+    const ok = window.confirm(`Add "${title}" to your calendar?`);
+    if (!ok) return false;
+    try {
+      if (statusEl) statusEl.textContent = `${label}...`;
+      await addNoteToCalendar(note);
+      if (statusEl) {
+        statusEl.textContent = isNativeShell() && window.Capacitor?.Plugins?.CalendarBridge
+          ? "Calendar entry opened. Save it in your phone calendar."
+          : "Calendar file opened. Import it to your calendar.";
+      }
+      return true;
+    } catch (error) {
+      if (statusEl) statusEl.textContent = error?.message || "Calendar action failed.";
+      return false;
+    }
+  }
+
   function speechRecognitionConstructor() {
     return window.SpeechRecognition || window.webkitSpeechRecognition || null;
   }
@@ -814,6 +841,40 @@ window.ReverieShared = (() => {
     try {
       localStorage.setItem(ONBOARDING_SEEN_KEY, "1");
     } catch (_) {}
+    getSessionInfo(false).then((session) => {
+      const key = accountOnboardingKey(session);
+      if (key) localStorage.setItem(key, "1");
+    }).catch(() => undefined);
+  }
+
+  function accountOnboardingKey(session) {
+    const user = session?.user || {};
+    const identity = String(user.id || user.email || "").trim().toLowerCase();
+    return identity ? `${ONBOARDING_SEEN_KEY}:${identity}` : "";
+  }
+
+  function accountOnboardingSeen(session) {
+    const key = accountOnboardingKey(session);
+    if (!key) return onboardingSeen();
+    try {
+      return localStorage.getItem(key) === "1";
+    } catch (_) {
+      return true;
+    }
+  }
+
+  async function accountHasAnyMemory() {
+    try {
+      const response = await fetch("/notes?limit=1", {
+        credentials: "same-origin",
+        cache: "no-store",
+      });
+      if (!response.ok) return true;
+      const notes = await response.json().catch(() => []);
+      return Array.isArray(notes) && notes.length > 0;
+    } catch (_) {
+      return true;
+    }
   }
 
   function installOnboardingStyles() {
@@ -937,13 +998,23 @@ window.ReverieShared = (() => {
     await showOnboardingStep(0);
   }
 
-  function maybeStartOnboarding({ delay = 500 } = {}) {
-    if (onboardingSeen() || onboardingActive) return;
+  function maybeStartOnboarding({ delay = 500, checkEmptyAccount = false } = {}) {
+    if (onboardingActive) return;
+    if (!checkEmptyAccount && onboardingSeen()) return;
     window.clearTimeout(onboardingStartTimer);
     onboardingStartTimer = window.setTimeout(async () => {
-      if (onboardingSeen() || onboardingActive) return;
-      const authed = await ensureSession(false);
-      if (authed) startOnboarding();
+      if (onboardingActive) return;
+      const session = await getSessionInfo(false);
+      if (!session?.authenticated) return;
+      if (checkEmptyAccount) {
+        const hasAnyMemory = await accountHasAnyMemory();
+        if (!hasAnyMemory) {
+          if (accountOnboardingSeen(session)) return;
+          startOnboarding({ force: true });
+          return;
+        }
+      }
+      if (!onboardingSeen()) startOnboarding();
     }, delay);
   }
 
@@ -1158,6 +1229,8 @@ window.ReverieShared = (() => {
     hasCalendarTime,
     calendarActionLabel,
     addNoteToCalendar,
+    shouldOfferCalendarPrompt,
+    promptAddNoteToCalendar,
     supportsVoiceInput,
     installVoiceInput,
     fetchNoteDetail,

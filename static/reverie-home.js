@@ -1108,8 +1108,9 @@ function setAuthMode(nextMode) {
         noteTextEl.value = "";
         saveStatusEl.textContent = "Saved.";
         window.dispatchEvent(new CustomEvent("reverie:notes-changed"));
-        window.setTimeout(closeCaptureComposer, 550);
         await Promise.all([loadForYou(), runSearch()]);
+        const calendarPrompted = await window.ReverieShared?.promptAddNoteToCalendar?.(note, { statusEl: saveStatusEl });
+        window.setTimeout(closeCaptureComposer, calendarPrompted ? 1100 : 550);
       } catch (err) {
         console.error(err);
         saveStatusEl.textContent = "Save failed.";
@@ -1272,7 +1273,7 @@ function setAuthMode(nextMode) {
         closeCaptureComposer();
         closeMobileAccountSheet();
         showAppForUser();
-        window.ReverieOnboarding?.maybeStart?.({ delay: 700 });
+        window.ReverieOnboarding?.maybeStart?.({ delay: 700, checkEmptyAccount: true });
         window.ReverieNotifications?.sync?.().catch((err) => console.warn("Notification sync failed", err));
       } catch (err) {
         console.error(err);
@@ -1438,7 +1439,7 @@ function setAuthMode(nextMode) {
               window.history.replaceState({}, "", "/");
             }
             loadForYou();
-            window.ReverieOnboarding?.maybeStart?.({ delay: 900 });
+            window.ReverieOnboarding?.maybeStart?.({ delay: 900, checkEmptyAccount: true });
           } else {
             setAuthedState(false);
           }
@@ -1448,12 +1449,12 @@ function setAuthMode(nextMode) {
         if (cachedSession?.authenticated) {
           showCachedHomeShell();
           loadForYou();
-          window.ReverieOnboarding?.maybeStart?.({ delay: 900 });
+          window.ReverieOnboarding?.maybeStart?.({ delay: 900, checkEmptyAccount: true });
           return;
         }
         if (await ensureSession(true)) {
           showAppForUser();
-          window.ReverieOnboarding?.maybeStart?.({ delay: 900 });
+          window.ReverieOnboarding?.maybeStart?.({ delay: 900, checkEmptyAccount: true });
         } else {
           setAuthedState(false);
         }

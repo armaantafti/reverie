@@ -55,11 +55,13 @@
         body: JSON.stringify({ text }),
         credentials: "same-origin",
       });
-      if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+      const note = await resp.json().catch(() => null);
+      if (!resp.ok) throw new Error(note?.detail || `HTTP ${resp.status}`);
       textEl.value = "";
       statusEl.textContent = "Saved.";
       window.dispatchEvent(new CustomEvent("reverie:notes-changed"));
-      window.setTimeout(closePanel, 450);
+      const calendarPrompted = await window.ReverieShared?.promptAddNoteToCalendar?.(note, { statusEl });
+      window.setTimeout(closePanel, calendarPrompted ? 1100 : 450);
     } catch (err) {
       statusEl.textContent = err?.message || "Save failed.";
     } finally {
