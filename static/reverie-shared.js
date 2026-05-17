@@ -817,26 +817,46 @@ window.ReverieShared = (() => {
     const style = document.createElement("style");
     style.id = "reverieOnboardingStyles";
     style.textContent = `
-      .reverie-onboarding-highlight{position:relative;z-index:360!important;box-shadow:0 0 0 3px rgba(122,215,255,.36),0 0 38px rgba(122,215,255,.32)!important}
-      .reverie-onboarding-backdrop{position:fixed;inset:0;z-index:520;display:flex;align-items:flex-end;justify-content:center;padding:18px;background:linear-gradient(180deg,rgba(2,6,14,.28),rgba(2,6,14,.72));backdrop-filter:blur(3px);-webkit-backdrop-filter:blur(3px)}
-      .reverie-onboarding-card{width:min(560px,100%);border-radius:28px;padding:22px;background:linear-gradient(180deg,rgba(17,25,42,.98),rgba(8,13,24,.98));border:1px solid rgba(155,179,214,.24);box-shadow:0 28px 80px rgba(0,0,0,.58);color:var(--text,#eef4ff)}
-      .reverie-onboarding-kicker{margin:0 0 10px;color:var(--muted,#aab6c8);font-size:.76rem;font-weight:800;letter-spacing:.16em;text-transform:uppercase}
-      .reverie-onboarding-title{margin:0;color:var(--text,#eef4ff);font-size:1.35rem;line-height:1.15;letter-spacing:0}
-      .reverie-onboarding-body{margin:12px 0 0;color:var(--muted,#aab6c8);font-size:.96rem;line-height:1.58}
-      .reverie-onboarding-list{display:grid;gap:8px;margin:16px 0 0;padding:0;list-style:none;color:var(--text,#eef4ff)}
+      .reverie-onboarding-backdrop{position:fixed;inset:0;z-index:520;display:grid;place-items:center;padding:16px;background:rgba(2,6,14,.28);backdrop-filter:blur(2px);-webkit-backdrop-filter:blur(2px);overflow:hidden}
+      .reverie-onboarding-stage{position:absolute;inset:0;display:grid;place-items:center;padding:18px;pointer-events:none}
+      .reverie-onboarding-preview{position:relative;width:min(390px,calc(100vw - 28px));height:min(760px,calc(100dvh - 28px));border-radius:32px;padding:16px;background:linear-gradient(180deg,rgba(7,16,28,.92),rgba(10,18,34,.9));border:1px solid rgba(155,179,214,.20);box-shadow:0 30px 90px rgba(0,0,0,.46);overflow:hidden;opacity:.78;transform:scale(.98)}
+      .reverie-onboarding-preview-top{display:flex;align-items:center;gap:10px;margin-bottom:14px;padding:11px;border-radius:22px;background:rgba(5,10,22,.62);border:1px solid rgba(155,179,214,.16)}
+      .reverie-onboarding-logo{width:38px;height:38px;border-radius:14px;background:radial-gradient(circle at 35% 30%,#9ee6ff,#7166ff 46%,#101827 70%);box-shadow:inset 0 0 18px rgba(255,255,255,.20)}
+      .reverie-onboarding-word{font-weight:900;letter-spacing:.22em;color:#9bdcff}
+      .reverie-onboarding-panel{display:grid;gap:10px;margin-bottom:12px;padding:14px;border-radius:24px;background:rgba(16,24,40,.68);border:1px solid rgba(155,179,214,.15)}
+      .reverie-onboarding-panel-title{font-size:.72rem;text-transform:uppercase;letter-spacing:.18em;color:#cbd5e1}
+      .reverie-onboarding-memory{display:grid;gap:8px;padding:12px;border-radius:18px;background:rgba(8,13,24,.72);border:1px solid rgba(122,215,255,.18)}
+      .reverie-onboarding-memory h4{margin:0;font-size:.96rem;color:#f8fbff;line-height:1.2}
+      .reverie-onboarding-memory p{margin:0;color:#b9c4d4;font-size:.82rem;line-height:1.38}
+      .reverie-onboarding-chips{display:flex;gap:7px;flex-wrap:wrap}
+      .reverie-onboarding-chip{border-radius:999px;padding:6px 9px;background:rgba(148,163,184,.11);color:#dbeafe;font-size:.72rem;font-weight:800}
+      .reverie-onboarding-searchbox,.reverie-onboarding-textbox{border-radius:18px;padding:13px 14px;background:rgba(3,8,18,.82);border:1px solid rgba(155,179,214,.18);color:#9aa8bb}
+      .reverie-onboarding-textbox{min-height:92px}
+      .reverie-onboarding-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+      .reverie-onboarding-action{padding:12px;border-radius:18px;background:rgba(148,163,184,.09);border:1px solid rgba(155,179,214,.14)}
+      .reverie-onboarding-action strong{display:block;color:#f8fbff;font-size:.86rem}
+      .reverie-onboarding-action span{display:block;margin-top:5px;color:#aab6c8;font-size:.74rem;line-height:1.3}
+      .reverie-onboarding-plus{position:absolute;right:26px;bottom:90px;width:58px;height:58px;border-radius:50%;display:grid;place-items:center;color:#06111d;font-size:2rem;font-weight:900;background:linear-gradient(135deg,#8edcff,#c4b3ff);box-shadow:0 18px 44px rgba(122,215,255,.28)}
+      .reverie-onboarding-tabbar{position:absolute;left:18px;right:18px;bottom:18px;display:grid;grid-template-columns:repeat(4,1fr);gap:5px;padding:8px;border-radius:22px;background:rgba(5,10,20,.84);border:1px solid rgba(155,179,214,.14)}
+      .reverie-onboarding-tab{display:grid;place-items:center;gap:3px;min-height:50px;border-radius:16px;color:#aab6c8;font-size:.64rem;font-weight:800}
+      .reverie-onboarding-tab.active{color:#06111d;background:linear-gradient(135deg,#8edcff,#c4b3ff)}
+      .reverie-onboarding-card{position:relative;z-index:2;width:min(430px,calc(100vw - 34px));border-radius:24px;padding:17px;background:linear-gradient(180deg,rgba(17,25,42,.72),rgba(8,13,24,.68));border:1px solid rgba(219,234,254,.28);box-shadow:0 24px 70px rgba(0,0,0,.48);color:var(--text,#eef4ff);backdrop-filter:blur(18px) saturate(150%);-webkit-backdrop-filter:blur(18px) saturate(150%)}
+      .reverie-onboarding-kicker{margin:0 0 8px;color:var(--muted,#aab6c8);font-size:.66rem;font-weight:800;letter-spacing:.15em;text-transform:uppercase}
+      .reverie-onboarding-title{margin:0;color:var(--text,#eef4ff);font-size:1.08rem;line-height:1.15;letter-spacing:0}
+      .reverie-onboarding-body{margin:9px 0 0;color:var(--muted,#aab6c8);font-size:.82rem;line-height:1.45}
+      .reverie-onboarding-list{display:grid;gap:6px;margin:11px 0 0;padding:0;list-style:none;color:var(--text,#eef4ff);font-size:.8rem}
       .reverie-onboarding-list li{position:relative;padding-left:22px;line-height:1.45}
-      .reverie-onboarding-list li:before{content:"";position:absolute;left:0;top:.55em;width:8px;height:8px;border-radius:50%;background:linear-gradient(135deg,var(--accent,#88d8ff),#c2b5ff);box-shadow:0 0 14px rgba(122,215,255,.42)}
-      .reverie-onboarding-progress{display:flex;gap:7px;margin:18px 0 0}
-      .reverie-onboarding-dot{width:8px;height:8px;border-radius:50%;background:rgba(148,163,184,.34)}
-      .reverie-onboarding-dot.active{width:22px;background:linear-gradient(135deg,var(--accent,#88d8ff),#c2b5ff)}
-      .reverie-onboarding-actions{display:flex;gap:10px;align-items:center;justify-content:space-between;margin-top:20px;flex-wrap:wrap}
+      .reverie-onboarding-list li:before{content:"";position:absolute;left:0;top:.58em;width:7px;height:7px;border-radius:50%;background:linear-gradient(135deg,var(--accent,#88d8ff),#c2b5ff);box-shadow:0 0 12px rgba(122,215,255,.42)}
+      .reverie-onboarding-progress{display:flex;gap:6px;margin:13px 0 0}
+      .reverie-onboarding-dot{width:7px;height:7px;border-radius:50%;background:rgba(148,163,184,.34)}
+      .reverie-onboarding-dot.active{width:18px;background:linear-gradient(135deg,var(--accent,#88d8ff),#c2b5ff)}
+      .reverie-onboarding-actions{display:flex;gap:8px;align-items:center;justify-content:space-between;margin-top:14px;flex-wrap:wrap}
       .reverie-onboarding-actions-left,.reverie-onboarding-actions-right{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
-      .reverie-onboarding-button{min-height:42px;border-radius:999px;border:1px solid rgba(148,163,184,.18);padding:0 16px;background:rgba(148,163,184,.08);color:var(--text,#eef4ff);font:inherit;font-weight:800;cursor:pointer}
+      .reverie-onboarding-button{min-height:36px;border-radius:999px;border:1px solid rgba(148,163,184,.18);padding:0 13px;background:rgba(148,163,184,.08);color:var(--text,#eef4ff);font:inherit;font-size:.78rem;font-weight:800;cursor:pointer}
       .reverie-onboarding-button.primary{color:#06111d;border-color:transparent;background:linear-gradient(135deg,var(--accent,#88d8ff),#c2b5ff)}
       .reverie-onboarding-button.link{border-color:transparent;background:transparent;color:var(--muted,#aab6c8);padding-inline:4px}
       .reverie-onboarding-button:disabled{opacity:.45;cursor:not-allowed}
-      @media (min-width: 760px){.reverie-onboarding-backdrop{align-items:center}.reverie-onboarding-card{padding:26px}}
-      @media (max-width: 520px){.reverie-onboarding-backdrop{padding:12px 10px calc(14px + env(safe-area-inset-bottom,0px))}.reverie-onboarding-card{border-radius:24px;padding:18px}.reverie-onboarding-title{font-size:1.18rem}.reverie-onboarding-actions{align-items:stretch}.reverie-onboarding-actions-left,.reverie-onboarding-actions-right{width:100%;justify-content:space-between}.reverie-onboarding-button{flex:1}}
+      @media (max-width: 520px){.reverie-onboarding-backdrop{padding:10px 8px calc(12px + env(safe-area-inset-bottom,0px))}.reverie-onboarding-preview{height:calc(100dvh - 20px);border-radius:28px;padding:13px}.reverie-onboarding-card{border-radius:21px;padding:15px;align-self:center}.reverie-onboarding-title{font-size:1rem}.reverie-onboarding-body{font-size:.78rem}.reverie-onboarding-list{font-size:.76rem}.reverie-onboarding-actions{align-items:stretch}.reverie-onboarding-actions-left,.reverie-onboarding-actions-right{width:100%;justify-content:space-between}.reverie-onboarding-button{flex:1;min-height:34px}.reverie-onboarding-stage{padding:10px}.reverie-onboarding-preview{opacity:.72}.reverie-onboarding-memory:nth-of-type(n+3){display:none}}
     `;
     document.head.appendChild(style);
   }
@@ -852,6 +872,111 @@ window.ReverieShared = (() => {
     window.ReverieAccount?.close?.();
     document.body.classList.remove("quick-capture-open", "capture-sheet-open");
     clearOnboardingHighlights();
+  }
+
+  function renderMockPreview(step) {
+    const tab = (key, label, activeKey = step.key) => (
+      `<div class="reverie-onboarding-tab${activeKey === key ? " active" : ""}"><span>${label}</span></div>`
+    );
+    const shellStart = `
+      <div class="reverie-onboarding-preview">
+        <div class="reverie-onboarding-preview-top">
+          <div class="reverie-onboarding-logo"></div>
+          <div class="reverie-onboarding-word">REVERIE</div>
+        </div>
+    `;
+    const shellEnd = `
+        <div class="reverie-onboarding-tabbar">
+          ${tab("home", "Home", step.key === "capture" ? "home" : step.key)}
+          ${tab("search", "Search")}
+          ${tab("tasks", "Tasks")}
+          ${tab("account", "Account")}
+        </div>
+      </div>
+    `;
+    if (step.key === "capture") {
+      return `${shellStart}
+        <div class="reverie-onboarding-panel">
+          <div class="reverie-onboarding-panel-title">Capture</div>
+          <div class="reverie-onboarding-textbox">Write a memory, reminder, or idea...</div>
+          <div class="reverie-onboarding-grid">
+            <div class="reverie-onboarding-action"><strong>Voice</strong><span>Speak a quick thought</span></div>
+            <div class="reverie-onboarding-action"><strong>Upload</strong><span>Add images or documents</span></div>
+          </div>
+        </div>
+        <div class="reverie-onboarding-panel">
+          <div class="reverie-onboarding-panel-title">Example</div>
+          <div class="reverie-onboarding-memory">
+            <h4>Follow up after the school meeting</h4>
+            <p>Reverie can turn a note into a reminder with a date, topic, and person.</p>
+            <div class="reverie-onboarding-chips"><span class="reverie-onboarding-chip">reminder</span><span class="reverie-onboarding-chip">school</span></div>
+          </div>
+        </div>
+        <div class="reverie-onboarding-plus">+</div>
+        ${shellEnd}`;
+    }
+    if (step.key === "search") {
+      return `${shellStart}
+        <div class="reverie-onboarding-panel">
+          <div class="reverie-onboarding-panel-title">Smart Search</div>
+          <div class="reverie-onboarding-searchbox">Ask: What do I need to remember about school?</div>
+        </div>
+        <div class="reverie-onboarding-panel">
+          <div class="reverie-onboarding-memory">
+            <h4>Smart answer</h4>
+            <p>You have one pending school reminder and two related memories from recent notes.</p>
+            <div class="reverie-onboarding-chips"><span class="reverie-onboarding-chip">school</span><span class="reverie-onboarding-chip">pending</span></div>
+          </div>
+          <div class="reverie-onboarding-memory">
+            <h4>Science project discussion</h4>
+            <p>Matched on topic, person, and uploaded screenshot text.</p>
+          </div>
+        </div>
+        ${shellEnd}`;
+    }
+    if (step.key === "tasks") {
+      return `${shellStart}
+        <div class="reverie-onboarding-panel">
+          <div class="reverie-onboarding-panel-title">Pending</div>
+          <div class="reverie-onboarding-memory">
+            <h4>Submit permission form</h4>
+            <p>Due tomorrow at 9:00 AM.</p>
+            <div class="reverie-onboarding-chips"><span class="reverie-onboarding-chip">Pending</span><span class="reverie-onboarding-chip">family</span></div>
+          </div>
+          <div class="reverie-onboarding-memory">
+            <h4>Call the dentist</h4>
+            <p>Reverie surfaced this follow-up from your note.</p>
+            <div class="reverie-onboarding-chips"><span class="reverie-onboarding-chip">reminder</span></div>
+          </div>
+        </div>
+        ${shellEnd}`;
+    }
+    if (step.key === "account") {
+      return `${shellStart}
+        <div class="reverie-onboarding-panel">
+          <div class="reverie-onboarding-panel-title">Settings</div>
+          <div class="reverie-onboarding-action"><strong>Manage Entities</strong><span>Clean up names, topics, and duplicates</span></div>
+          <div class="reverie-onboarding-action"><strong>Manage Uploads</strong><span>Remove files while keeping memories</span></div>
+          <div class="reverie-onboarding-action"><strong>Privacy</strong><span>Review account and data controls</span></div>
+          <div class="reverie-onboarding-action"><strong>Replay Tutorial</strong><span>Open this guide anytime</span></div>
+        </div>
+        ${shellEnd}`;
+    }
+    return `${shellStart}
+      <div class="reverie-onboarding-panel">
+        <div class="reverie-onboarding-panel-title">For You</div>
+        <div class="reverie-onboarding-memory">
+          <h4>Review meeting notes</h4>
+          <p>A reminder with a due time and related people is ready for attention.</p>
+          <div class="reverie-onboarding-chips"><span class="reverie-onboarding-chip">reminder</span><span class="reverie-onboarding-chip">work</span><span class="reverie-onboarding-chip">today</span></div>
+        </div>
+        <div class="reverie-onboarding-memory">
+          <h4>Passport renewal note</h4>
+          <p>Important uploaded documents and summaries can surface here.</p>
+          <div class="reverie-onboarding-chips"><span class="reverie-onboarding-chip">identity document</span></div>
+        </div>
+      </div>
+      ${shellEnd}`;
   }
 
   function renderOnboardingModal() {
@@ -873,6 +998,9 @@ window.ReverieShared = (() => {
     const isLast = onboardingIndex === onboardingSteps.length - 1;
 
     overlay.innerHTML = `
+      <div class="reverie-onboarding-stage" aria-hidden="true">
+        ${renderMockPreview(step)}
+      </div>
       <section class="reverie-onboarding-card">
         <p class="reverie-onboarding-kicker">Step ${onboardingIndex + 1} of ${onboardingSteps.length}</p>
         <h2 class="reverie-onboarding-title" id="reverieOnboardingTitle">${step.title}</h2>
@@ -905,32 +1033,11 @@ window.ReverieShared = (() => {
 
   function applyOnboardingBackground(step) {
     closeBackgroundSheets();
-    if (step.key === "capture") {
-      window.setTimeout(() => {
-        window.ReverieCapture?.open?.();
-        const target = document.getElementById("capturePanel")
-          || document.getElementById("quickCapturePanel")
-          || document.getElementById("mobileCaptureFab")
-          || document.querySelector('a[href="#quickCapturePanel"]')
-          || document.querySelector('a[href="#capturePanel"]');
-        target?.classList?.add("reverie-onboarding-highlight");
-      }, 80);
-    }
-    if (step.key === "account") {
-      window.setTimeout(() => {
-        if (window.location.pathname !== "/account") window.ReverieAccount?.open?.();
-        const target = document.querySelector(".account-page-actions")
-          || document.getElementById("mobileAccountBackdrop")
-          || document.querySelector('a[href="/account"]');
-        target?.classList?.add("reverie-onboarding-highlight");
-      }, 80);
-    }
   }
 
   async function showOnboardingStep(index) {
     onboardingIndex = Math.max(0, Math.min(index, onboardingSteps.length - 1));
     const step = onboardingSteps[onboardingIndex];
-    await navigateToOnboardingRoute(step.route);
     applyOnboardingBackground(step);
     renderOnboardingModal();
   }
