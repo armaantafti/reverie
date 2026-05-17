@@ -1,19 +1,20 @@
 @media (min-width: 920px) {
   html:not(.native-shell) {
-    color-scheme: light;
+    color-scheme: dark;
   }
 
   html:not(.native-shell) body {
-    color: #172033;
+    color: var(--text);
     background:
-      linear-gradient(180deg, rgba(247, 250, 255, .96), rgba(236, 243, 253, .96)),
-      radial-gradient(circle at 12% 10%, rgba(122, 215, 255, .22), transparent 30%),
-      radial-gradient(circle at 88% 0%, rgba(168, 140, 255, .18), transparent 28%);
+      radial-gradient(circle at 14% 10%, rgba(122, 215, 255, .16), transparent 26%),
+      radial-gradient(circle at 82% 4%, rgba(168, 140, 255, .15), transparent 24%),
+      radial-gradient(circle at 50% 96%, rgba(95, 168, 255, .10), transparent 30%),
+      linear-gradient(180deg, #08111e 0%, #0a1323 42%, #0c1728 100%);
   }
 
   html:not(.native-shell) body::before,
   html:not(.native-shell) body::after {
-    display: none;
+    opacity: .13;
   }
 
   html:not(.native-shell) .shell {
@@ -24,12 +25,14 @@
   html:not(.native-shell) .topbar {
     position: sticky;
     top: 0;
-    margin: 0 calc(50% - 50vw) 34px;
+    margin: 0 calc(50% - 50vw) 32px;
     border: 0;
-    border-bottom: 1px solid rgba(31, 41, 55, .09);
+    border-bottom: 1px solid rgba(155, 179, 214, .12);
     border-radius: 0;
-    background: rgba(255, 255, 255, .92);
-    box-shadow: 0 14px 40px rgba(15, 23, 42, .07);
+    background: rgba(7, 12, 24, .82);
+    box-shadow: 0 18px 52px rgba(3, 8, 20, .28);
+    backdrop-filter: blur(22px) saturate(160%);
+    -webkit-backdrop-filter: blur(22px) saturate(160%);
   }
 
   html:not(.native-shell) .topbar-inner {
@@ -39,30 +42,31 @@
   }
 
   html:not(.native-shell) .brand-mark {
-    width: 44px;
-    height: 44px;
-    border-radius: 13px;
-    box-shadow: 0 10px 28px rgba(15, 23, 42, .12);
+    width: 46px;
+    height: 46px;
+    border-radius: 14px;
+    box-shadow: 0 14px 34px rgba(3, 8, 20, .34);
   }
 
   html:not(.native-shell) .brand-name {
-    font-size: 1.02rem;
+    font-size: 1.04rem;
     letter-spacing: .20em;
   }
 
   html:not(.native-shell) .brand-line {
-    color: #64748b;
+    color: var(--muted);
   }
 
   html:not(.native-shell) .nav {
-    gap: 2px;
-    padding: 0;
-    border: 0;
-    background: transparent;
+    gap: 4px;
+    padding: 5px;
+    border-radius: 14px;
+    background: rgba(148, 163, 184, .06);
+    border: 1px solid rgba(148, 163, 184, .11);
   }
 
   html:not(.native-shell) .nav a {
-    color: #475569;
+    color: var(--muted);
     padding: 10px 15px;
     border-radius: 10px;
     font-size: .94rem;
@@ -71,42 +75,42 @@
 
   html:not(.native-shell) .nav a:hover,
   html:not(.native-shell) .nav a:focus-visible {
-    color: #0f172a;
-    background: #eef5ff;
+    color: #fff;
+    background: rgba(148, 163, 184, .10);
     transform: none;
   }
 
   html:not(.native-shell) .nav a.active {
-    color: #0b1324;
-    background: linear-gradient(135deg, #d9f2ff, #e8e1ff);
-    box-shadow: none;
+    color: #06111d;
+    background: linear-gradient(135deg, var(--accent), #c0b4ff);
+    box-shadow: 0 12px 30px rgba(122, 215, 255, .18);
   }
 
   html:not(.native-shell) .status {
-    color: #475569;
-    background: #f8fafc;
-    border: 1px solid #e2e8f0;
+    color: var(--muted);
+    background: rgba(148, 163, 184, .06);
+    border: 1px solid rgba(148, 163, 184, .13);
   }
 
   html:not(.native-shell) .panel,
   html:not(.native-shell) .auth-card,
   html:not(.native-shell) .note-card,
   html:not(.native-shell) .detail-block {
-    color: #172033;
-    background: rgba(255, 255, 255, .86);
-    border: 1px solid rgba(148, 163, 184, .22);
-    box-shadow: 0 20px 60px rgba(15, 23, 42, .08);
-    backdrop-filter: blur(18px);
-    -webkit-backdrop-filter: blur(18px);
+    color: var(--text);
+    background: linear-gradient(180deg, rgba(15, 23, 40, .78), rgba(10, 16, 28, .82));
+    border: 1px solid rgba(155, 179, 214, .15);
+    box-shadow: 0 24px 72px rgba(3, 8, 20, .34);
+    backdrop-filter: blur(18px) saturate(130%);
+    -webkit-backdrop-filter: blur(18px) saturate(130%);
   }
 
   html:not(.native-shell) .panel {
-    border-radius: 18px;
+    border-radius: 20px;
     padding: 24px;
   }
 
   html:not(.native-shell) .panel::after {
-    opacity: .25;
+    opacity: .58;
   }
 
   html:not(.native-shell) .layout {
@@ -126,7 +130,7 @@
 
   html:not(.native-shell) .auth-panel {
     padding: 36px;
-    border-radius: 22px;
+    border-radius: 24px;
   }
 
   html:not(.native-shell) .auth-grid {
@@ -137,14 +141,14 @@
 
   html:not(.native-shell) .hero-kicker,
   html:not(.native-shell) .section-kicker {
-    color: #334155;
-    background: #f8fafc;
-    border-color: #e2e8f0;
-    box-shadow: none;
+    color: #dce8fb;
+    background: rgba(148, 163, 184, .06);
+    border-color: rgba(148, 163, 184, .12);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, .03);
   }
 
   html:not(.native-shell) .hero-title {
-    color: #0f172a;
+    color: var(--text);
     font-size: clamp(2.4rem, 4.2vw, 4.4rem);
     letter-spacing: 0;
   }
@@ -158,85 +162,85 @@
   html:not(.native-shell) .auth-status,
   html:not(.native-shell) .status-line,
   html:not(.native-shell) .search-status {
-    color: #64748b;
+    color: var(--muted);
   }
 
   html:not(.native-shell) .note-title,
   html:not(.native-shell) .modal-title {
-    color: #111827;
+    color: var(--text);
   }
 
   html:not(.native-shell) textarea,
   html:not(.native-shell) input,
   html:not(.native-shell) select {
-    color: #111827;
-    background: #f8fafc;
-    border-color: #dbe4f0;
-    box-shadow: inset 0 1px 0 rgba(255, 255, 255, .85);
+    color: var(--text);
+    background: rgba(6, 11, 20, .58);
+    border-color: rgba(148, 163, 184, .14);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, .02);
   }
 
   html:not(.native-shell) textarea::placeholder,
   html:not(.native-shell) input::placeholder {
-    color: #94a3b8;
+    color: #7d8fae;
   }
 
   html:not(.native-shell) .btn-primary {
     color: #06111d;
-    background: linear-gradient(135deg, #8bd8ff, #bcb3ff);
-    box-shadow: 0 14px 30px rgba(59, 130, 246, .18);
+    background: linear-gradient(135deg, var(--accent), #c0b4ff);
+    box-shadow: 0 16px 34px rgba(122, 215, 255, .20);
   }
 
   html:not(.native-shell) .btn-secondary,
   html:not(.native-shell) .btn-ghost {
-    color: #334155;
-    background: #f8fafc;
-    border: 1px solid #dbe4f0;
+    color: var(--text);
+    background: rgba(148, 163, 184, .06);
+    border: 1px solid rgba(148, 163, 184, .13);
     box-shadow: none;
   }
 
   html:not(.native-shell) .segmented {
-    background: #eef2f7;
-    border-color: #dbe4f0;
+    background: rgba(148, 163, 184, .06);
+    border-color: rgba(148, 163, 184, .12);
   }
 
   html:not(.native-shell) .segmented button {
-    color: #475569;
+    color: var(--muted);
   }
 
   html:not(.native-shell) .segmented button.active {
     color: #06111d;
-    background: linear-gradient(135deg, #8bd8ff, #bcb3ff);
+    background: linear-gradient(135deg, var(--accent), #c0b4ff);
   }
 
   html:not(.native-shell) .note-card:hover,
   html:not(.native-shell) .note-card:focus-visible {
     transform: translateY(-2px);
-    box-shadow: 0 24px 70px rgba(15, 23, 42, .12);
+    box-shadow: 0 26px 78px rgba(3, 8, 20, .42);
   }
 
   html:not(.native-shell) .chip,
   html:not(.native-shell) .tag-chip,
   html:not(.native-shell) .memory-chip {
-    color: #334155;
-    background: #eef5ff;
-    border-color: #dbeafe;
+    color: #dce8fb;
+    background: rgba(95, 168, 255, .11);
+    border-color: rgba(155, 179, 214, .13);
   }
 
   html:not(.native-shell) .modal-backdrop {
-    background: rgba(241, 245, 249, .72);
+    background: rgba(4, 8, 16, .72);
   }
 
   html:not(.native-shell) .modal {
-    color: #172033;
-    background: rgba(255, 255, 255, .96);
-    border-color: rgba(148, 163, 184, .28);
-    box-shadow: 0 32px 90px rgba(15, 23, 42, .18);
+    color: var(--text);
+    background: linear-gradient(180deg, rgba(15, 23, 41, .98), rgba(8, 13, 24, .98));
+    border-color: rgba(155, 179, 214, .18);
+    box-shadow: 0 32px 96px rgba(0, 0, 0, .55);
   }
 
   html:not(.native-shell) .modal-close {
-    color: #111827;
-    background: #f8fafc;
-    border-color: #dbe4f0;
+    color: var(--text);
+    background: rgba(148, 163, 184, .08);
+    border-color: rgba(148, 163, 184, .14);
   }
 
   html:not(.native-shell) .mobile-tabbar,
