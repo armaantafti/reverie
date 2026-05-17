@@ -271,9 +271,15 @@ def _parse_note_types(types: Optional[str]) -> list[str]:
 
 
 def _template_context(request: Request) -> dict[str, Any]:
+    authenticated = False
+    try:
+        authenticated = bool(_get_authenticated_user(request))
+    except Exception:
+        authenticated = False
     return {
         "request": request,
         "predefined_tags": list(PREDEFINED_TAGS),
+        "authenticated": authenticated,
     }
 
 

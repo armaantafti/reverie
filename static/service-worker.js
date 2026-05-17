@@ -1,5 +1,5 @@
-const CACHE_NAME = "reverie-pwa-v49";
-const PAGE_CACHE_NAME = "reverie-pages-v49";
+const CACHE_NAME = "reverie-pwa-v50";
+const PAGE_CACHE_NAME = "reverie-pages-v50";
 const STATIC_ASSETS = [
   "/",
   "/search",
@@ -21,6 +21,11 @@ const STATIC_ASSETS = [
   "/static/reverie-capture.js",
   "/static/reverie-shared.js",
   "/static/reverie-notifications.min.js",
+  "/static/onboarding/home.png",
+  "/static/onboarding/capture.jpg",
+  "/static/onboarding/search.png",
+  "/static/onboarding/tasks.png",
+  "/static/onboarding/account.png",
   "/static/logo_reverie.webp",
   "/static/icon-192.png",
   "/static/icon-512.png"
