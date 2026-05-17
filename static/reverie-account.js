@@ -107,7 +107,7 @@
     if (!profileCard) return;
     setProfileLoading("Loading profile...");
     try {
-      const resp = await fetch("/profile", { credentials: "same-origin", cache: "no-store" });
+      const resp = await fetch("/profile/data", { credentials: "same-origin", cache: "no-store" });
       if (resp.status === 401) {
         renderProfile({ display_name: "", email: "", timezone: "Asia/Kolkata", preferred_language: "English", auth_provider: "email" }, false);
         setProfileLoading("Sign in on Home to manage your profile.");

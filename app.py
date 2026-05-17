@@ -756,7 +756,7 @@ def get_session(request: Request):
     return response
 
 
-@app.get("/profile")
+@app.get("/profile/data")
 def get_profile(request: Request):
     user = _get_authenticated_user(request)
     profile, storage_ready = _fetch_user_profile(user)
@@ -913,6 +913,14 @@ async def uploads_page(request: Request):
 async def account_page(request: Request):
     return templates.TemplateResponse(
         "account.html",
+        _template_context(request)
+    )
+
+
+@app.get("/profile", response_class=HTMLResponse)
+async def profile_page(request: Request):
+    return templates.TemplateResponse(
+        "profile.html",
         _template_context(request)
     )
 
