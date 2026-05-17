@@ -152,12 +152,24 @@ function setAuthMode(nextMode) {
       authStatus.textContent = "";
     }
 
+    function syncMobileChrome(isAuthed) {
+      const mobileTabbar = document.querySelector(".mobile-tabbar");
+      [mobileTabbar, mobileCaptureFab].forEach((node) => {
+        if (!node) return;
+        node.classList.toggle("hidden", !isAuthed);
+        node.setAttribute("aria-hidden", isAuthed ? "false" : "true");
+        if (isAuthed) {
+          node.style.removeProperty("display");
+        }
+      });
+      document.body.classList.toggle("is-logged-out", !isAuthed);
+    }
+
     function setAuthedState(isAuthed) {
       document.documentElement.classList.remove("auth-checking");
       authPanel.classList.toggle("hidden", isAuthed);
       appShell.classList.toggle("hidden", !isAuthed);
-      document.querySelector(".mobile-tabbar")?.classList.toggle("hidden", !isAuthed);
-      mobileCaptureFab?.classList.toggle("hidden", !isAuthed);
+      syncMobileChrome(isAuthed);
       logoutBtn?.classList.toggle("hidden", !isAuthed);
       loginState.textContent = isAuthed ? "Signed in" : "Signed out";
       if (isAuthed) {
@@ -1257,6 +1269,8 @@ function setAuthMode(nextMode) {
         }
 
         authStatus.textContent = authMode === "login" ? "Logged in." : "Account created.";
+        closeCaptureComposer();
+        closeMobileAccountSheet();
         showAppForUser();
         window.ReverieOnboarding?.maybeStart?.({ delay: 700 });
         window.ReverieNotifications?.sync?.().catch((err) => console.warn("Notification sync failed", err));

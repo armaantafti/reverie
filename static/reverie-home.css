@@ -1469,7 +1469,7 @@
       }
       .modal{
         width:100%;
-        max-height:calc(100dvh - 22px);
+        max-height:calc(100dvh - 44px);
         overflow-y:auto;
         overscroll-behavior:contain;
         -webkit-overflow-scrolling:touch;
@@ -1488,6 +1488,14 @@
       }
       .modal-head{
         gap:10px;
+        position:sticky;
+        top:0;
+        z-index:4;
+        padding:2px 0 10px;
+        background:linear-gradient(180deg, rgba(15,23,41,.99), rgba(15,23,41,.94) 78%, rgba(15,23,41,0));
+      }
+      .modal-close{
+        flex:0 0 40px;
       }
       .modal-title{
         font-size:1.14rem;

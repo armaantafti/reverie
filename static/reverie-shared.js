@@ -736,6 +736,18 @@ window.ReverieShared = (() => {
   const ONBOARDING_SEEN_KEY = "reverie_onboarding_seen";
   const onboardingSteps = [
     {
+      key: "capture",
+      route: "/",
+      preview: "/static/onboarding/capture-plus.jpg",
+      title: "Capture anything from anywhere",
+      body: "Use the floating + button from any screen to add a memory, reminder, note, recommendation, screenshot, image, document, or voice input.",
+      bullets: [
+        "Type a note or reminder",
+        "Speak using voice input",
+        "Upload images, screenshots, or documents",
+      ],
+    },
+    {
       key: "home",
       route: "/",
       preview: "/static/onboarding/home.png",
@@ -745,18 +757,6 @@ window.ReverieShared = (() => {
         "See top reminders and tasks",
         "Review important surfaced memories",
         "Jump quickly into what needs attention",
-      ],
-    },
-    {
-      key: "capture",
-      route: "/",
-      preview: "/static/onboarding/capture-crop.jpg",
-      title: "Capture anything from anywhere",
-      body: "Use the floating + button from any screen to add a memory, reminder, note, recommendation, screenshot, image, document, or voice input.",
-      bullets: [
-        "Type a note or reminder",
-        "Speak using voice input",
-        "Upload images, screenshots, or documents",
       ],
     },
     {
@@ -824,6 +824,7 @@ window.ReverieShared = (() => {
     style.textContent = `
       .reverie-onboarding-backdrop{position:fixed;inset:0;z-index:520;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;padding:14px;background:rgba(2,6,14,.44);backdrop-filter:blur(2px);-webkit-backdrop-filter:blur(2px);overflow:hidden}
       .reverie-onboarding-preview-frame{width:min(300px,calc(100vw - 48px));height:min(47dvh,390px);border-radius:24px;overflow:hidden;border:1px solid rgba(219,234,254,.24);box-shadow:0 22px 62px rgba(0,0,0,.42);background:#050914}
+      .reverie-onboarding-preview-frame.capture-preview{width:min(340px,calc(100vw - 34px));height:min(38dvh,310px)}
       .reverie-onboarding-preview-frame img{width:100%;height:100%;object-fit:cover;object-position:top center;display:block}
       .reverie-onboarding-card{position:relative;z-index:2;width:min(430px,calc(100vw - 34px));border-radius:24px;padding:17px;background:linear-gradient(180deg,rgba(17,25,42,.72),rgba(8,13,24,.68));border:1px solid rgba(219,234,254,.28);box-shadow:0 24px 70px rgba(0,0,0,.48);color:var(--text,#eef4ff);backdrop-filter:blur(18px) saturate(150%);-webkit-backdrop-filter:blur(18px) saturate(150%)}
       .reverie-onboarding-kicker{margin:0 0 8px;color:var(--muted,#aab6c8);font-size:.66rem;font-weight:800;letter-spacing:.15em;text-transform:uppercase}
@@ -841,7 +842,7 @@ window.ReverieShared = (() => {
       .reverie-onboarding-button.primary{color:#06111d;border-color:transparent;background:linear-gradient(135deg,var(--accent,#88d8ff),#c2b5ff)}
       .reverie-onboarding-button.link{border-color:transparent;background:transparent;color:var(--muted,#aab6c8);padding-inline:4px}
       .reverie-onboarding-button:disabled{opacity:.45;cursor:not-allowed}
-      @media (max-width: 520px){.reverie-onboarding-backdrop{gap:9px;padding:9px 8px calc(12px + env(safe-area-inset-bottom,0px));justify-content:center}.reverie-onboarding-preview-frame{width:min(270px,calc(100vw - 54px));height:min(42dvh,340px);border-radius:22px}.reverie-onboarding-card{border-radius:21px;padding:14px;width:min(420px,calc(100vw - 24px))}.reverie-onboarding-title{font-size:.98rem}.reverie-onboarding-body{font-size:.76rem}.reverie-onboarding-list{font-size:.74rem}.reverie-onboarding-actions{align-items:stretch}.reverie-onboarding-actions-left,.reverie-onboarding-actions-right{width:100%;justify-content:space-between}.reverie-onboarding-button{flex:1;min-height:34px}}
+      @media (max-width: 520px){.reverie-onboarding-backdrop{gap:9px;padding:9px 8px calc(12px + env(safe-area-inset-bottom,0px));justify-content:center}.reverie-onboarding-preview-frame{width:min(270px,calc(100vw - 54px));height:min(42dvh,340px);border-radius:22px}.reverie-onboarding-preview-frame.capture-preview{width:min(340px,calc(100vw - 18px));height:min(34dvh,270px)}.reverie-onboarding-card{border-radius:21px;padding:14px;width:min(420px,calc(100vw - 24px))}.reverie-onboarding-title{font-size:.98rem}.reverie-onboarding-body{font-size:.76rem}.reverie-onboarding-list{font-size:.74rem}.reverie-onboarding-actions{align-items:stretch}.reverie-onboarding-actions-left,.reverie-onboarding-actions-right{width:100%;justify-content:space-between}.reverie-onboarding-button{flex:1;min-height:34px}}
     `;
     document.head.appendChild(style);
   }
@@ -878,7 +879,7 @@ window.ReverieShared = (() => {
     const isLast = onboardingIndex === onboardingSteps.length - 1;
 
     overlay.innerHTML = `
-      <div class="reverie-onboarding-preview-frame" aria-hidden="true">
+      <div class="reverie-onboarding-preview-frame${step.key === "capture" ? " capture-preview" : ""}" aria-hidden="true">
         <img src="${step.preview}" alt="" loading="eager" />
       </div>
       <section class="reverie-onboarding-card">
