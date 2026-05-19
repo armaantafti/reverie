@@ -147,8 +147,8 @@ function setAuthMode(nextMode) {
       signupTab.classList.toggle("active", !isLogin);
       authSubmit.textContent = isLogin ? "Log in" : "Sign up";
       authHint.textContent = isLogin
-        ? "Use your email and password to log in. If you are new, switch to Sign up."
-        : "Create an account with your email and password. Then log in with the same details.";
+        ? "Sign in with email, or switch to Create account if you are new."
+        : "Create a private Reverie workspace with your email and password.";
       authStatus.textContent = "";
     }
 
@@ -801,6 +801,7 @@ function setAuthMode(nextMode) {
         forYouMoreBtn?.classList.add("hidden");
         forYouEmptyEl.style.display = "";
         forYouListEl.appendChild(forYouEmptyEl);
+        forYouEmptyEl.querySelector(".empty-capture-btn")?.addEventListener("click", openCaptureSheet, { once: true });
         return;
       }
       forYouEmptyEl.style.display = "none";

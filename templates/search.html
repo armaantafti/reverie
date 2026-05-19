@@ -10,15 +10,15 @@
   <link rel="manifest" href="/static/manifest.json" />
   <link rel="icon" href="/static/icon-192.png" />
   <link rel="apple-touch-icon" href="/static/icon-192.png" />
-  <link rel="stylesheet" href="/static/reverie-list-page.css?v=59" />
-  <link rel="stylesheet" href="/static/reverie-website.css?v=59" media="(min-width: 920px) and (hover: hover) and (pointer: fine)" />
+  <link rel="stylesheet" href="/static/reverie-list-page.css?v=60" />
+  <link rel="stylesheet" href="/static/reverie-website.css?v=60" media="(min-width: 920px) and (hover: hover) and (pointer: fine)" />
 </head>
 <body class="search-page">
   <div class="shell">
     <header class="topbar">
       <div class="topbar-inner">
         <div class="brand">
-          <div class="brand-mark"><img src="/static/logo_reverie.webp?v=59" alt="Reverie" /></div>
+          <div class="brand-mark"><img src="/static/logo_reverie.webp?v=60" alt="Reverie" /></div>
           <div class="brand-copy">
             <h1 class="brand-name">Reverie</h1>
             <p class="brand-line">Remember better.</p>
@@ -230,9 +230,9 @@
     </div>
   </div>
 
-  <script src="/static/reverie-shared.js?v=59" defer></script>
-  <script src="/static/reverie-list-page.js?v=59" defer></script>
-  <script src="/static/reverie-search.min.js?v=59" defer></script>
+  <script src="/static/reverie-shared.js?v=60" defer></script>
+  <script src="/static/reverie-list-page.js?v=60" defer></script>
+  <script src="/static/reverie-search.min.js?v=60" defer></script>
   <div class="quick-capture-backdrop" id="quickCaptureBackdrop"></div>
   <section class="panel quick-capture-panel" id="quickCapturePanel">
     <div class="modal-head">
@@ -242,7 +242,12 @@
       </div>
       <button class="modal-close" id="quickCaptureClose" type="button" aria-label="Close">x</button>
     </div>
-    <textarea id="quickCaptureText" placeholder="Write a memory, reminder, or idea..."></textarea>
+    <textarea id="quickCaptureText" placeholder="What would you like to remember?"></textarea>
+    <div class="capture-examples" aria-label="Example memories">
+      <span>Call Karan about app feedback next week</span>
+      <span>Notes from today's meeting</span>
+      <span>Gift idea for mom</span>
+    </div>
     <div class="actions">
       <button class="btn btn-primary" id="quickCaptureSave" type="button">Save</button>
       <button class="btn btn-secondary voice-action" id="quickCaptureVoice" type="button" data-idle-label="Voice" data-listening-label="Listening..." data-unsupported-label="Voice unavailable" aria-pressed="false">Voice</button>
@@ -251,7 +256,7 @@
     </div>
     <div class="status-line" id="quickCaptureStatus" aria-live="polite"></div>
   </section>
-  <script src="/static/reverie-capture.js?v=59" defer></script>
+  <script src="/static/reverie-capture.js?v=60" defer></script>
   <a class="mobile-fab" href="#quickCapturePanel" aria-label="Capture memory">+</a>
   <nav class="mobile-tabbar" aria-label="Mobile primary">
     <a href="/" aria-label="Home">
@@ -281,6 +286,10 @@
         <button class="modal-close" id="mobileAccountClose" type="button" aria-label="Close">x</button>
       </div>
       <div class="account-actions">
+        <a class="account-action" href="/about">
+          <span>About Reverie</span>
+          <small>Learn what Reverie is and how to use it</small>
+        </a>
         <a class="account-action" href="/entities">
           <span>Manage Entities</span>
           <small>Merge, rename, and organize names or topics</small>
@@ -304,7 +313,7 @@
       </div>
     </div>
   </div>
-  <script src="/static/reverie-account.js?v=59" defer></script>
-  <script src="/static/reverie-notifications.min.js?v=59" defer></script>
+  <script src="/static/reverie-account.js?v=60" defer></script>
+  <script src="/static/reverie-notifications.min.js?v=60" defer></script>
 </body>
 </html>

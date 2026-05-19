@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="color-scheme" content="dark" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <title>Reverie &ndash; About</title>
+  <link rel="manifest" href="/static/manifest.json" />
+  <link rel="icon" href="/static/icon-192.png" />
+  <link rel="apple-touch-icon" href="/static/icon-192.png" />
+  <link rel="stylesheet" href="/static/reverie-list-page.css?v=60" />
+  <link rel="stylesheet" href="/static/reverie-website.css?v=60" media="(min-width: 920px) and (hover: hover) and (pointer: fine)" />
+</head>
+<body>
+  <div class="shell">
+    <header class="topbar">
+      <div class="topbar-inner">
+        <a class="brand" href="/" aria-label="Reverie Home">
+          <div class="brand-mark"><img src="/static/logo_reverie.webp?v=60" alt="Reverie" /></div>
+          <div class="brand-copy">
+            <h1 class="brand-name">Reverie</h1>
+            <p class="brand-line">Remember better.</p>
+          </div>
+        </a>
+        <nav class="nav" aria-label="Primary">
+          <a href="/">Home</a>
+          <a href="/search">Search</a>
+          <a href="/tasks">Tasks</a>
+          <a class="active" href="/account">Account</a>
+        </nav>
+        <div class="status"><span class="status-dot"></span> About</div>
+      </div>
+    </header>
+
+    <main class="page">
+      <section class="stack">
+        <article class="panel about-panel">
+          <div class="panel-head">
+            <div>
+              <div class="section-kicker">About Reverie</div>
+              <h2 class="page-title">Your private memory workspace.</h2>
+              <p class="panel-subtitle">
+                Reverie helps you capture, organize, and revisit important notes,
+                thoughts, reminders, documents, screenshots, and personal context.
+              </p>
+            </div>
+            <a class="account-return" href="/account">Back to Account</a>
+          </div>
+
+          <div class="about-grid">
+            <div class="about-card">
+              <h3>What you can do</h3>
+              <ul>
+                <li>Save memories, notes, and ideas before they get lost.</li>
+                <li>Add reminders and follow-ups from dated tasks.</li>
+                <li>Organize information by people, topics, tags, and entities.</li>
+                <li>Search past context quickly, including uploaded files.</li>
+                <li>Keep your personal workspace private and account-based.</li>
+              </ul>
+            </div>
+            <div class="about-card">
+              <h3>Why Reverie exists</h3>
+              <p>
+                Important thoughts, follow-ups, and context often get scattered across
+                chats, notes, screenshots, and memory. Reverie gives you one private
+                place to save and retrieve them when they matter.
+              </p>
+            </div>
+            <div class="about-card">
+              <h3>Privacy note</h3>
+              <p>
+                Your memories stay tied to your account. Uploaded files, extracted text,
+                reminders, and profile details are used to provide Reverie features.
+              </p>
+              <a class="btn btn-secondary" href="/privacy">Read Privacy Policy</a>
+            </div>
+            <div class="about-card">
+              <h3>App information</h3>
+              <p><strong>Version:</strong> 2.0 beta</p>
+              <p><strong>Support:</strong> privacy@reverie.app</p>
+              <p><strong>Account deletion:</strong> available from Account settings.</p>
+            </div>
+          </div>
+        </article>
+      </section>
+    </main>
+  </div>
+
+  <script src="/static/reverie-shared.js?v=60" defer></script>
+  <nav class="mobile-tabbar" aria-label="Mobile primary">
+    <a href="/" aria-label="Home"><span class="tab-icon">&#8962;</span><span>Home</span></a>
+    <a href="/search" aria-label="Search"><span class="tab-icon">&#8981;</span><span>Search</span></a>
+    <a href="/tasks" aria-label="Tasks"><span class="tab-icon">&#10003;</span><span>Tasks</span></a>
+    <a class="active" href="/account" aria-label="Account"><span class="tab-icon">&#9881;</span><span>Account</span></a>
+  </nav>
+</body>
+</html>

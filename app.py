@@ -917,6 +917,14 @@ async def account_page(request: Request):
     )
 
 
+@app.get("/about", response_class=HTMLResponse)
+async def about_page(request: Request):
+    return templates.TemplateResponse(
+        "about.html",
+        _template_context(request)
+    )
+
+
 @app.get("/profile", response_class=HTMLResponse)
 async def profile_page(request: Request):
     return templates.TemplateResponse(

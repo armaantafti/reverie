@@ -760,11 +760,23 @@ window.ReverieShared = (() => {
   const ONBOARDING_SEEN_KEY = "reverie_onboarding_seen";
   const onboardingSteps = [
     {
+      key: "intro",
+      route: "/",
+      preview: "/static/onboarding/home.png",
+      title: "What is Reverie?",
+      body: "Reverie helps you save important thoughts, conversations, tasks, reminders, and files in one private workspace.",
+      bullets: [
+        "Capture memories and notes quickly",
+        "Organize information by context",
+        "Search your personal knowledge later",
+      ],
+    },
+    {
       key: "capture",
       route: "/",
       preview: "/static/onboarding/capture-plus.jpg",
-      title: "Capture anything from anywhere",
-      body: "Use the floating + button from any screen to add a memory, reminder, note, recommendation, screenshot, image, document, or voice input.",
+      title: "Capture what matters",
+      body: "Save notes, thoughts, conversations, reminders, documents, and ideas before they get lost.",
       bullets: [
         "Type a note or reminder",
         "Speak using voice input",
@@ -775,20 +787,20 @@ window.ReverieShared = (() => {
       key: "home",
       route: "/",
       preview: "/static/onboarding/home.png",
-      title: "Your day at a glance",
-      body: "Home gives you a quick summary of your most relevant reminders, tasks, and surfaced memories so you know what needs attention first.",
+      title: "Add useful context",
+      body: "Reverie turns saved memories into organized context with dates, people, topics, and follow-ups where possible.",
       bullets: [
-        "See top reminders and tasks",
-        "Review important surfaced memories",
-        "Jump quickly into what needs attention",
+        "See relevant reminders and tasks",
+        "Review surfaced memories",
+        "Open the details that need attention",
       ],
     },
     {
       key: "search",
       route: "/search",
       preview: "/static/onboarding/search.png",
-      title: "Find anything instantly",
-      body: "Use Search to find saved memories, reminders, uploads, people, topics, and entities. Smart Search helps you ask natural questions.",
+      title: "Find it when needed",
+      body: "Search saved memories instead of scrolling through chats, notes, files, and old screenshots.",
       bullets: [
         "Search across saved content",
         "Use Smart Search for natural questions",
@@ -799,8 +811,8 @@ window.ReverieShared = (() => {
       key: "tasks",
       route: "/tasks",
       preview: "/static/onboarding/tasks.png",
-      title: "Turn memories into action",
-      body: "Use Tasks to review reminders and follow-ups detected from your memories. Track what is pending, completed, or skipped.",
+      title: "Stay on top of things",
+      body: "Use reminders and follow-ups to act on important items at the right time.",
       bullets: [
         "Review pending reminders",
         "Mark tasks completed or skipped",
@@ -812,7 +824,7 @@ window.ReverieShared = (() => {
       route: "/account",
       preview: "/static/onboarding/account.png",
       title: "Manage your workspace",
-      body: "Use Account to manage your Reverie workspace, privacy options, uploads, names, entities, topics, and account settings.",
+      body: "Use Account to manage your profile, privacy options, uploads, names, entities, topics, and workspace settings.",
       bullets: [
         "Manage names, entities, and topics",
         "Review privacy and uploads",
@@ -1055,7 +1067,7 @@ window.ReverieShared = (() => {
       button.id = actions.classList.contains("account-page-actions") ? "replayOnboardingBtn" : "";
       button.type = "button";
       button.dataset.replayOnboarding = "1";
-      button.innerHTML = "<span>Replay Tutorial</span><small>See how Home, Capture, Search, Tasks, and Account work</small>";
+      button.innerHTML = "<span>Replay Tutorial</span><small>See what Reverie does and how the main screens work</small>";
       const privacyLink = actions.querySelector('a[href="/privacy"]');
       actions.insertBefore(button, privacyLink || actions.firstChild);
     });
@@ -1089,7 +1101,7 @@ window.ReverieShared = (() => {
 
   function isAppShellRoute(url) {
     if (url.origin !== window.location.origin) return false;
-    return ["/search", "/tasks", "/account"].includes(url.pathname);
+    return ["/search", "/tasks", "/account", "/about"].includes(url.pathname);
   }
 
   function runDynamicScript(sourceScript) {
