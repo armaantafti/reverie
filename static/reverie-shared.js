@@ -1049,7 +1049,7 @@ window.ReverieShared = (() => {
 
   function installReplayTutorialAction() {
     document.querySelectorAll(".account-actions").forEach((actions) => {
-      if (actions.querySelector("[data-replay-onboarding]")) return;
+      if (actions.querySelector("[data-replay-onboarding], #replayOnboardingBtn")) return;
       const button = document.createElement("button");
       button.className = "account-action";
       button.id = actions.classList.contains("account-page-actions") ? "replayOnboardingBtn" : "";
